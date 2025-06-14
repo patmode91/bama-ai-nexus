@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,12 +12,15 @@ import {
   CheckCircle,
   Clock,
   Bot,
-  Zap
+  Zap,
+  BarChart3,
+  Activity
 } from 'lucide-react';
 import TheCurator from '@/components/ai/TheCurator';
 import BusinessManagement from './BusinessManagement';
 import UserManagement from './UserManagement';
 import SystemMonitoring from './SystemMonitoring';
+import CacheMonitoring from './CacheMonitoring';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,12 +70,27 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-gray-800">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="curator">The Curator</TabsTrigger>
-            <TabsTrigger value="businesses">Businesses</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+          <TabsList className="bg-gray-800 w-full grid grid-cols-5">
+            <TabsTrigger value="overview" className="flex-1">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="businesses" className="flex-1">
+              <Building2 className="w-4 h-4 mr-2" />
+              Businesses
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex-1">
+              <Users className="w-4 h-4 mr-2" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="monitoring" className="flex-1">
+              <Activity className="w-4 h-4 mr-2" />
+              Monitoring
+            </TabsTrigger>
+            <TabsTrigger value="cache" className="flex-1">
+              <Database className="w-4 h-4 mr-2" />
+              Cache
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -214,6 +231,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="monitoring">
             <SystemMonitoring />
+          </TabsContent>
+
+          <TabsContent value="cache">
+            <CacheMonitoring />
           </TabsContent>
         </Tabs>
       </div>
