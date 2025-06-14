@@ -14,6 +14,7 @@ import BusinessStats from '@/components/business/BusinessStats';
 import CategoryBrowser from '@/components/business/CategoryBrowser';
 import SEO from '@/components/seo/SEO';
 import { useIndexPage } from '@/hooks/useIndexPage';
+import ComparisonBar from '@/components/comparison/ComparisonBar';
 
 const Index = () => {
   const {
@@ -32,11 +33,21 @@ const Index = () => {
     handleSearch,
     handleCategorySelect,
     displayedCompanies,
+    comparisonList,
+    comparisonBusinesses,
+    addOrRemoveFromComparison,
+    isCompared,
+    clearComparison,
   } = useIndexPage();
 
   const handleViewProfile = (companyId: number) => {
     console.log('Viewing profile for company:', companyId);
     // Navigate to company profile
+  };
+
+  const handleCompare = () => {
+    // For now, just log to the console. We'll build the comparison page next.
+    console.log('Comparing businesses:', comparisonBusinesses);
   };
 
   if (showAuth) {
@@ -117,6 +128,9 @@ const Index = () => {
         hasError={!!businessesError}
         isFiltered={filteredCompanies.length > 0}
         onViewProfile={handleViewProfile}
+        comparisonList={comparisonList}
+        addOrRemoveFromComparison={addOrRemoveFromComparison}
+        isCompared={isCompared}
       />
 
       <CTASection />
@@ -126,6 +140,15 @@ const Index = () => {
       <MobileNavigation />
       
       <EnhancedBamaBot />
+
+      {comparisonList.length > 0 && (
+        <ComparisonBar
+          businesses={comparisonBusinesses}
+          onClear={clearComparison}
+          onCompare={handleCompare}
+          onRemove={addOrRemoveFromComparison}
+        />
+      )}
     </div>
   );
 };

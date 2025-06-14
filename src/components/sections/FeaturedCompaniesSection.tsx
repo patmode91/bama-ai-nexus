@@ -1,6 +1,5 @@
-
-import BusinessCard from '@/components/business/BusinessCard';
 import { Business } from '@/hooks/useBusinesses';
+import BusinessCard from '@/components/business/BusinessCard';
 
 interface FeaturedCompaniesSectionProps {
   companies: Business[];
@@ -8,34 +7,26 @@ interface FeaturedCompaniesSectionProps {
   hasError: boolean;
   isFiltered: boolean;
   onViewProfile: (businessId: number) => void;
+  comparisonList: number[];
+  addOrRemoveFromComparison: (businessId: number) => void;
+  isCompared: (businessId: number) => boolean;
 }
 
-const FeaturedCompaniesSection = ({ 
-  companies, 
-  isLoading, 
-  hasError, 
+const FeaturedCompaniesSection = ({
+  companies,
+  isLoading,
+  hasError,
   isFiltered,
-  onViewProfile 
+  onViewProfile,
+  comparisonList,
+  addOrRemoveFromComparison,
+  isCompared
 }: FeaturedCompaniesSectionProps) => {
-  if (hasError) {
-    return (
-      <section id="directory" className="py-16 px-6 bg-gray-800">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">Error Loading Directory</h2>
-            <p className="text-gray-300">
-              There was an issue loading the business directory. Please try again later.
-            </p>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   if (isLoading) {
     return (
-      <section id="directory" className="py-16 px-6 bg-gray-800">
-        <div className="container mx-auto max-w-6xl">
+      <section className="py-16 px-6">
+        <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-white mb-4">
               {isFiltered ? 'Search Results' : 'Featured Companies'}
@@ -63,42 +54,53 @@ const FeaturedCompaniesSection = ({
     );
   }
 
+  if (hasError) {
+    return (
+      <section id="directory" className="py-16 px-6 bg-gray-800">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-white mb-4">Error Loading Directory</h2>
+            <p className="text-gray-300">
+              There was an issue loading the business directory. Please try again later.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section id="directory" className="py-16 px-6 bg-gray-800">
-      <div className="container mx-auto max-w-6xl">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            {isFiltered ? `Search Results (${companies.length})` : 'Featured Companies'}
+    <section className="py-16 px-6">
+      <div className="container mx-auto">
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold text-white mb-2">
+            {isFiltered ? 'Search Results' : 'Featured Companies'}
           </h2>
-          <p className="text-gray-300">
-            {isFiltered 
-              ? 'Businesses matching your search criteria'
-              : 'Discover Alabama\'s leading AI and technology companies'
-            }
+          <p className="text-gray-400">
+            {isFiltered ? 'Showing businesses that match your criteria.' : 'Discover leading AI and technology companies in Alabama.'}
           </p>
         </div>
         
-        {companies.length === 0 ? (
-          <div className="text-center py-12">
-            <h3 className="text-xl font-semibold text-gray-300 mb-2">
-              {isFiltered ? 'No businesses found' : 'No companies available'}
-            </h3>
-            <p className="text-gray-400">
-              {isFiltered 
-                ? 'Try adjusting your search criteria or browse all companies.'
-                : 'Check back soon for new additions to our directory.'
-              }
-            </p>
+        {companies.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {companies.map(business => {
+              const isSelected = isCompared(business.id);
+              return (
+                <BusinessCard 
+                  key={business.id}
+                  business={business}
+                  onViewProfile={onViewProfile}
+                  onCompareToggle={addOrRemoveFromComparison}
+                  isCompared={isSelected}
+                  isCompareDisabled={!isSelected && comparisonList.length >= 4}
+                />
+              )
+            })}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {companies.map((business) => (
-              <BusinessCard
-                key={business.id}
-                business={business}
-                onViewProfile={onViewProfile}
-              />
-            ))}
+          <div className="text-center py-12 bg-gray-800/50 rounded-lg">
+            <h3 className="text-xl font-semibold text-white">No Companies Found</h3>
+            <p className="text-gray-400 mt-2">Try adjusting your search filters or check back later.</p>
           </div>
         )}
       </div>

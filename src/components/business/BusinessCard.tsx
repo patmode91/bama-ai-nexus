@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Users, Calendar, Star, Heart, ExternalLink, Mail, Shield } from 'lucide-react';
+import { Building2, MapPin, Users, Calendar, Star, Heart, ExternalLink, Mail, Shield, ClipboardList } from 'lucide-react';
 import { Business } from '@/hooks/useBusinesses';
 import { useSavedBusinesses } from '@/hooks/useSavedBusinesses';
 import { useTrackEvent } from '@/hooks/useAnalytics';
@@ -13,9 +13,12 @@ import ClaimBusinessForm from './ClaimBusinessForm';
 interface BusinessCardProps {
   business: Business;
   onViewProfile: (businessId: number) => void;
+  onCompareToggle: (businessId: number) => void;
+  isCompared: boolean;
+  isCompareDisabled: boolean;
 }
 
-const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
+const BusinessCard = ({ business, onViewProfile, onCompareToggle, isCompared, isCompareDisabled }: BusinessCardProps) => {
   const [user, setUser] = useState<any>(null);
   const [showClaimForm, setShowClaimForm] = useState(false);
   const { isBusinessSaved, saveBusiness, unsaveBusiness, isSaving, isUnsaving } = useSavedBusinesses();
@@ -94,8 +97,8 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
   }
 
   return (
-    <Card className="bg-gray-800 border-gray-700 hover:border-[#00C2FF] transition-all duration-300 h-full">
-      <CardContent className="p-6">
+    <Card className="bg-gray-800 border-gray-700 hover:border-[#00C2FF] transition-all duration-300 h-full flex flex-col">
+      <CardContent className="p-6 flex-grow">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
@@ -107,7 +110,7 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
                 />
               ) : (
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-[#00C2FF] rounded flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-white" />
+                  <Building2 className="w-4 h-4" />
                 </div>
               )}
               <h3 className="text-xl font-semibold text-white line-clamp-1">
@@ -196,7 +199,8 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
             )}
           </div>
         )}
-
+      </CardContent>
+      <div className="p-6 pt-0 mt-auto">
         <div className="flex gap-2 pt-4 border-t border-gray-700">
           <Button 
             onClick={handleViewProfile}
@@ -206,6 +210,17 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
             View Profile
           </Button>
           
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onCompareToggle(business.id)}
+            disabled={isCompareDisabled}
+            className={`border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed ${isCompared ? 'bg-blue-500/20 text-blue-400 border-blue-400/30' : ''}`}
+            aria-label="Add to comparison"
+          >
+            <ClipboardList className="w-4 h-4" />
+          </Button>
+
           {!isOwned && user && (
             <Button
               variant="outline"
@@ -239,7 +254,7 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
             </Button>
           )}
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 };

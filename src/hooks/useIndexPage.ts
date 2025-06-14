@@ -1,16 +1,39 @@
+
 import { useState } from 'react';
-import { useBusinesses } from '@/hooks/useBusinesses';
+import { useBusinesses, Business } from '@/hooks/useBusinesses';
 import { SearchFilters } from '@/types/search';
 
 export const useIndexPage = () => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
-  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
+  const [filteredCompanies, setFilteredCompanies] = useState<Business[]>([]);
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState<'directory' | 'categories'>('directory');
+  const [comparisonList, setComparisonList] = useState<number[]>([]);
 
   const { data: businesses, isLoading: businessesLoading, error: businessesError } = useBusinesses();
+
+  const addOrRemoveFromComparison = (businessId: number) => {
+    setComparisonList(prev => {
+      if (prev.includes(businessId)) {
+        return prev.filter(id => id !== businessId);
+      }
+      if (prev.length < 4) {
+        return [...prev, businessId];
+      }
+      // Note: We could add a toast notification here to inform the user about the limit.
+      return prev;
+    });
+  };
+
+  const isCompared = (businessId: number) => {
+    return comparisonList.includes(businessId);
+  };
+
+  const clearComparison = () => {
+    setComparisonList([]);
+  };
 
   const handleQuizComplete = (answers: Record<string, string>) => {
     setUserAnswers(answers);
@@ -127,7 +150,9 @@ export const useIndexPage = () => {
   };
 
   const featuredCompanies = businesses?.slice(0, 6) || [];
-  const displayedCompanies = filteredCompanies.length > 0 ? filteredCompanies : featuredCompanies;
+  const displayedCompanies = filteredCompanies.length > 0 ? filteredCompanies : (businesses || []);
+
+  const comparisonBusinesses = businesses?.filter(b => comparisonList.includes(b.id)) || [];
 
   return {
     showQuiz,
@@ -140,11 +165,17 @@ export const useIndexPage = () => {
     setShowAuth,
     currentView,
     setCurrentView,
+    businesses,
     businessesLoading,
     businessesError,
     handleQuizComplete,
     handleSearch,
     handleCategorySelect,
     displayedCompanies,
+    comparisonList,
+    comparisonBusinesses,
+    addOrRemoveFromComparison,
+    isCompared,
+    clearComparison,
   };
 };
