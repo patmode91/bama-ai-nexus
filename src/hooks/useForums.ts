@@ -120,7 +120,7 @@ export const useForums = () => {
   };
 
   // Create topic mutation
-  const createTopic = useMutation({
+  const createTopicMutation = useMutation({
     mutationFn: async (data: CreateTopicData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Must be logged in');
@@ -154,7 +154,7 @@ export const useForums = () => {
   });
 
   // Create reply mutation
-  const createReply = useMutation({
+  const createReplyMutation = useMutation({
     mutationFn: async (data: CreateReplyData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Must be logged in');
@@ -239,8 +239,10 @@ export const useForums = () => {
     categoriesLoading,
     topics,
     topicsLoading,
-    createTopic: createTopic.mutate,
-    createReply: createReply.mutate,
+    createTopic: createTopicMutation.mutate,
+    createReply: createReplyMutation.mutate,
+    isCreatingTopic: createTopicMutation.isPending,
+    isCreatingReply: createReplyMutation.isPending,
     getReplies,
     getTopic,
     getTopics,

@@ -1,51 +1,80 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { MessageSquare, Plus, Users, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, MessageSquare, Users, TrendingUp } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
-import SEO from '@/components/seo/SEO';
 import ForumCard from '@/components/forums/ForumCard';
-import CreateTopicForm from '@/components/forums/CreateTopicForm';
 import TopicView from '@/components/forums/TopicView';
+import CreateTopicForm from '@/components/forums/CreateTopicForm';
+import SEO from '@/components/seo/SEO';
 import { useForums } from '@/hooks/useForums';
+import { ForumTopic, ForumReply } from '@/types/forums';
 
 const Forums = () => {
-  const { categories, categoriesLoading, getTopics, getTopic, getReplies } = useForums();
+  const { topicId } = useParams();
+  const navigate = useNavigate();
+  const { categories, categoriesLoading, topics, topicsLoading, getTopic, getReplies } = useForums();
+  const [showCreateTopic, setShowCreateTopic] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTopicId, setSelectedTopicId] = useState<string>('');
-  const [createTopicOpen, setCreateTopicOpen] = useState(false);
+  const [currentTopic, setCurrentTopic] = useState<ForumTopic | null>(null);
+  const [currentReplies, setCurrentReplies] = useState<ForumReply[]>([]);
+  const [topicLoading, setTopicLoading] = useState(false);
+  const [repliesLoading, setRepliesLoading] = useState(false);
 
-  const { data: topics = [], isLoading: topicsLoading } = getTopics(selectedCategory || undefined);
-  const { data: selectedTopic } = getTopic(selectedTopicId);
-  const { data: replies = [] } = getReplies(selectedTopicId);
+  // Load topic and replies when topicId changes
+  useEffect(() => {
+    if (topicId) {
+      loadTopicAndReplies(topicId);
+    } else {
+      setCurrentTopic(null);
+      setCurrentReplies([]);
+    }
+  }, [topicId]);
 
-  const filteredTopics = topics.filter(topic =>
-    topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    topic.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const loadTopicAndReplies = async (id: string) => {
+    setTopicLoading(true);
+    setRepliesLoading(true);
+    
+    try {
+      const [topic, replies] = await Promise.all([
+        getTopic(id),
+        getReplies(id)
+      ]);
+      
+      setCurrentTopic(topic);
+      setCurrentReplies(replies);
+    } catch (error) {
+      console.error('Error loading topic:', error);
+    } finally {
+      setTopicLoading(false);
+      setRepliesLoading(false);
+    }
+  };
 
-  if (selectedTopicId && selectedTopic) {
+  const filteredTopics = selectedCategory
+    ? topics.filter(topic => topic.category_id === selectedCategory)
+    : topics;
+
+  if (topicId && currentTopic) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
         <SEO 
-          title={selectedTopic.title}
-          description={selectedTopic.content.substring(0, 160)}
+          title={`${currentTopic.title} - Forums`}
+          description={`Join the discussion about ${currentTopic.title} in Alabama's AI community forums`}
         />
         <Header />
-        <main className="container mx-auto px-6 py-8">
-          <TopicView
-            topic={selectedTopic}
-            replies={replies}
-            onBack={() => setSelectedTopicId('')}
+        <div className="container mx-auto px-6 py-16">
+          <TopicView 
+            topic={currentTopic}
+            replies={currentReplies}
+            isLoading={topicLoading || repliesLoading}
+            onBack={() => navigate('/forums')}
           />
-        </main>
+        </div>
         <Footer />
       </div>
     );
@@ -54,136 +83,146 @@ const Forums = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
       <SEO 
-        title="Discussion Forums"
-        description="Join the conversation with Alabama's AI community. Share insights, ask questions, and connect with fellow entrepreneurs and tech enthusiasts."
+        title="Community Forums"
+        description="Connect with Alabama's AI community. Share insights, ask questions, and collaborate on the future of artificial intelligence."
       />
-      
       <Header />
-
-      <main className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">Community Forums</h1>
-          <p className="text-gray-300 text-lg">
-            Connect with Alabama's AI community. Share insights, ask questions, and learn from fellow entrepreneurs.
+      
+      <div className="container mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
+            <MessageSquare className="w-10 h-10 text-[#00C2FF]" />
+            Community Forums
+          </h1>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            Connect with Alabama's AI community. Share insights, ask questions, and collaborate.
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6 text-center">
-              <MessageSquare className="w-8 h-8 text-[#00C2FF] mx-auto mb-2" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-[#00C2FF]" />
+                Active Topics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="text-2xl font-bold text-white">{topics.length}</div>
-              <div className="text-gray-400">Active Topics</div>
             </CardContent>
           </Card>
+
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6 text-center">
-              <Users className="w-8 h-8 text-[#00C2FF] mx-auto mb-2" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-green-400" />
+                Categories
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="text-2xl font-bold text-white">{categories.length}</div>
-              <div className="text-gray-400">Categories</div>
             </CardContent>
           </Card>
+
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6 text-center">
-              <TrendingUp className="w-8 h-8 text-[#00C2FF] mx-auto mb-2" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-400" />
+                This Week
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="text-2xl font-bold text-white">
-                {topics.reduce((sum, topic) => sum + (topic.reply_count || 0), 0)}
+                {topics.filter(t => 
+                  new Date(t.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                ).length}
               </div>
-              <div className="text-gray-400">Total Replies</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Categories */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Categories</h2>
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Button
-              variant={selectedCategory === '' ? 'default' : 'outline'}
-              onClick={() => setSelectedCategory('')}
-              className="mb-2"
-            >
-              All Categories
-            </Button>
-            {categories.map((category) => (
-              <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(category.id)}
-                className="mb-2"
-              >
-                {category.name}
-              </Button>
-            ))}
-          </div>
-        </div>
+        {/* Main Content */}
+        <div className="grid lg:grid-cols-4 gap-8">
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <Card className="bg-gray-800 border-gray-700 mb-6">
+              <CardHeader>
+                <Button 
+                  onClick={() => setShowCreateTopic(true)}
+                  className="w-full bg-[#00C2FF] hover:bg-[#00A8D8]"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Topic
+                </Button>
+              </CardHeader>
+            </Card>
 
-        {/* Search and Create */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search topics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Dialog open={createTopicOpen} onOpenChange={setCreateTopicOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#00C2FF] hover:bg-[#0099CC]">
-                <Plus className="w-4 h-4 mr-2" />
-                New Topic
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create New Topic</DialogTitle>
-              </DialogHeader>
-              <CreateTopicForm
-                onSuccess={() => setCreateTopicOpen(false)}
-                initialCategoryId={selectedCategory}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Topics List */}
-        <div className="space-y-4">
-          {topicsLoading ? (
-            <div className="text-center py-8">
-              <div className="text-gray-400">Loading topics...</div>
-            </div>
-          ) : filteredTopics.length === 0 ? (
             <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="text-center py-12">
-                <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-white mb-2">No topics found</h3>
-                <p className="text-gray-400 mb-4">
-                  {searchQuery ? 'Try adjusting your search terms.' : 'Be the first to start a discussion!'}
-                </p>
-                <Dialog open={createTopicOpen} onOpenChange={setCreateTopicOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-[#00C2FF] hover:bg-[#0099CC]">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First Topic
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
+              <CardHeader>
+                <CardTitle className="text-white">Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button
+                  variant={selectedCategory === '' ? 'default' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => setSelectedCategory('')}
+                >
+                  All Topics
+                </Button>
+                {categories.map((category) => (
+                  <Button
+                    key={category.id}
+                    variant={selectedCategory === category.id ? 'default' : 'ghost'}
+                    className="w-full justify-start"
+                    onClick={() => setSelectedCategory(category.id)}
+                  >
+                    {category.name}
+                  </Button>
+                ))}
               </CardContent>
             </Card>
-          ) : (
-            filteredTopics.map((topic) => (
-              <ForumCard
-                key={topic.id}
-                topic={topic}
-                onClick={() => setSelectedTopicId(topic.id)}
-              />
-            ))
-          )}
+          </div>
+
+          {/* Topics List */}
+          <div className="lg:col-span-3">
+            {topicsLoading ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400">Loading topics...</div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredTopics.map((topic) => (
+                  <ForumCard 
+                    key={topic.id} 
+                    topic={topic}
+                    onClick={() => navigate(`/forums/${topic.id}`)}
+                  />
+                ))}
+                
+                {filteredTopics.length === 0 && (
+                  <Card className="bg-gray-800 border-gray-700">
+                    <CardContent className="py-8 text-center">
+                      <div className="text-gray-400">No topics found</div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Create Topic Modal */}
+      {showCreateTopic && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CreateTopicForm 
+            categories={categories}
+            onClose={() => setShowCreateTopic(false)}
+          />
+        </div>
+      )}
 
       <Footer />
     </div>
