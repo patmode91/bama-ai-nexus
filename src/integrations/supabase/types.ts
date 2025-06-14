@@ -102,12 +102,52 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_businesses: {
+        Row: {
+          business_id: number
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          business_id: number
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          business_id?: number
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_businesses_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_saved_business_ids: {
+        Args: { user_id: string }
+        Returns: number[]
+      }
+      save_business: {
+        Args: { user_id: string; business_id: number }
+        Returns: undefined
+      }
+      unsave_business: {
+        Args: { user_id: string; business_id: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
