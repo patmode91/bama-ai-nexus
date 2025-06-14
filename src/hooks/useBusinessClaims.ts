@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,7 +30,7 @@ export const useBusinessClaims = () => {
       }
 
       console.log('Fetched business claims:', data);
-      return data || [];
+      return (data || []) as BusinessClaim[];
     },
   });
 };
