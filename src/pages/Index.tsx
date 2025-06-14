@@ -2,6 +2,9 @@
 import QuickStartQuiz from '@/components/ai/QuickStartQuiz';
 import AIMatchmaking from '@/components/ai/AIMatchmaking';
 import MobileNavigation from '@/components/mobile/MobileNavigation';
+import PWAInstallBanner from '@/components/mobile/PWAInstallBanner';
+import OfflineBanner from '@/components/mobile/OfflineBanner';
+import LocationBasedSearch from '@/components/mobile/LocationBasedSearch';
 import EnhancedBamaBot from '@/components/ai/EnhancedBamaBot';
 import AuthPage from '@/components/auth/AuthPage';
 import Header from '@/components/sections/Header';
@@ -53,6 +56,11 @@ const Index = () => {
     }
   };
 
+  const handleLocationBasedSearch = (businesses: any[]) => {
+    setFilteredCompanies(businesses);
+    setCurrentView('directory');
+  };
+
   if (showAuth) {
     return (
       <AuthPage 
@@ -68,6 +76,11 @@ const Index = () => {
         title="Home"
         description="Discover, connect, and grow with Alabama's thriving artificial intelligence community. From Birmingham to Huntsville, find the AI solutions and talent that drive innovation."
       />
+      
+      {/* PWA and Mobile Components */}
+      <OfflineBanner />
+      <PWAInstallBanner />
+      
       <Header />
 
       <HeroSection 
@@ -102,6 +115,13 @@ const Index = () => {
       <section className="py-8 px-6 bg-gray-900">
         <div className="container mx-auto">
           <BusinessStats />
+        </div>
+      </section>
+
+      {/* Location-Based Search - Mobile First */}
+      <section className="py-8 px-6 bg-gray-800">
+        <div className="container mx-auto max-w-2xl">
+          <LocationBasedSearch onBusinessesFound={handleLocationBasedSearch} />
         </div>
       </section>
 

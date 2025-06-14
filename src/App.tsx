@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ComparisonPage from "./pages/ComparisonPage";
 import Integrations from "./pages/Integrations";
+import MobileSettings from "./pages/MobileSettings";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,7 @@ function App() {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/dashboard" element={<BusinessDashboard />} />
               <Route path="/integrations" element={<Integrations />} />
+              <Route path="/mobile-settings" element={<MobileSettings />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,0 +1,60 @@
+
+{
+  "name": "BamaAI Connect - Alabama's AI Ecosystem",
+  "short_name": "BamaAI Connect",
+  "description": "Discover, connect, and grow with Alabama's thriving artificial intelligence community",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#374151",
+  "theme_color": "#00C2FF",
+  "orientation": "portrait-primary",
+  "categories": ["business", "networking", "technology"],
+  "icons": [
+    {
+      "src": "placeholder.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "placeholder.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "placeholder.svg",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Business Directory",
+      "short_name": "Directory",
+      "description": "Browse AI businesses in Alabama",
+      "url": "/#directory",
+      "icons": [
+        {
+          "src": "placeholder.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "View your profile",
+      "url": "/profile",
+      "icons": [
+        {
+          "src": "placeholder.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}
