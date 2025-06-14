@@ -1,12 +1,19 @@
+
 import { useState } from 'react';
 import { Search, MapPin, Building2, Users, TrendingUp, Zap, ArrowRight, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import SearchFilters from '@/components/search/SearchFilters';
+import QuickStartQuiz from '@/components/ai/QuickStartQuiz';
+import AIMatchmaking from '@/components/ai/AIMatchmaking';
+import MobileNavigation from '@/components/mobile/MobileNavigation';
 
 const Index = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
+  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
 
   // Mock data for demonstration
   const featuredCompanies = [
@@ -49,10 +56,27 @@ const Index = () => {
     { label: "Success Stories", value: "50+", icon: Star }
   ];
 
+  const handleQuizComplete = (answers: Record<string, string>) => {
+    setUserAnswers(answers);
+    setQuizCompleted(true);
+    setShowQuiz(false);
+  };
+
+  const handleSearch = (query: string, filters: any) => {
+    // Mock search implementation
+    console.log('Searching with:', query, filters);
+    setFilteredCompanies(featuredCompanies);
+  };
+
+  const handleViewProfile = (companyId: number) => {
+    console.log('Viewing profile for company:', companyId);
+    // Navigate to company profile
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
       {/* Header */}
-      <header className="border-b border-gray-600 bg-gray-700/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-gray-600 bg-gray-700/80 backdrop-blur-md sticky top-0 z-40">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -92,28 +116,24 @@ const Index = () => {
             From Birmingham to Huntsville, find the AI solutions and talent that drive innovation.
           </p>
           
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-12">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input
-                placeholder="Search for AI companies, jobs, or expertise..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 py-4 text-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400 focus:border-[#00C2FF] rounded-full"
-              />
-              <Button 
-                size="lg" 
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#00C2FF] hover:bg-[#00A8D8] rounded-full px-8"
-              >
-                Search
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
+          {/* Quick Start CTA */}
+          <div className="mb-8">
+            <Button 
+              onClick={() => setShowQuiz(true)}
+              size="lg" 
+              className="bg-gradient-to-r from-[#00C2FF] to-blue-600 hover:from-[#00A8D8] hover:to-blue-500 text-white font-semibold px-8 py-4 rounded-full shadow-lg"
+            >
+              <Zap className="w-5 h-5 mr-2" />
+              Get AI-Powered Recommendations
+            </Button>
+            <p className="text-sm text-gray-400 mt-2">Takes 30 seconds • Get personalized matches</p>
           </div>
 
+          {/* Enhanced Search Bar */}
+          <SearchFilters onSearch={handleSearch} onClear={() => setFilteredCompanies([])} />
+
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
             {stats.map((stat, index) => (
               <div key={index} className="bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-700">
                 <stat.icon className="w-8 h-8 text-[#00C2FF] mb-3 mx-auto" />
@@ -124,6 +144,28 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Quick Start Quiz Modal */}
+      {showQuiz && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <QuickStartQuiz 
+            onComplete={handleQuizComplete}
+            onSkip={() => setShowQuiz(false)}
+          />
+        </div>
+      )}
+
+      {/* AI Matchmaking Results */}
+      {quizCompleted && (
+        <section className="py-16 px-6 bg-gray-800">
+          <div className="container mx-auto max-w-4xl">
+            <AIMatchmaking 
+              userAnswers={userAnswers}
+              onViewProfile={handleViewProfile}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Featured Companies */}
       <section id="directory" className="py-16 px-6 bg-gray-800">
@@ -253,6 +295,9 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* Mobile Navigation */}
+      <MobileNavigation />
     </div>
   );
 };
