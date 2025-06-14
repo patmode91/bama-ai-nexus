@@ -44,6 +44,50 @@ export type Database = {
           },
         ]
       }
+      business_claims: {
+        Row: {
+          admin_notes: string | null
+          business_id: number
+          claim_type: string
+          created_at: string
+          id: string
+          status: string
+          supporting_documents: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          business_id: number
+          claim_type?: string
+          created_at?: string
+          id?: string
+          status?: string
+          supporting_documents?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          business_id?: number
+          claim_type?: string
+          created_at?: string
+          id?: string
+          status?: string
+          supporting_documents?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_claims_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           businessname: string | null
@@ -58,6 +102,7 @@ export type Database = {
           interestcheckbox: boolean | null
           location: string | null
           logo_url: string | null
+          owner_id: string | null
           rating: number | null
           tags: string[] | null
           updated_at: string | null
@@ -77,6 +122,7 @@ export type Database = {
           interestcheckbox?: boolean | null
           location?: string | null
           logo_url?: string | null
+          owner_id?: string | null
           rating?: number | null
           tags?: string[] | null
           updated_at?: string | null
@@ -96,6 +142,7 @@ export type Database = {
           interestcheckbox?: boolean | null
           location?: string | null
           logo_url?: string | null
+          owner_id?: string | null
           rating?: number | null
           tags?: string[] | null
           updated_at?: string | null
@@ -253,6 +300,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_business_claim: {
+        Args: { claim_id: string }
+        Returns: undefined
+      }
       get_saved_business_ids: {
         Args: { user_id: string }
         Returns: number[]

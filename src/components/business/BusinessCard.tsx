@@ -1,14 +1,14 @@
-
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Users, Calendar, Star, Heart, ExternalLink, Mail } from 'lucide-react';
+import { Building2, MapPin, Users, Calendar, Star, Heart, ExternalLink, Mail, Shield } from 'lucide-react';
 import { Business } from '@/hooks/useBusinesses';
 import { useSavedBusinesses } from '@/hooks/useSavedBusinesses';
 import { useTrackEvent } from '@/hooks/useAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 import VerificationBadge from '@/components/verification/VerificationBadge';
+import ClaimBusinessForm from './ClaimBusinessForm';
 
 interface BusinessCardProps {
   business: Business;
@@ -17,6 +17,7 @@ interface BusinessCardProps {
 
 const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
   const [user, setUser] = useState<any>(null);
+  const [showClaimForm, setShowClaimForm] = useState(false);
   const { isBusinessSaved, saveBusiness, unsaveBusiness, isSaving, isUnsaving } = useSavedBusinesses();
   const trackEvent = useTrackEvent();
 
@@ -67,8 +68,30 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
     window.open(`mailto:${business.contactemail}`, '_blank');
   };
 
+  const handleClaimBusiness = () => {
+    if (!user) {
+      // Redirect to auth
+      window.location.href = '/auth';
+      return;
+    }
+    setShowClaimForm(true);
+  };
+
   const isProcessing = isSaving || isUnsaving;
   const isSaved = isBusinessSaved(business.id);
+  const isOwned = business.owner_id === user?.id;
+
+  if (showClaimForm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <ClaimBusinessForm
+          businessId={business.id}
+          businessName={business.businessname || 'Unknown Business'}
+          onCancel={() => setShowClaimForm(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <Card className="bg-gray-800 border-gray-700 hover:border-[#00C2FF] transition-all duration-300 h-full">
@@ -97,6 +120,11 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
                 businessId={business.id}
                 isVerified={business.verified || false}
               />
+              {isOwned && (
+                <Badge className="ml-2 bg-blue-400/20 text-blue-400 border-blue-400/30">
+                  Owned
+                </Badge>
+              )}
             </div>
             
             <p className="text-gray-300 text-sm mb-4 line-clamp-3">
@@ -177,6 +205,17 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
           >
             View Profile
           </Button>
+          
+          {!isOwned && user && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClaimBusiness}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            >
+              <Shield className="w-4 h-4" />
+            </Button>
+          )}
           
           {business.website && (
             <Button

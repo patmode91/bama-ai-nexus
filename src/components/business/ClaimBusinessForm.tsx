@@ -7,14 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { useCreateBusinessClaim } from '@/hooks/useBusinessClaims';
+import { useToast } from '@/hooks/use-toast';
 
 interface ClaimBusinessFormProps {
+  businessId: number;
   businessName: string;
-  onSubmit: (data: any) => void;
+  onSubmit?: (data: any) => void;
   onCancel: () => void;
 }
 
-const ClaimBusinessForm = ({ businessName, onSubmit, onCancel }: ClaimBusinessFormProps) => {
+const ClaimBusinessForm = ({ businessId, businessName, onSubmit, onCancel }: ClaimBusinessFormProps) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -23,16 +26,51 @@ const ClaimBusinessForm = ({ businessName, onSubmit, onCancel }: ClaimBusinessFo
     position: '',
     companyEmail: '',
     message: '',
-    documents: null as File[] | null
+    claimType: 'ownership' as 'ownership' | 'management'
   });
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { toast } = useToast();
+  const createClaim = useCreateBusinessClaim();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Claim business form submitted:', formData);
-    onSubmit(formData);
-    setIsSubmitted(true);
+    
+    try {
+      const claimData = {
+        business_id: businessId,
+        claim_type: formData.claimType,
+        supporting_documents: {
+          personal_info: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            position: formData.position,
+            companyEmail: formData.companyEmail,
+            message: formData.message
+          }
+        }
+      };
+
+      await createClaim.mutateAsync(claimData);
+      
+      toast({
+        title: "Claim Submitted Successfully",
+        description: "Your business claim has been submitted for review.",
+      });
+      
+      setIsSubmitted(true);
+      onSubmit?.(formData);
+    } catch (error) {
+      console.error('Error submitting claim:', error);
+      toast({
+        title: "Error Submitting Claim",
+        description: "There was an error submitting your claim. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -204,9 +242,13 @@ const ClaimBusinessForm = ({ businessName, onSubmit, onCancel }: ClaimBusinessFo
           </div>
 
           <div className="flex gap-4 pt-4">
-            <Button type="submit" className="flex-1 bg-[#00C2FF] hover:bg-[#00A8D8]">
+            <Button 
+              type="submit" 
+              className="flex-1 bg-[#00C2FF] hover:bg-[#00A8D8]"
+              disabled={createClaim.isPending}
+            >
               <Building2 className="w-4 h-4 mr-2" />
-              Submit Claim Request
+              {createClaim.isPending ? 'Submitting...' : 'Submit Claim Request'}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel} className="border-gray-600 text-gray-300 hover:bg-gray-700">
               Cancel
