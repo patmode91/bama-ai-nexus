@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,7 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header onSignIn={() => {}} />
+      <Header />
       
       <section className="py-16 px-6">
         <div className="container mx-auto max-w-7xl">

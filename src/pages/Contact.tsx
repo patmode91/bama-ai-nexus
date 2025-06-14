@@ -1,4 +1,3 @@
-
 import { Mail, Phone, MapPin, Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +16,7 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header onSignIn={() => {}} />
+      <Header />
       
       {/* Hero Section */}
       <section className="py-16 px-6">

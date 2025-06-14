@@ -1,4 +1,3 @@
-
 import { Target, Users, Globe, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import Footer from '@/components/sections/Footer';
 const About = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header onSignIn={() => {}} />
+      <Header />
       
       {/* Hero Section */}
       <section className="py-16 px-6">

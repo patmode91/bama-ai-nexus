@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Globe, Mail, Phone, MapPin, Users, Calendar, Star, ExternalLink, Building2, Heart } from 'lucide-react';
@@ -66,7 +65,7 @@ const BusinessProfile = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-        <Header onSignIn={() => {}} />
+        <Header />
         <div className="container mx-auto px-6 py-16">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-700 rounded mb-4 w-1/3"></div>
@@ -90,7 +89,7 @@ const BusinessProfile = () => {
   if (!business) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-        <Header onSignIn={() => {}} />
+        <Header />
         <div className="container mx-auto px-6 py-16">
           <div className="text-center">
             <Building2 className="w-24 h-24 text-gray-500 mx-auto mb-4" />
@@ -108,7 +107,7 @@ const BusinessProfile = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header onSignIn={() => {}} />
+      <Header />
       
       {/* Hero Section */}
       <section className="py-16 px-6">
