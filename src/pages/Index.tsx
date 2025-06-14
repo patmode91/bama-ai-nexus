@@ -15,8 +15,10 @@ import CategoryBrowser from '@/components/business/CategoryBrowser';
 import SEO from '@/components/seo/SEO';
 import { useIndexPage } from '@/hooks/useIndexPage';
 import ComparisonBar from '@/components/comparison/ComparisonBar';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
+  const navigate = useNavigate();
   const {
     showQuiz,
     setShowQuiz,
@@ -46,8 +48,9 @@ const Index = () => {
   };
 
   const handleCompare = () => {
-    // For now, just log to the console. We'll build the comparison page next.
-    console.log('Comparing businesses:', comparisonBusinesses);
+    if (comparisonList.length > 0) {
+      navigate(`/compare?ids=${comparisonList.join(',')}`);
+    }
   };
 
   if (showAuth) {

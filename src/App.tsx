@@ -14,6 +14,7 @@ import Analytics from "./pages/Analytics";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import ComparisonPage from "./pages/ComparisonPage";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/compare" element={<ComparisonPage />} />
               <Route path="/business/:id" element={<BusinessProfile />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/auth" element={<Auth />} />
