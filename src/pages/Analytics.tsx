@@ -1,142 +1,143 @@
+
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, BarChart3, Shield, MessageSquare } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
-import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
-import { useVerificationRequests } from '@/hooks/useVerification';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { BarChart3, TrendingUp, Users, Download, RefreshCw } from 'lucide-react';
+import MetricsOverview from '@/components/analytics/MetricsOverview';
+import CategoryInsights from '@/components/analytics/CategoryInsights';
+import UserEngagement from '@/components/analytics/UserEngagement';
+import AuthGuard from '@/components/auth/AuthGuard';
+import { useBusinesses } from '@/hooks/useBusinesses';
+import { toast } from 'sonner';
 
 const Analytics = () => {
-  const navigate = useNavigate();
-  const { data: verificationRequests, isLoading: verificationLoading } = useVerificationRequests();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { refetch: refetchBusinesses } = useBusinesses();
 
-  const pendingVerifications = verificationRequests?.filter(req => req.status === 'pending') || [];
-  const approvedVerifications = verificationRequests?.filter(req => req.status === 'approved') || [];
-  const rejectedVerifications = verificationRequests?.filter(req => req.status === 'rejected') || [];
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetchBusinesses();
+      toast.success('Analytics data refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleExport = () => {
+    toast.info('Export functionality coming soon');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header />
-      
-      <section className="py-16 px-6">
-        <div className="container mx-auto max-w-7xl">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="text-gray-300 hover:text-white mb-6"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Directory
-          </Button>
-
+    <AuthGuard>
+      <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
+        <Header />
+        
+        <main className="container mx-auto px-6 py-8">
+          {/* Page Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Analytics Dashboard</h1>
-            <p className="text-gray-400">Monitor platform usage and verification requests</p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <BarChart3 className="w-8 h-8 text-[#00C2FF]" />
+                  Analytics Dashboard
+                </h1>
+                <p className="text-gray-300 mt-2">
+                  Comprehensive insights into Alabama's AI business ecosystem
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button
+                  onClick={handleExport}
+                  className="bg-[#00C2FF] hover:bg-[#00A8D8]"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </div>
           </div>
 
-          {/* Verification Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400 mb-1">Pending Verifications</p>
-                    <p className="text-2xl font-bold text-yellow-400">{pendingVerifications.length}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-yellow-400/10">
-                    <Shield className="w-6 h-6 text-yellow-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Analytics Tabs */}
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="bg-gray-800 border-gray-700">
+              <TabsTrigger 
+                value="overview" 
+                className="data-[state=active]:bg-[#00C2FF] data-[state=active]:text-white"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="categories" 
+                className="data-[state=active]:bg-[#00C2FF] data-[state=active]:text-white"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Categories
+              </TabsTrigger>
+              <TabsTrigger 
+                value="engagement" 
+                className="data-[state=active]:bg-[#00C2FF] data-[state=active]:text-white"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Engagement
+              </TabsTrigger>
+            </TabsList>
 
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400 mb-1">Approved Verifications</p>
-                    <p className="text-2xl font-bold text-green-400">{approvedVerifications.length}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-green-400/10">
-                    <Shield className="w-6 h-6 text-green-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400 mb-1">Total Requests</p>
-                    <p className="text-2xl font-bold text-white">{verificationRequests?.length || 0}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-blue-400/10">
-                    <MessageSquare className="w-6 h-6 text-blue-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Verification Requests */}
-          {verificationRequests && verificationRequests.length > 0 && (
-            <Card className="bg-gray-800 border-gray-700 mb-8">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Recent Verification Requests
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {verificationRequests.slice(0, 10).map((request) => (
-                    <div key={request.id} className="flex items-center justify-between p-4 rounded-lg bg-gray-700">
-                      <div className="flex items-center gap-3">
-                        <div className="text-white">
-                          Business #{request.business_id}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {new Date(request.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          request.status === 'pending' 
-                            ? 'bg-yellow-400/20 text-yellow-400' 
-                            : request.status === 'approved'
-                            ? 'bg-green-400/20 text-green-400'
-                            : 'bg-red-400/20 text-red-400'
-                        }`}>
-                          {request.status}
-                        </span>
-                      </div>
+            <TabsContent value="overview" className="space-y-6">
+              <MetricsOverview />
+              
+              <Card className="bg-gray-800 border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-white">Quick Insights</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                    <div className="p-4 bg-gray-700 rounded-lg">
+                      <p className="text-gray-300">Most Active Category</p>
+                      <p className="text-white font-semibold">Technology</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="p-4 bg-gray-700 rounded-lg">
+                      <p className="text-gray-300">Growth This Month</p>
+                      <p className="text-green-400 font-semibold">+12.5%</p>
+                    </div>
+                    <div className="p-4 bg-gray-700 rounded-lg">
+                      <p className="text-gray-300">Avg Session Time</p>
+                      <p className="text-white font-semibold">4m 32s</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* Analytics Dashboard */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Platform Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AnalyticsDashboard />
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+            <TabsContent value="categories" className="space-y-6">
+              <CategoryInsights />
+            </TabsContent>
 
-      <Footer />
-    </div>
+            <TabsContent value="engagement" className="space-y-6">
+              <UserEngagement />
+            </TabsContent>
+          </Tabs>
+        </main>
+
+        <Footer />
+      </div>
+    </AuthGuard>
   );
 };
 
