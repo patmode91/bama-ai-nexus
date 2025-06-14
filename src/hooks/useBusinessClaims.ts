@@ -47,9 +47,17 @@ export const useCreateBusinessClaim = () => {
     }) => {
       console.log('Creating business claim:', claimData);
       
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('business_claims')
-        .insert([claimData])
+        .insert([{
+          ...claimData,
+          user_id: user.user.id
+        }])
         .select()
         .single();
 
