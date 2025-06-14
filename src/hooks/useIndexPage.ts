@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useBusinesses } from '@/hooks/useBusinesses';
+import { SearchFilters } from '@/types/search';
 
 export const useIndexPage = () => {
   const [showQuiz, setShowQuiz] = useState(false);
@@ -17,11 +18,10 @@ export const useIndexPage = () => {
     setShowQuiz(false);
   };
 
-  const handleSearch = (query: string, filters: any) => {
+  const handleSearch = (query: string, filters: SearchFilters) => {
     if (businesses) {
       let filtered = businesses;
       
-      // Text search
       if (query) {
         filtered = filtered.filter(business => 
           business.businessname?.toLowerCase().includes(query.toLowerCase()) ||
@@ -31,21 +31,18 @@ export const useIndexPage = () => {
         );
       }
       
-      // Category filter
       if (filters.category && filters.category !== '') {
         filtered = filtered.filter(business => 
           business.category?.toLowerCase() === filters.category.toLowerCase()
         );
       }
       
-      // Location filter
       if (filters.location && filters.location !== '') {
         filtered = filtered.filter(business => 
           business.location?.toLowerCase().includes(filters.location.toLowerCase())
         );
       }
       
-      // Employee range filter
       if (filters.employeeRange && filters.employeeRange !== '') {
         filtered = filtered.filter(business => {
           const count = business.employees_count;
@@ -62,7 +59,6 @@ export const useIndexPage = () => {
         });
       }
       
-      // Founded year range filter
       if (filters.foundedYearRange && filters.foundedYearRange !== '') {
         filtered = filtered.filter(business => {
           const year = business.founded_year;
@@ -79,7 +75,6 @@ export const useIndexPage = () => {
         });
       }
       
-      // Project budget range filter
       if (filters.projectBudgetRange && filters.projectBudgetRange !== '') {
         filtered = filtered.filter(business => {
           const min = business.project_budget_min;
@@ -98,7 +93,6 @@ export const useIndexPage = () => {
         });
       }
       
-      // Tags/Certifications filter
       if (filters.tags && filters.tags.length > 0) {
         filtered = filtered.filter(business => {
           if (!business.tags && !business.certifications) return false;
@@ -109,7 +103,6 @@ export const useIndexPage = () => {
         });
       }
       
-      // Verification filter
       if (filters.verified !== null) {
         filtered = filtered.filter(business => 
           business.verified === filters.verified

@@ -1,32 +1,22 @@
 
 import { useState } from 'react';
-import { Search, Filter, MapPin, Building2, Users, Calendar, DollarSign, Tag } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import FilterPanel from './FilterPanel';
+import ActiveFilters from './ActiveFilters';
+import { SearchFilters } from '@/types/search';
 
 interface AdvancedSearchProps {
   onSearch: (query: string, filters: SearchFilters) => void;
   onClearSearch: () => void;
 }
 
-interface SearchFilters {
-  category: string;
-  location: string;
-  employeeRange: string;
-  foundedYearRange: string;
-  verified: boolean | null;
-  tags: string[];
-  projectBudgetRange: string;
-}
-
 const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [tagInput, setTagInput] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({
     category: '',
     location: '',
@@ -36,29 +26,6 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
     tags: [],
     projectBudgetRange: ''
   });
-
-  const categories = [
-    'Technology', 'Healthcare', 'Manufacturing', 'Finance', 'Retail',
-    'Education', 'Real Estate', 'Transportation', 'Agriculture', 'Energy'
-  ];
-
-  const locations = [
-    'Mobile', 'Baldwin County', 'Birmingham', 'Huntsville', 'Montgomery',
-    'Tuscaloosa', 'Auburn', 'Madison', 'Hoover', 'Dothan', 'Decatur',
-    'Florence', 'Gadsden', 'Prattville', 'Vestavia Hills'
-  ];
-
-  const employeeRanges = [
-    '1-10', '11-50', '51-200', '201-500', '500+'
-  ];
-
-  const foundedYearRanges = [
-    '2020-2024', '2015-2019', '2010-2014', '2000-2009', 'Before 2000'
-  ];
-
-  const projectBudgetRanges = [
-    '<$10k', '$10k-$50k', '$50k-$100k', '$100k-$250k', '>$250k'
-  ];
 
   const handleSearch = () => {
     onSearch(query, filters);
@@ -75,27 +42,11 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
       tags: [],
       projectBudgetRange: ''
     });
-    setTagInput('');
     onClearSearch();
   };
 
   const updateFilter = (key: keyof SearchFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-  };
-  
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && tagInput.trim() !== '') {
-      e.preventDefault();
-      const newTag = tagInput.trim().toLowerCase();
-      if (!filters.tags.includes(newTag)) {
-        updateFilter('tags', [...filters.tags, newTag]);
-      }
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    updateFilter('tags', filters.tags.filter(tag => tag !== tagToRemove));
   };
 
   const hasActiveFilters = Object.values(filters).some(value => 
@@ -106,7 +57,6 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
     <Card className="bg-gray-800 border-gray-700">
       <CardContent className="p-6">
         <div className="flex flex-col gap-4">
-          {/* Main Search Bar */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -136,178 +86,15 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
             </Button>
           </div>
 
-          {/* Advanced Filters */}
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-gray-700">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Category</label>
-                <Select value={filters.category} onValueChange={(value) => updateFilter('category', value)}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">All Categories</SelectItem>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Location</label>
-                <Select value={filters.location} onValueChange={(value) => updateFilter('location', value)}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="All Locations" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">All Locations</SelectItem>
-                    {locations.map(location => (
-                      <SelectItem key={location} value={location}>{location}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Company Size</label>
-                <Select value={filters.employeeRange} onValueChange={(value) => updateFilter('employeeRange', value)}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="All Sizes" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">All Sizes</SelectItem>
-                    {employeeRanges.map(range => (
-                      <SelectItem key={range} value={range}>{range} employees</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Founded</label>
-                <Select value={filters.foundedYearRange} onValueChange={(value) => updateFilter('foundedYearRange', value)}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Any Time" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">Any Time</SelectItem>
-                    {foundedYearRanges.map(range => (
-                      <SelectItem key={range} value={range}>{range}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Verification</label>
-                <Select 
-                  value={filters.verified === null ? '' : filters.verified.toString()} 
-                  onValueChange={(value) => updateFilter('verified', value === '' ? null : value === 'true')}
-                >
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="All Businesses" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">All Businesses</SelectItem>
-                    <SelectItem value="true">Verified Only</SelectItem>
-                    <SelectItem value="false">Unverified Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Project Budget</label>
-                <Select value={filters.projectBudgetRange} onValueChange={(value) => updateFilter('projectBudgetRange', value)}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Any Budget" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">Any Budget</SelectItem>
-                    {projectBudgetRanges.map(range => (
-                      <SelectItem key={range} value={range}>{range}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2 lg:col-span-2">
-                <label className="text-sm font-medium text-gray-300">Tags / Certifications</label>
-                <Input
-                  placeholder="Type a tag and press Enter"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleAddTag}
-                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                />
-                <div className="flex flex-wrap gap-1 pt-1 min-h-[24px]">
-                  {filters.tags.map(tag => (
-                    <Badge key={tag} variant="secondary" className="bg-gray-600 text-white">
-                      {tag}
-                      <button onClick={() => handleRemoveTag(tag)} className="ml-1.5 text-gray-400 hover:text-white text-xs font-bold">x</button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  onClick={handleClearAll}
-                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  Clear All Filters
-                </Button>
-              </div>
-            </div>
+            <FilterPanel 
+              filters={filters}
+              updateFilter={updateFilter}
+              onClearAll={handleClearAll}
+            />
           )}
 
-          {/* Active Filters Display */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-700">
-              <span className="text-sm text-gray-400">Active filters:</span>
-              {filters.category && (
-                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  {filters.category}
-                </Badge>
-              )}
-              {filters.location && (
-                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {filters.location}
-                </Badge>
-              )}
-              {filters.employeeRange && (
-                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  <Users className="w-3 h-3 mr-1" />
-                  {filters.employeeRange}
-                </Badge>
-              )}
-              {filters.foundedYearRange && (
-                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  {filters.foundedYearRange}
-                </Badge>
-              )}
-              {filters.projectBudgetRange && (
-                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  <DollarSign className="w-3 h-3 mr-1" />
-                  {filters.projectBudgetRange}
-                </Badge>
-              )}
-              {filters.tags.map(tag => (
-                 <Badge key={tag} variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  <Tag className="w-3 h-3 mr-1" />
-                  {tag}
-                </Badge>
-              ))}
-              {filters.verified !== null && (
-                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
-                  {filters.verified ? 'Verified' : 'Unverified'}
-                </Badge>
-              )}
-            </div>
-          )}
+          <ActiveFilters filters={filters} />
         </div>
       </CardContent>
     </Card>
