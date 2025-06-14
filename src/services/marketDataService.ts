@@ -1,5 +1,5 @@
-
 import { cacheService } from './cacheService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewsItem {
   title: string;
