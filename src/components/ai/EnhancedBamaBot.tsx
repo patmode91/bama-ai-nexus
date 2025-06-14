@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Bot, User, Minimize2, Sparkles, TrendingUp, Building, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { aiService } from '@/services/aiService';
+import { semanticSearchService } from '@/services/semanticSearchService';
+import { matchmakingService } from '@/services/matchmakingService';
 import { useBusinesses } from '@/hooks/useBusinesses';
 
 interface Message {
@@ -29,7 +30,7 @@ const EnhancedBamaBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm BamaBot 2.0, your enhanced AI assistant for Alabama's business ecosystem. I have deep knowledge of local industries, market trends, and can provide intelligent business matching. How can I help you today?",
+      text: "Hello! I'm BamaBot 2.0, your enhanced AI assistant for Alabama's business ecosystem. I have deep knowledge of local industries, market trends, and can provide intelligent business matching. I can also help you with semantic search and AI matchmaking! How can I help you today?",
       isBot: true,
       timestamp: new Date(),
       type: 'text'
@@ -49,12 +50,55 @@ const EnhancedBamaBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const generateEnhancedResponse = (userMessage: string): Message => {
+  const generateEnhancedResponse = async (userMessage: string): Promise<Message> => {
     const lowerMessage = userMessage.toLowerCase();
     
-    // Business matching queries
-    if (lowerMessage.includes('find') && (lowerMessage.includes('business') || lowerMessage.includes('company'))) {
-      return generateBusinessRecommendations(userMessage);
+    // Semantic search queries
+    if (lowerMessage.includes('search') || lowerMessage.includes('find')) {
+      try {
+        const searchResults = await semanticSearchService.searchBusinesses({
+          query: userMessage,
+          limit: 3
+        });
+        
+        return {
+          id: Date.now().toString(),
+          text: `I found ${searchResults.length} businesses matching your search:`,
+          isBot: true,
+          timestamp: new Date(),
+          type: 'business_recommendation',
+          data: searchResults.map(result => ({
+            business: result.business,
+            matchScore: result.relevanceScore,
+            matchReasons: result.matchingReasons
+          }))
+        };
+      } catch (error) {
+        console.error('Search error:', error);
+      }
+    }
+    
+    // Matchmaking queries
+    if (lowerMessage.includes('match') || lowerMessage.includes('recommend')) {
+      try {
+        const context = extractUserContext(userMessage);
+        const matches = await matchmakingService.findMatches({
+          type: 'b2b',
+          description: userMessage,
+          requirements: context
+        });
+        
+        return {
+          id: Date.now().toString(),
+          text: `Based on your needs, I found ${matches.length} great matches:`,
+          isBot: true,
+          timestamp: new Date(),
+          type: 'business_recommendation',
+          data: matches.slice(0, 3)
+        };
+      } catch (error) {
+        console.error('Matchmaking error:', error);
+      }
     }
     
     // Market insight queries
@@ -83,31 +127,6 @@ const EnhancedBamaBot = () => {
     };
   };
 
-  const generateBusinessRecommendations = (query: string): Message => {
-    if (!businesses || businesses.length === 0) {
-      return {
-        id: Date.now().toString(),
-        text: "I'd love to help you find businesses, but I need access to the business directory first. Please make sure you're connected to see personalized recommendations!",
-        isBot: true,
-        timestamp: new Date(),
-        type: 'text'
-      };
-    }
-
-    // Extract context from query
-    const context = extractUserContext(query);
-    const matches = aiService.generateBusinessMatches(context, businesses);
-    
-    return {
-      id: Date.now().toString(),
-      text: `Based on your query, I found ${matches.length} excellent business matches for you:`,
-      isBot: true,
-      timestamp: new Date(),
-      type: 'business_recommendation',
-      data: matches.slice(0, 3)
-    };
-  };
-
   const generateMarketInsights = (query: string): Message => {
     const insights = aiService.generateMarketInsights();
     
@@ -122,7 +141,6 @@ const EnhancedBamaBot = () => {
   };
 
   const generateContentSuggestions = (query: string): Message => {
-    // Mock business data for content generation
     const mockBusiness = {
       businessname: "Example Tech Company",
       category: "Technology",
@@ -156,17 +174,14 @@ const EnhancedBamaBot = () => {
   const extractUserContext = (query: string): any => {
     const context: any = {};
     
-    // Extract industry
     if (query.includes('tech')) context.industry = 'technology';
     if (query.includes('health')) context.industry = 'healthcare';
     if (query.includes('aerospace')) context.industry = 'aerospace';
     
-    // Extract location preferences
     if (query.includes('huntsville')) context.location = 'Huntsville, AL';
     if (query.includes('birmingham')) context.location = 'Birmingham, AL';
     if (query.includes('mobile')) context.location = 'Mobile, AL';
     
-    // Extract urgency
     if (query.includes('urgent') || query.includes('immediate')) context.urgency = 'immediate';
     
     return context;
@@ -187,15 +202,26 @@ const EnhancedBamaBot = () => {
     setInputValue('');
     setIsTyping(true);
 
-    // Update user context based on message
     const newContext = extractUserContext(inputValue);
     setUserContext(prev => ({ ...prev, ...newContext }));
 
-    // Generate enhanced AI response
-    setTimeout(() => {
-      const botResponse = generateEnhancedResponse(inputValue);
-      setMessages(prev => [...prev, botResponse]);
-      setIsTyping(false);
+    setTimeout(async () => {
+      try {
+        const botResponse = await generateEnhancedResponse(inputValue);
+        setMessages(prev => [...prev, botResponse]);
+      } catch (error) {
+        console.error('Error generating response:', error);
+        const fallbackResponse: Message = {
+          id: Date.now().toString(),
+          text: "I apologize, but I'm having trouble processing your request right now. Please try asking something else or check back later.",
+          isBot: true,
+          timestamp: new Date(),
+          type: 'text'
+        };
+        setMessages(prev => [...prev, fallbackResponse]);
+      } finally {
+        setIsTyping(false);
+      }
     }, 1000 + Math.random() * 1500);
   };
 
@@ -226,7 +252,7 @@ const EnhancedBamaBot = () => {
                 {match.business.category}
               </div>
               <div className="flex flex-wrap gap-1">
-                {match.matchReasons.map((reason: string, reasonIndex: number) => (
+                {match.matchReasons?.map((reason: string, reasonIndex: number) => (
                   <Badge key={reasonIndex} variant="outline" className="text-xs">
                     {reason}
                   </Badge>
@@ -299,6 +325,7 @@ const EnhancedBamaBot = () => {
     return (
       <div className="fixed bottom-6 right-6 z-50">
         <Button
+          data-bamabot-trigger
           onClick={() => setIsOpen(true)}
           className="rounded-full w-16 h-16 bg-gradient-to-r from-[#00C2FF] to-purple-600 hover:from-[#00A8D8] hover:to-purple-500 shadow-lg hover:shadow-xl transition-all duration-200"
         >
@@ -403,7 +430,7 @@ const EnhancedBamaBot = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask about businesses, trends, or insights..."
+                  placeholder="Ask about businesses, trends, or get AI matches..."
                   className="flex-1 border-gray-300"
                 />
                 <Button
@@ -416,7 +443,7 @@ const EnhancedBamaBot = () => {
               </div>
               <div className="flex items-center mt-2 text-xs text-gray-500">
                 <Sparkles className="w-3 h-3 mr-1" />
-                Enhanced with AI business intelligence
+                Enhanced with AI search & matchmaking
               </div>
             </div>
           </CardContent>

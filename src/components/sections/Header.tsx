@@ -1,115 +1,93 @@
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Menu, X, Sparkles, Search, Calendar, MessageSquare, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Users, Building2, TrendingUp, BookOpen, Calendar, MessageSquare } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
-    { name: 'Directory', href: '/', icon: Building2 },
-    { name: 'Events', href: '/events', icon: Calendar },
-    { name: 'Forums', href: '/forums', icon: MessageSquare },
-    { name: 'Analytics', href: '/analytics', icon: TrendingUp },
-    { name: 'Blog', href: '/blog', icon: BookOpen },
-    { name: 'About', href: '/about', icon: Users },
+    { label: 'Directory', href: '/', icon: Users },
+    { label: 'AI Search', href: '/ai-search', icon: Sparkles },
+    { label: 'Events', href: '/events', icon: Calendar },
+    { label: 'Forums', href: '/forums', icon: MessageSquare },
+    { label: 'Blog', href: '/blog', icon: Search },
   ];
 
   return (
-    <header className="bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
-      <div className="container mx-auto px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+    <header className="bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+      <div className="container mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-[#00C2FF] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">BA</span>
+            <div className="w-8 h-8 bg-gradient-to-r from-[#00C2FF] to-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">B</span>
             </div>
-            <span className="text-white font-bold text-xl">BamaAI Connect</span>
+            <span className="text-xl font-bold text-white">BamaAI</span>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="flex items-center space-x-1 text-gray-300 hover:text-white transition-colors"
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.name}</span>
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
-          {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/auth')}
-              className="border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
-            >
-              Sign In
+            <Button variant="outline" asChild className="border-gray-600 text-gray-300 hover:text-white">
+              <Link to="/auth">Login</Link>
             </Button>
-            <Button 
-              onClick={() => navigate('/auth')}
-              className="bg-[#00C2FF] hover:bg-[#0099CC] text-white"
-            >
-              Get Started
+            <Button asChild className="bg-[#00C2FF] hover:bg-[#00A8D8]">
+              <Link to="/auth">Get Started</Link>
             </Button>
           </div>
 
-          {/* Mobile menu button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden text-gray-400"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-700">
-            <div className="flex flex-col space-y-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors py-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </Link>
-              ))}
-              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-700">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    navigate('/auth');
-                    setIsMenuOpen(false);
-                  }}
-                  className="justify-start border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
-                >
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={() => {
-                    navigate('/auth');
-                    setIsMenuOpen(false);
-                  }}
-                  className="justify-start bg-[#00C2FF] hover:bg-[#0099CC] text-white"
-                >
-                  Get Started
-                </Button>
+          {/* Mobile Navigation */}
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden text-white">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="bg-gray-800 border-gray-700">
+              <div className="flex flex-col space-y-4 mt-8">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors py-2"
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+                <div className="pt-4 border-t border-gray-700 space-y-2">
+                  <Button variant="outline" asChild className="w-full border-gray-600">
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>Login</Link>
+                  </Button>
+                  <Button asChild className="w-full bg-[#00C2FF] hover:bg-[#00A8D8]">
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>Get Started</Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

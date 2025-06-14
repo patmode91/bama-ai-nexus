@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ import MobileSettings from "./pages/MobileSettings";
 import Blog from "./pages/Blog";
 import Events from "./pages/Events";
 import Forums from "./pages/Forums";
+import AISearch from "./pages/AISearch";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/ai-search" element={<AISearch />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/events" element={<Events />} />
               <Route path="/forums" element={<Forums />} />

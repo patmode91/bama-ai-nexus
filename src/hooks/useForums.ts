@@ -1,186 +1,141 @@
 
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ForumCategory, ForumTopic, ForumReply, CreateTopicData, CreateReplyData } from '@/types/forums';
 
-export const useForumCategories = () => {
-  return useQuery({
+export const useForums = () => {
+  const [isVoting, setIsVoting] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Get categories
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['forum-categories'],
-    queryFn: async (): Promise<ForumCategory[]> => {
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('forum_categories')
         .select('*')
         .order('name');
-
-      if (error) {
-        console.error('Error fetching forum categories:', error);
-        throw error;
-      }
-
+      
+      if (error) throw error;
       return data;
     },
   });
-};
 
-export const useForumTopics = (categoryId?: string) => {
-  return useQuery({
-    queryKey: ['forum-topics', categoryId],
-    queryFn: async (): Promise<ForumTopic[]> => {
-      let query = supabase
-        .from('forum_topics')
-        .select(`
-          *,
-          forum_categories!inner(name, color),
-          profiles(full_name, company)
-        `)
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false });
-
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching forum topics:', error);
-        throw error;
-      }
-
-      // Get reply counts and last reply info for each topic
-      const topicsWithStats = await Promise.all(
-        data.map(async (topic) => {
-          const { count: replyCount } = await supabase
-            .from('forum_replies')
-            .select('*', { count: 'exact', head: true })
-            .eq('topic_id', topic.id);
-
-          const { data: lastReply } = await supabase
-            .from('forum_replies')
-            .select('created_at')
-            .eq('topic_id', topic.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          return {
-            ...topic,
-            author: topic.profiles || { full_name: 'Unknown User', company: '' },
-            category: topic.forum_categories,
-            reply_count: replyCount || 0,
-            last_reply_at: lastReply?.created_at || topic.created_at,
-          };
-        })
-      );
-
-      return topicsWithStats;
-    },
-  });
-};
-
-export const useForumTopic = (topicId: string) => {
-  return useQuery({
-    queryKey: ['forum-topic', topicId],
+  // Get topics with author and category info
+  const { data: topics = [], isLoading: topicsLoading } = useQuery({
+    queryKey: ['forum-topics'],
     queryFn: async () => {
-      const { data: topic, error } = await supabase
+      const { data, error } = await supabase
         .from('forum_topics')
         .select(`
           *,
-          forum_categories!inner(name, color),
-          profiles(full_name, company)
+          author:profiles!forum_topics_author_id_fkey(full_name, company),
+          category:forum_categories!forum_topics_category_id_fkey(name, color)
         `)
-        .eq('id', topicId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching forum topic:', error);
-        throw error;
-      }
-
-      return {
-        ...topic,
-        author: topic.profiles || { full_name: 'Unknown User', company: '' },
-        category: topic.forum_categories,
-      };
-    },
-  });
-};
-
-export const useForumReplies = (topicId: string) => {
-  return useQuery({
-    queryKey: ['forum-replies', topicId],
-    queryFn: async (): Promise<ForumReply[]> => {
-      const { data, error } = await supabase
-        .from('forum_replies')
-        .select(`
-          *,
-          profiles(full_name, company)
-        `)
-        .eq('topic_id', topicId)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching forum replies:', error);
-        throw error;
-      }
-
-      // Get vote counts and user votes for each reply
-      const { data: { user } } = await supabase.auth.getUser();
+        .order('created_at', { ascending: false });
       
-      const repliesWithVotes = await Promise.all(
-        data.map(async (reply) => {
-          const { count: upvotes } = await supabase
-            .from('forum_votes')
-            .select('*', { count: 'exact', head: true })
-            .eq('reply_id', reply.id)
-            .eq('vote_type', 'up');
-
-          let userVote = null;
-          if (user) {
-            const { data: vote } = await supabase
-              .from('forum_votes')
-              .select('vote_type')
-              .eq('reply_id', reply.id)
-              .eq('user_id', user.id)
-              .single();
-            userVote = vote;
-          }
-
-          return {
-            ...reply,
-            author: reply.profiles || { full_name: 'Unknown User', company: '' },
-            upvotes: upvotes || 0,
-            user_vote: userVote,
-          };
-        })
-      );
-
-      return repliesWithVotes;
+      if (error) throw error;
+      
+      // Transform data to match expected types
+      return data?.map(topic => ({
+        ...topic,
+        author: topic.author || { full_name: 'Anonymous', company: '' },
+        category: topic.category || { name: 'General', color: '#3B82F6' }
+      })) as ForumTopic[];
     },
   });
-};
 
-export const useCreateTopic = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  // Get replies for a specific topic
+  const getReplies = async (topicId: string): Promise<ForumReply[]> => {
+    const { data, error } = await supabase
+      .from('forum_replies')
+      .select(`
+        *,
+        author:profiles!forum_replies_author_id_fkey(full_name, company),
+        upvotes:forum_votes!left(vote_type)
+      `)
+      .eq('topic_id', topicId)
+      .order('created_at');
+    
+    if (error) throw error;
+    
+    // Transform data to match expected types
+    return data?.map(reply => ({
+      ...reply,
+      author: reply.author || { full_name: 'Anonymous', company: '' },
+      upvotes: reply.upvotes?.filter((vote: any) => vote.vote_type === 'up').length || 0,
+      user_vote: null
+    })) as ForumReply[];
+  };
 
-  return useMutation({
-    mutationFn: async (topicData: CreateTopicData) => {
+  // Get single topic
+  const getTopic = async (topicId: string): Promise<ForumTopic | null> => {
+    const { data, error } = await supabase
+      .from('forum_topics')
+      .select(`
+        *,
+        author:profiles!forum_topics_author_id_fkey(full_name, company),
+        category:forum_categories!forum_topics_category_id_fkey(name, color)
+      `)
+      .eq('id', topicId)
+      .single();
+    
+    if (error) throw error;
+    
+    if (!data) return null;
+    
+    return {
+      ...data,
+      author: data.author || { full_name: 'Anonymous', company: '' },
+      category: data.category || { name: 'General', color: '#3B82F6' }
+    } as ForumTopic;
+  };
+
+  // Get topics by category
+  const getTopics = async (categoryId?: string): Promise<ForumTopic[]> => {
+    let query = supabase
+      .from('forum_topics')
+      .select(`
+        *,
+        author:profiles!forum_topics_author_id_fkey(full_name, company),
+        category:forum_categories!forum_topics_category_id_fkey(name, color)
+      `);
+    
+    if (categoryId) {
+      query = query.eq('category_id', categoryId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data?.map(topic => ({
+      ...topic,
+      author: topic.author || { full_name: 'Anonymous', company: '' },
+      category: topic.category || { name: 'General', color: '#3B82F6' }
+    })) as ForumTopic[];
+  };
+
+  // Create topic mutation
+  const createTopic = useMutation({
+    mutationFn: async (data: CreateTopicData) => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+      if (!user) throw new Error('Must be logged in');
 
-      const { data, error } = await supabase
+      const { data: newTopic, error } = await supabase
         .from('forum_topics')
         .insert({
-          ...topicData,
+          ...data,
           author_id: user.id,
         })
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+      return newTopic;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['forum-topics'] });
@@ -189,108 +144,107 @@ export const useCreateTopic = () => {
         description: "Your topic has been posted successfully.",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
-        title: "Error",
+        title: "Error creating topic",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-};
 
-export const useCreateReply = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (replyData: CreateReplyData) => {
+  // Create reply mutation
+  const createReply = useMutation({
+    mutationFn: async (data: CreateReplyData) => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+      if (!user) throw new Error('Must be logged in');
 
-      const { data, error } = await supabase
+      const { data: newReply, error } = await supabase
         .from('forum_replies')
         .insert({
-          ...replyData,
+          ...data,
           author_id: user.id,
         })
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+      return newReply;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['forum-replies', variables.topic_id] });
-      queryClient.invalidateQueries({ queryKey: ['forum-topics'] });
+    onSuccess: () => {
       toast({
         title: "Reply posted",
         description: "Your reply has been posted successfully.",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
-        title: "Error",
+        title: "Error posting reply",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-};
 
-export const useVoteReply = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  // Vote function
+  const vote = async (targetId: string, targetType: 'topic' | 'reply', voteType: 'up' | 'down') => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to vote.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  return useMutation({
-    mutationFn: async ({ replyId, voteType }: { replyId: string; voteType: 'up' | 'down' }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+    setIsVoting(true);
+    try {
+      const voteData: any = {
+        user_id: user.id,
+        vote_type: voteType,
+      };
 
-      const { data, error } = await supabase
+      if (targetType === 'topic') {
+        voteData.topic_id = targetId;
+      } else {
+        voteData.reply_id = targetId;
+      }
+
+      const { error } = await supabase
         .from('forum_votes')
-        .upsert({
-          user_id: user.id,
-          reply_id: replyId,
-          vote_type: voteType,
-        })
-        .select()
-        .single();
+        .upsert(voteData, {
+          onConflict: targetType === 'topic' ? 'user_id,topic_id' : 'user_id,reply_id'
+        });
 
       if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['forum-replies'] });
-    },
-    onError: (error: any) => {
+
       toast({
-        title: "Error",
+        title: "Vote recorded",
+        description: `Your ${voteType}vote has been recorded.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error voting",
         description: error.message,
         variant: "destructive",
       });
-    },
-  });
-};
-
-// Main hook that combines all forum functionality
-export const useForums = () => {
-  const categoriesQuery = useForumCategories();
-  const topicsQuery = useForumTopics();
-  const createTopicMutation = useCreateTopic();
-  const createReplyMutation = useCreateReply();
-  const voteReplyMutation = useVoteReply();
+    } finally {
+      setIsVoting(false);
+    }
+  };
 
   return {
-    categories: categoriesQuery.data || [],
-    categoriesLoading: categoriesQuery.isLoading,
-    topics: topicsQuery.data || [],
-    topicsLoading: topicsQuery.isLoading,
-    createTopic: createTopicMutation.mutate,
-    createReply: createReplyMutation.mutate,
-    voteReply: voteReplyMutation.mutate,
-    isCreatingTopic: createTopicMutation.isPending,
-    isCreatingReply: createReplyMutation.isPending,
-    isVoting: voteReplyMutation.isPending,
+    categories,
+    categoriesLoading,
+    topics,
+    topicsLoading,
+    createTopic: createTopic.mutate,
+    createReply: createReply.mutate,
+    getReplies,
+    getTopic,
+    getTopics,
+    vote,
+    isVoting,
   };
 };
