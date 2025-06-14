@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
-import SemanticSearch from '@/components/search/SemanticSearch';
+import EnhancedAISearch from '@/components/ai/EnhancedAISearch';
+import PersonalizedRecommendationEngine from '@/components/ai/PersonalizedRecommendationEngine';
 import MatchmakingForm from '@/components/ai/MatchmakingForm';
 import MatchResults from '@/components/ai/MatchResults';
 import SEO from '@/components/seo/SEO';
@@ -52,8 +53,8 @@ const AISearch = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
       <SEO 
-        title="AI-Powered Search"
-        description="Experience the future of business discovery with AI-powered semantic search and intelligent matchmaking"
+        title="Enhanced AI-Powered Discovery"
+        description="Experience next-generation AI search, intelligent matching, and personalized recommendations"
       />
       <Header />
       
@@ -62,10 +63,10 @@ const AISearch = () => {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
             <Sparkles className="w-10 h-10 text-[#00C2FF]" />
-            AI-Powered Discovery
+            Enhanced AI Discovery
           </h1>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-6">
-            Experience the future of business discovery with our intelligent search and matchmaking engine
+            Next-generation AI-powered search, intelligent matching, and personalized recommendations
           </p>
           
           {/* Ecosystem Stats */}
@@ -97,50 +98,71 @@ const AISearch = () => {
           </div>
         </div>
 
-        {/* AI Features Showcase */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+        {/* Enhanced AI Features Showcase */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-700 border border-gray-600 rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <Search className="w-6 h-6 text-[#00C2FF]" />
-              <h3 className="text-xl font-semibold text-white">Semantic Search</h3>
+              <h3 className="text-xl font-semibold text-white">Enhanced Semantic Search</h3>
             </div>
             <p className="text-gray-300 mb-4">
-              Ask natural language questions and get intelligent, context-aware results that understand your intent.
+              Advanced natural language understanding with contextual awareness and intelligent query interpretation.
             </p>
             <div className="bg-gray-700 rounded p-3 text-sm text-gray-400">
-              Example: "Find aerospace companies in Huntsville using computer vision for quality control"
+              "Find aerospace companies using AI for predictive maintenance"
             </div>
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-700 border border-gray-600 rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <Zap className="w-6 h-6 text-purple-400" />
-              <h3 className="text-xl font-semibold text-white">AI Matchmaking</h3>
+              <h3 className="text-xl font-semibold text-white">AI-Powered Matching</h3>
             </div>
             <p className="text-gray-300 mb-4">
-              Get personalized recommendations with confidence scores and detailed explanations of why each match is perfect for you.
+              Multi-dimensional compatibility analysis with confidence scoring and detailed explanations.
             </p>
             <div className="bg-gray-700 rounded p-3 text-sm text-gray-400">
-              B2B Solutions • Job Matching • Investor Connections
+              B2B • Job Matching • Investment Opportunities
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-800 to-gray-700 border border-gray-600 rounded-lg p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <TrendingUp className="w-6 h-6 text-green-400" />
+              <h3 className="text-xl font-semibold text-white">Personalized Recommendations</h3>
+            </div>
+            <p className="text-gray-300 mb-4">
+              Machine learning-driven suggestions that adapt to your preferences and behavior patterns.
+            </p>
+            <div className="bg-gray-700 rounded p-3 text-sm text-gray-400">
+              Smart • Adaptive • Continuously Learning
             </div>
           </div>
         </div>
 
-        {/* Main AI Interface */}
+        {/* Main Enhanced AI Interface */}
         <Tabs defaultValue="search" className="space-y-6">
-          <TabsList className="bg-gray-800 w-full">
+          <TabsList className="bg-gray-800 w-full grid grid-cols-3">
             <TabsTrigger value="search" className="flex-1">
               <Search className="w-4 h-4 mr-2" />
-              Semantic Search
+              Enhanced Search
+            </TabsTrigger>
+            <TabsTrigger value="recommendations" className="flex-1">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              AI Recommendations
             </TabsTrigger>
             <TabsTrigger value="matchmaking" className="flex-1">
               <Sparkles className="w-4 h-4 mr-2" />
-              AI Matchmaking
+              Matchmaking
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="search">
-            <SemanticSearch />
+            <EnhancedAISearch />
+          </TabsContent>
+
+          <TabsContent value="recommendations">
+            <PersonalizedRecommendationEngine />
           </TabsContent>
 
           <TabsContent value="matchmaking">
