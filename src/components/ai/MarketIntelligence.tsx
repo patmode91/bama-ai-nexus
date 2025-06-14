@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,10 +17,14 @@ import {
   Calendar,
   RefreshCw,
   Download,
-  Brain
+  Brain,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { aiService, MarketInsight } from '@/services/aiService';
 import { useBusinesses } from '@/hooks/useBusinesses';
+import { useMarketData } from '@/hooks/useMarketData';
+import { marketDataService } from '@/services/marketDataService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const MarketIntelligence = () => {
@@ -29,11 +32,26 @@ const MarketIntelligence = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { data: businesses } = useBusinesses();
+  const { data: marketData, isLoading: marketDataLoading, error: marketDataError, refetch } = useMarketData(selectedCategory);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     generateInsights();
-  }, [businesses]);
+  }, [businesses, marketData]);
 
   const generateInsights = async () => {
     setIsLoading(true);
@@ -53,6 +71,23 @@ const MarketIntelligence = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      await refetch();
+      await generateInsights();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearCache = () => {
+    marketDataService.clearCache();
+    refetch();
   };
 
   const getTrendIcon = (trend: string) => {
@@ -77,7 +112,6 @@ const MarketIntelligence = () => {
     }
   };
 
-  // Mock data for charts
   const growthData = [
     { month: 'Jan', technology: 12, healthcare: 8, aerospace: 5, automotive: 3 },
     { month: 'Feb', technology: 15, healthcare: 9, aerospace: 5, automotive: 4 },
@@ -128,17 +162,30 @@ ${insight.opportunities.map(item => `• ${item}`).join('\n')}
               <Brain className="w-5 h-5 mr-2 text-[#00C2FF]" />
               AI Market Intelligence
               <Badge className="ml-2 bg-purple-500 text-white">Live Data</Badge>
+              {isOnline ? (
+                <Wifi className="w-4 h-4 ml-2 text-green-500" />
+              ) : (
+                <WifiOff className="w-4 h-4 ml-2 text-red-500" />
+              )}
             </CardTitle>
             <div className="flex space-x-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={generateInsights}
-                disabled={isLoading}
+                onClick={handleRefresh}
+                disabled={isLoading || marketDataLoading}
                 className="border-gray-600 text-gray-300 hover:bg-gray-700"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 mr-2 ${(isLoading || marketDataLoading) ? 'animate-spin' : ''}`} />
                 Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearCache}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                Clear Cache
               </Button>
               <Button
                 variant="outline"
@@ -151,11 +198,64 @@ ${insight.opportunities.map(item => `• ${item}`).join('\n')}
               </Button>
             </div>
           </div>
-          <p className="text-gray-300 text-sm">
-            Last updated: {lastUpdated.toLocaleString()}
-          </p>
+          <div className="flex items-center space-x-4 text-sm">
+            <p className="text-gray-300">
+              Last updated: {lastUpdated.toLocaleString()}
+            </p>
+            {marketData && (
+              <p className="text-gray-400">
+                Market data: {new Date(marketData.lastUpdated).toLocaleString()}
+              </p>
+            )}
+            {!isOnline && (
+              <Badge variant="outline" className="border-red-500 text-red-500">
+                Offline Mode
+              </Badge>
+            )}
+          </div>
         </CardHeader>
       </Card>
+
+      {/* Real-time Market Data Display */}
+      {marketData && (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">Live Market Intelligence</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Latest News */}
+              <div>
+                <h4 className="font-semibold text-white mb-3">Latest News</h4>
+                <div className="space-y-3">
+                  {marketData.news.slice(0, 3).map((item, index) => (
+                    <div key={index} className="bg-gray-700/50 rounded p-3">
+                      <h5 className="font-medium text-gray-200 text-sm">{item.title}</h5>
+                      <p className="text-xs text-gray-400 mt-1">{item.source}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current Trends */}
+              <div>
+                <h4 className="font-semibold text-white mb-3">Current Trends</h4>
+                <div className="space-y-2">
+                  {marketData.trends.slice(0, 4).map((trend, index) => (
+                    <Badge 
+                      key={index} 
+                      variant="outline" 
+                      className="border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 text-xs"
+                    >
+                      {trend}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
