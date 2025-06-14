@@ -1,18 +1,39 @@
 
-import { useState } from 'react';
-import { Search, Building2, Users, Menu, Home, Phone, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Building2, Users, Menu, Home, Phone, Info, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 const MobileNavigation = () => {
   const [activeTab, setActiveTab] = useState('home');
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home, action: () => navigate('/') },
     { id: 'directory', label: 'Directory', icon: Building2, action: () => navigate('/#directory') },
     { id: 'about', label: 'About', icon: Info, action: () => navigate('/about') },
-    { id: 'contact', label: 'Contact', icon: Phone, action: () => navigate('/contact') },
+    ...(user ? [
+      { id: 'profile', label: 'Profile', icon: User, action: () => navigate('/profile') }
+    ] : [
+      { id: 'contact', label: 'Contact', icon: Phone, action: () => navigate('/contact') }
+    ])
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {

@@ -1,7 +1,10 @@
 
-import { Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Zap, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 interface HeaderProps {
   onSignIn: () => void;
@@ -9,6 +12,24 @@ interface HeaderProps {
 
 const Header = ({ onSignIn }: HeaderProps) => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <header className="border-b border-gray-600 bg-gray-700/80 backdrop-blur-md sticky top-0 z-40">
@@ -45,15 +66,37 @@ const Header = ({ onSignIn }: HeaderProps) => {
             >
               Contact
             </button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-              onClick={onSignIn}
-            >
-              Sign In
-            </Button>
-            <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">Join Directory</Button>
+            
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  onClick={() => navigate('/profile')}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Button>
+                <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">
+                  Join Directory
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  onClick={onSignIn}
+                >
+                  Sign In
+                </Button>
+                <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">
+                  Join Directory
+                </Button>
+              </div>
+            )}
           </nav>
         </div>
       </div>
