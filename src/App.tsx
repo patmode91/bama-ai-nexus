@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,6 +18,7 @@ import Integrations from "./pages/Integrations";
 import MobileSettings from "./pages/MobileSettings";
 import Blog from "./pages/Blog";
 import Events from "./pages/Events";
+import Forums from "./pages/Forums";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +33,7 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/events" element={<Events />} />
+              <Route path="/forums" element={<Forums />} />
               <Route path="/compare" element={<ComparisonPage />} />
               <Route path="/business/:id" element={<BusinessProfile />} />
               <Route path="/profile" element={<Profile />} />

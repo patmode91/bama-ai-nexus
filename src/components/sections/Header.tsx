@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Users, Building2, TrendingUp, BookOpen, Calendar } from 'lucide-react';
+import { Menu, X, Users, Building2, TrendingUp, BookOpen, Calendar, MessageSquare } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Header = () => {
@@ -11,6 +11,7 @@ const Header = () => {
   const navItems = [
     { name: 'Directory', href: '/', icon: Building2 },
     { name: 'Events', href: '/events', icon: Calendar },
+    { name: 'Forums', href: '/forums', icon: MessageSquare },
     { name: 'Analytics', href: '/analytics', icon: TrendingUp },
     { name: 'Blog', href: '/blog', icon: BookOpen },
     { name: 'About', href: '/about', icon: Users },

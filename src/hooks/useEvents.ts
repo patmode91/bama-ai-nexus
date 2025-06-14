@@ -1,20 +1,32 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Event, EventRSVP, CreateEventData, EventWithAttendees } from '@/types/events';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
+import { Event, EventRSVP, EventWithAttendees, CreateEventData } from '@/types/events';
 
 export const useEvents = () => {
-  return useQuery({
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const {
+    data: events = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['events'],
     queryFn: async (): Promise<EventWithAttendees[]> => {
       console.log('Fetching events...');
       
-      const { data: events, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { data, error } = await supabase
         .from('events')
         .select(`
           *,
-          businesses(businessname, logo_url)
+          businesses (
+            businessname,
+            logo_url
+          )
         `)
         .eq('status', 'active')
         .order('event_date', { ascending: true });
@@ -25,131 +37,135 @@ export const useEvents = () => {
       }
 
       // Get attendee counts and user RSVPs for each event
-      const eventsWithData = await Promise.all(
-        (events || []).map(async (event) => {
+      const eventsWithDetails = await Promise.all(
+        data.map(async (event) => {
           // Get attendee count
           const { data: attendeeCount } = await supabase
             .rpc('get_event_attendee_count', { event_uuid: event.id });
 
-          // Get current user's RSVP
-          const { data: userRSVP } = await supabase
-            .from('event_rsvps')
-            .select('*')
-            .eq('event_id', event.id)
-            .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '')
-            .single();
+          // Get user's RSVP if logged in
+          let userRsvp = null;
+          if (user) {
+            const { data: rsvp } = await supabase
+              .from('event_rsvps')
+              .select('*')
+              .eq('event_id', event.id)
+              .eq('user_id', user.id)
+              .single();
+            userRsvp = rsvp;
+          }
 
           return {
             ...event,
+            status: event.status as 'active' | 'cancelled' | 'completed',
             attendee_count: attendeeCount || 0,
-            user_rsvp: userRSVP || undefined
+            user_rsvp: userRsvp ? {
+              ...userRsvp,
+              status: userRsvp.status as 'going' | 'maybe' | 'not_going'
+            } : undefined,
           };
         })
       );
 
-      console.log('Fetched events with data:', eventsWithData);
-      return eventsWithData;
+      console.log('Events fetched:', eventsWithDetails);
+      return eventsWithDetails;
     },
-    refetchInterval: 60000, // Refetch every minute for real-time updates
   });
-};
 
-export const useCreateEvent = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (eventData: CreateEventData): Promise<Event> => {
+  const createEventMutation = useMutation({
+    mutationFn: async (eventData: CreateEventData) => {
       console.log('Creating event:', eventData);
       
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
-        throw new Error('User must be authenticated to create events');
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
 
       const { data, error } = await supabase
         .from('events')
         .insert({
           ...eventData,
-          created_by: user.user.id
+          created_by: user.id,
         })
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating event:', error);
-        throw error;
-      }
-
-      console.log('Created event:', data);
-      return data;
+      if (error) throw error;
+      return {
+        ...data,
+        status: data.status as 'active' | 'cancelled' | 'completed'
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Event created successfully!');
+      toast({
+        title: "Event created",
+        description: "Your event has been created successfully.",
+      });
     },
-    onError: (error) => {
-      console.error('Failed to create event:', error);
-      toast.error('Failed to create event. Please try again.');
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      console.error('Event creation error:', error);
     },
   });
-};
 
-export const useUpdateRSVP = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ eventId, status }: { eventId: string; status: 'going' | 'maybe' | 'not_going' }): Promise<EventRSVP> => {
-      console.log('Updating RSVP:', { eventId, status });
+  const rsvpMutation = useMutation({
+    mutationFn: async ({ eventId, status }: { eventId: string; status: 'going' | 'maybe' | 'not_going' }) => {
+      console.log('RSVP to event:', eventId, status);
       
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
-        throw new Error('User must be authenticated to RSVP');
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
 
       const { data, error } = await supabase
         .from('event_rsvps')
         .upsert({
           event_id: eventId,
-          user_id: user.user.id,
-          status: status
+          user_id: user.id,
+          status,
         })
         .select()
         .single();
 
-      if (error) {
-        console.error('Error updating RSVP:', error);
-        throw error;
-      }
-
-      console.log('Updated RSVP:', data);
-      return data;
+      if (error) throw error;
+      return {
+        ...data,
+        status: data.status as 'going' | 'maybe' | 'not_going'
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('RSVP updated successfully!');
+      toast({
+        title: "RSVP updated",
+        description: "Your RSVP has been updated successfully.",
+      });
     },
-    onError: (error) => {
-      console.error('Failed to update RSVP:', error);
-      toast.error('Failed to update RSVP. Please try again.');
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      console.error('RSVP error:', error);
     },
   });
-};
 
-export const useMyEvents = () => {
-  return useQuery({
-    queryKey: ['my-events'],
+  const {
+    data: userEvents = [],
+    isLoading: userEventsLoading,
+  } = useQuery({
+    queryKey: ['user-events'],
     queryFn: async (): Promise<Event[]> => {
       console.log('Fetching user events...');
       
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
-        return [];
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
 
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('created_by', user.user.id)
+        .eq('created_by', user.id)
         .order('event_date', { ascending: true });
 
       if (error) {
@@ -157,8 +173,26 @@ export const useMyEvents = () => {
         throw error;
       }
 
-      console.log('Fetched user events:', data);
-      return data || [];
+      const typedEvents = data.map(event => ({
+        ...event,
+        status: event.status as 'active' | 'cancelled' | 'completed'
+      }));
+
+      console.log('User events fetched:', typedEvents);
+      return typedEvents;
     },
+    enabled: true,
   });
+
+  return {
+    events,
+    userEvents,
+    isLoading,
+    userEventsLoading,
+    error,
+    createEvent: createEventMutation.mutate,
+    isCreating: createEventMutation.isPending,
+    rsvp: rsvpMutation.mutate,
+    isRsvping: rsvpMutation.isPending,
+  };
 };
