@@ -1,5 +1,5 @@
 
-import { AuthGuard } from '@/components/auth/AuthGuard';
+import AuthGuard from '@/components/auth/AuthGuard';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
 import IntegrationsManager from '@/components/integrations/IntegrationsManager';
