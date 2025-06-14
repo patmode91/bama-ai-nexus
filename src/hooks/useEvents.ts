@@ -59,6 +59,7 @@ export const useEvents = () => {
             ...event,
             attendee_count: attendeeCount || 0,
             user_rsvp: userRsvp,
+            status: event.status as 'active' | 'cancelled' | 'completed',
           };
         })
       );
@@ -142,6 +143,7 @@ export const useEvents = () => {
     events,
     eventsLoading,
     createEvent: createEventMutation.mutate,
+    createEventAsync: createEventMutation.mutateAsync,
     isCreatingEvent: createEventMutation.isPending,
     updateRSVP: updateRSVPMutation.mutate,
     isUpdatingRSVP: updateRSVPMutation.isPending,
@@ -150,8 +152,8 @@ export const useEvents = () => {
 
 // Export individual functions for backward compatibility
 export const useCreateEvent = () => {
-  const { createEvent, isCreatingEvent } = useEvents();
-  return { createEvent, isCreatingEvent };
+  const { createEvent, createEventAsync, isCreatingEvent } = useEvents();
+  return { createEvent, createEventAsync, isCreatingEvent };
 };
 
 export const useUpdateRSVP = () => {

@@ -1,4 +1,3 @@
-
 export interface Event {
   id: string;
   title: string;
@@ -48,4 +47,9 @@ export interface CreateEventData {
   meeting_url?: string;
   tags?: string[];
   featured_image?: string;
+}
+
+export interface RSVPData {
+  eventId: string;
+  status: 'going' | 'maybe' | 'not_going';
 }

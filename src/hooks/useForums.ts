@@ -1,275 +1,172 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ForumCategory, ForumTopic, ForumReply, CreateTopicData, CreateReplyData } from '@/types/forums';
 
-export const useForums = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const {
-    data: categories = [],
-    isLoading: categoriesLoading,
-  } = useQuery({
+export const useForumCategories = () => {
+  return useQuery({
     queryKey: ['forum-categories'],
     queryFn: async (): Promise<ForumCategory[]> => {
-      console.log('Fetching forum categories...');
-      
       const { data, error } = await supabase
         .from('forum_categories')
         .select('*')
         .order('name');
 
       if (error) {
-        console.error('Error fetching categories:', error);
+        console.error('Error fetching forum categories:', error);
         throw error;
       }
 
       return data;
     },
   });
+};
 
-  const getTopics = (categoryId?: string) => {
-    return useQuery({
-      queryKey: ['forum-topics', categoryId],
-      queryFn: async (): Promise<ForumTopic[]> => {
-        console.log('Fetching forum topics for category:', categoryId);
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        let query = supabase
-          .from('forum_topics')
-          .select(`
-            *,
-            profiles!forum_topics_author_id_fkey (
-              full_name,
-              company
-            ),
-            forum_categories (
-              name,
-              color
-            )
-          `)
-          .order('is_pinned', { ascending: false })
-          .order('updated_at', { ascending: false });
+export const useForumTopics = (categoryId?: string) => {
+  return useQuery({
+    queryKey: ['forum-topics', categoryId],
+    queryFn: async (): Promise<ForumTopic[]> => {
+      let query = supabase
+        .from('forum_topics')
+        .select(`
+          *,
+          forum_categories!inner(name, color),
+          profiles!forum_topics_author_id_fkey(full_name, company)
+        `)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
 
-        if (categoryId) {
-          query = query.eq('category_id', categoryId);
-        }
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
 
-        const { data, error } = await query;
+      const { data, error } = await query;
 
-        if (error) {
-          console.error('Error fetching topics:', error);
-          throw error;
-        }
+      if (error) {
+        console.error('Error fetching forum topics:', error);
+        throw error;
+      }
 
-        // Get additional data for each topic
-        const topicsWithDetails = await Promise.all(
-          data.map(async (topic) => {
-            // Get reply count
-            const { count: replyCount } = await supabase
-              .from('forum_replies')
-              .select('*', { count: 'exact', head: true })
-              .eq('topic_id', topic.id);
+      // Get reply counts and last reply info for each topic
+      const topicsWithStats = await Promise.all(
+        data.map(async (topic) => {
+          const { count: replyCount } = await supabase
+            .from('forum_replies')
+            .select('*', { count: 'exact', head: true })
+            .eq('topic_id', topic.id);
 
-            // Get last reply date
-            const { data: lastReply } = await supabase
-              .from('forum_replies')
-              .select('created_at')
-              .eq('topic_id', topic.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
-
-            // Get upvotes count
-            const { count: upvotesCount } = await supabase
-              .from('forum_votes')
-              .select('*', { count: 'exact', head: true })
-              .eq('topic_id', topic.id)
-              .eq('vote_type', 'up');
-
-            const { count: downvotesCount } = await supabase
-              .from('forum_votes')
-              .select('*', { count: 'exact', head: true })
-              .eq('topic_id', topic.id)
-              .eq('vote_type', 'down');
-
-            // Get user's vote if logged in
-            let userVote = null;
-            if (user) {
-              const { data: vote } = await supabase
-                .from('forum_votes')
-                .select('vote_type')
-                .eq('topic_id', topic.id)
-                .eq('user_id', user.id)
-                .single();
-              userVote = vote?.vote_type || null;
-            }
-
-            return {
-              ...topic,
-              author: topic.profiles,
-              category: topic.forum_categories,
-              reply_count: replyCount || 0,
-              last_reply_at: lastReply?.created_at || topic.created_at,
-              upvotes: (upvotesCount || 0) - (downvotesCount || 0),
-              user_vote: userVote,
-            };
-          })
-        );
-
-        return topicsWithDetails;
-      },
-    });
-  };
-
-  const getTopic = (topicId: string) => {
-    return useQuery({
-      queryKey: ['forum-topic', topicId],
-      queryFn: async (): Promise<ForumTopic | null> => {
-        if (!topicId) return null;
-        
-        console.log('Fetching forum topic:', topicId);
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const { data, error } = await supabase
-          .from('forum_topics')
-          .select(`
-            *,
-            profiles!forum_topics_author_id_fkey (
-              full_name,
-              company
-            ),
-            forum_categories (
-              name,
-              color
-            )
-          `)
-          .eq('id', topicId)
-          .single();
-
-        if (error) {
-          console.error('Error fetching topic:', error);
-          throw error;
-        }
-
-        // Increment view count
-        await supabase
-          .from('forum_topics')
-          .update({ views_count: (data.views_count || 0) + 1 })
-          .eq('id', topicId);
-
-        // Get upvotes
-        const { count: upvotesCount } = await supabase
-          .from('forum_votes')
-          .select('*', { count: 'exact', head: true })
-          .eq('topic_id', topicId)
-          .eq('vote_type', 'up');
-
-        const { count: downvotesCount } = await supabase
-          .from('forum_votes')
-          .select('*', { count: 'exact', head: true })
-          .eq('topic_id', topicId)
-          .eq('vote_type', 'down');
-
-        // Get user's vote if logged in
-        let userVote = null;
-        if (user) {
-          const { data: vote } = await supabase
-            .from('forum_votes')
-            .select('vote_type')
-            .eq('topic_id', topicId)
-            .eq('user_id', user.id)
+          const { data: lastReply } = await supabase
+            .from('forum_replies')
+            .select('created_at')
+            .eq('topic_id', topic.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
             .single();
-          userVote = vote?.vote_type || null;
-        }
 
-        return {
-          ...data,
-          author: data.profiles,
-          category: data.forum_categories,
-          upvotes: (upvotesCount || 0) - (downvotesCount || 0),
-          user_vote: userVote,
-        };
-      },
-      enabled: !!topicId,
-    });
-  };
+          return {
+            ...topic,
+            author: topic.profiles || { full_name: 'Unknown User', company: '' },
+            category: topic.forum_categories,
+            reply_count: replyCount || 0,
+            last_reply_at: lastReply?.created_at || topic.created_at,
+          };
+        })
+      );
 
-  const getReplies = (topicId: string) => {
-    return useQuery({
-      queryKey: ['forum-replies', topicId],
-      queryFn: async (): Promise<ForumReply[]> => {
-        if (!topicId) return [];
-        
-        console.log('Fetching replies for topic:', topicId);
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const { data, error } = await supabase
-          .from('forum_replies')
-          .select(`
-            *,
-            profiles!forum_replies_author_id_fkey (
-              full_name,
-              company
-            )
-          `)
-          .eq('topic_id', topicId)
-          .order('created_at', { ascending: true });
+      return topicsWithStats;
+    },
+  });
+};
 
-        if (error) {
-          console.error('Error fetching replies:', error);
-          throw error;
-        }
+export const useForumTopic = (topicId: string) => {
+  return useQuery({
+    queryKey: ['forum-topic', topicId],
+    queryFn: async () => {
+      const { data: topic, error } = await supabase
+        .from('forum_topics')
+        .select(`
+          *,
+          forum_categories!inner(name, color),
+          profiles!forum_topics_author_id_fkey(full_name, company)
+        `)
+        .eq('id', topicId)
+        .single();
 
-        // Get votes for each reply
-        const repliesWithVotes = await Promise.all(
-          data.map(async (reply) => {
-            const { count: upvotesCount } = await supabase
-              .from('forum_votes')
-              .select('*', { count: 'exact', head: true })
-              .eq('reply_id', reply.id)
-              .eq('vote_type', 'up');
+      if (error) {
+        console.error('Error fetching forum topic:', error);
+        throw error;
+      }
 
-            const { count: downvotesCount } = await supabase
-              .from('forum_votes')
-              .select('*', { count: 'exact', head: true })
-              .eq('reply_id', reply.id)
-              .eq('vote_type', 'down');
+      return {
+        ...topic,
+        author: topic.profiles || { full_name: 'Unknown User', company: '' },
+        category: topic.forum_categories,
+      };
+    },
+  });
+};
 
-            let userVote = null;
-            if (user) {
-              const { data: vote } = await supabase
-                .from('forum_votes')
-                .select('vote_type')
-                .eq('reply_id', reply.id)
-                .eq('user_id', user.id)
-                .single();
-              userVote = vote?.vote_type || null;
-            }
+export const useForumReplies = (topicId: string) => {
+  return useQuery({
+    queryKey: ['forum-replies', topicId],
+    queryFn: async (): Promise<ForumReply[]> => {
+      const { data, error } = await supabase
+        .from('forum_replies')
+        .select(`
+          *,
+          profiles!forum_replies_author_id_fkey(full_name, company)
+        `)
+        .eq('topic_id', topicId)
+        .order('created_at', { ascending: true });
 
-            return {
-              ...reply,
-              author: reply.profiles,
-              upvotes: (upvotesCount || 0) - (downvotesCount || 0),
-              user_vote: userVote,
-            };
-          })
-        );
+      if (error) {
+        console.error('Error fetching forum replies:', error);
+        throw error;
+      }
 
-        return repliesWithVotes;
-      },
-      enabled: !!topicId,
-    });
-  };
-
-  const createTopicMutation = useMutation({
-    mutationFn: async (topicData: CreateTopicData) => {
-      console.log('Creating topic:', topicData);
+      // Get vote counts and user votes for each reply
+      const { data: { user } } = await supabase.auth.getUser();
       
+      const repliesWithVotes = await Promise.all(
+        data.map(async (reply) => {
+          const { count: upvotes } = await supabase
+            .from('forum_votes')
+            .select('*', { count: 'exact', head: true })
+            .eq('reply_id', reply.id)
+            .eq('vote_type', 'up');
+
+          let userVote = null;
+          if (user) {
+            const { data: vote } = await supabase
+              .from('forum_votes')
+              .select('vote_type')
+              .eq('reply_id', reply.id)
+              .eq('user_id', user.id)
+              .single();
+            userVote = vote;
+          }
+
+          return {
+            ...reply,
+            author: reply.profiles || { full_name: 'Unknown User', company: '' },
+            upvotes: upvotes || 0,
+            user_vote: userVote,
+          };
+        })
+      );
+
+      return repliesWithVotes;
+    },
+  });
+};
+
+export const useCreateTopic = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (topicData: CreateTopicData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
@@ -300,11 +197,14 @@ export const useForums = () => {
       });
     },
   });
+};
 
-  const createReplyMutation = useMutation({
+export const useCreateReply = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
     mutationFn: async (replyData: CreateReplyData) => {
-      console.log('Creating reply:', replyData);
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
@@ -318,17 +218,10 @@ export const useForums = () => {
         .single();
 
       if (error) throw error;
-
-      // Update topic's updated_at timestamp
-      await supabase
-        .from('forum_topics')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', replyData.topic_id);
-
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['forum-replies', data.topic_id] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['forum-replies', variables.topic_id] });
       queryClient.invalidateQueries({ queryKey: ['forum-topics'] });
       toast({
         title: "Reply posted",
@@ -343,52 +236,32 @@ export const useForums = () => {
       });
     },
   });
+};
 
-  const voteMutation = useMutation({
-    mutationFn: async ({ 
-      type, 
-      targetId, 
-      voteType, 
-      currentVote 
-    }: { 
-      type: 'topic' | 'reply'; 
-      targetId: string; 
-      voteType: 'up' | 'down';
-      currentVote?: 'up' | 'down' | null;
-    }) => {
+export const useVoteReply = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ replyId, voteType }: { replyId: string; voteType: 'up' | 'down' }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
-      // If user already voted the same way, remove the vote
-      if (currentVote === voteType) {
-        const { error } = await supabase
-          .from('forum_votes')
-          .delete()
-          .eq('user_id', user.id)
-          .eq(type === 'topic' ? 'topic_id' : 'reply_id', targetId);
-        
-        if (error) throw error;
-        return;
-      }
-
-      // Otherwise, upsert the vote
-      const voteData = {
-        user_id: user.id,
-        vote_type: voteType,
-        ...(type === 'topic' ? { topic_id: targetId } : { reply_id: targetId })
-      };
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('forum_votes')
-        .upsert(voteData, { 
-          onConflict: `user_id,${type}_id`
-        });
+        .upsert({
+          user_id: user.id,
+          reply_id: replyId,
+          vote_type: voteType,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+      return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['forum-topics'] });
-      queryClient.invalidateQueries({ queryKey: ['forum-topic'] });
+      // Find which topic this reply belongs to and invalidate its queries
       queryClient.invalidateQueries({ queryKey: ['forum-replies'] });
     },
     onError: (error: any) => {
@@ -399,18 +272,4 @@ export const useForums = () => {
       });
     },
   });
-
-  return {
-    categories,
-    categoriesLoading,
-    getTopics,
-    getTopic,
-    getReplies,
-    createTopic: createTopicMutation.mutate,
-    isCreatingTopic: createTopicMutation.isPending,
-    createReply: createReplyMutation.mutate,
-    isCreatingReply: createReplyMutation.isPending,
-    vote: voteMutation.mutate,
-    isVoting: voteMutation.isPending,
-  };
 };

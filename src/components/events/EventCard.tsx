@@ -1,172 +1,161 @@
 
+import { useState, useEffect } from 'react';
+import { Calendar, MapPin, Users, Clock, ExternalLink, Heart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar, Clock, MapPin, Users, Video, Building2 } from 'lucide-react';
-import { EventWithAttendees } from '@/types/events';
 import { useUpdateRSVP } from '@/hooks/useEvents';
+import { supabase } from '@/integrations/supabase/client';
+import { EventWithAttendees } from '@/types/events';
 
 interface EventCardProps {
   event: EventWithAttendees;
-  onViewDetails: (event: EventWithAttendees) => void;
+  isPast?: boolean;
 }
 
-const EventCard = ({ event, onViewDetails }: EventCardProps) => {
-  const updateRSVP = useUpdateRSVP();
+const EventCard = ({ event, isPast = false }: EventCardProps) => {
+  const [user, setUser] = useState<any>(null);
+  const { updateRSVP, isUpdatingRSVP } = useUpdateRSVP();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleRSVP = (status: 'going' | 'maybe' | 'not_going') => {
+    if (!user) return;
+    updateRSVP({ eventId: event.id, status });
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
       weekday: 'short',
-      year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
   };
 
-  const getEventTypeColor = () => {
-    switch (event.event_type) {
-      case 'workshop': return 'bg-blue-400/20 text-blue-400';
-      case 'networking': return 'bg-green-400/20 text-green-400';
-      case 'conference': return 'bg-purple-400/20 text-purple-400';
-      case 'meetup': return 'bg-yellow-400/20 text-yellow-400';
-      default: return 'bg-gray-400/20 text-gray-400';
-    }
-  };
-
-  const getRSVPStatus = () => {
-    if (!event.user_rsvp) return null;
-    switch (event.user_rsvp.status) {
-      case 'going': return 'Going';
-      case 'maybe': return 'Maybe';
-      case 'not_going': return 'Not Going';
-      default: return null;
-    }
-  };
-
-  const handleRSVP = async (status: 'going' | 'maybe' | 'not_going') => {
-    updateRSVP.mutate({ eventId: event.id, status });
-  };
+  const userRsvpStatus = event.user_rsvp?.status;
 
   return (
-    <Card className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
+    <Card className={`bg-gray-800 border-gray-700 hover:border-gray-600 transition-colors ${isPast ? 'opacity-75' : ''}`}>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="font-semibold text-white line-clamp-2 mb-2">
+            <h3 className="font-semibold text-white text-lg mb-2 line-clamp-2">
               {event.title}
             </h3>
-            {event.description && (
-              <p className="text-gray-400 text-sm line-clamp-2 mb-3">
-                {event.description}
-              </p>
-            )}
-          </div>
-          {event.featured_image && (
-            <div className="w-16 h-16 rounded-lg bg-gray-700 flex-shrink-0 overflow-hidden">
-              <img 
-                src={event.featured_image} 
-                alt={event.title}
-                className="w-full h-full object-cover"
-              />
+            <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {formatDate(event.event_date)}
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {formatTime(event.event_date)}
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Badge className={getEventTypeColor()}>
+          </div>
+          <Badge variant="secondary" className="bg-[#00C2FF]/20 text-[#00C2FF]">
             {event.event_type}
           </Badge>
-          {event.is_virtual && (
-            <Badge variant="outline" className="text-blue-400">
-              <Video className="w-3 h-3 mr-1" />
-              Virtual
-            </Badge>
-          )}
-          {getRSVPStatus() && (
-            <Badge variant="secondary" className="text-green-400">
-              {getRSVPStatus()}
-            </Badge>
-          )}
         </div>
       </CardHeader>
-      
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          <div className="flex items-center gap-4 text-sm text-gray-400">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              <span>{formatDate(event.event_date)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{formatTime(event.event_date)}</span>
-            </div>
-          </div>
 
-          {(event.location || event.venue_name) && (
-            <div className="flex items-center gap-1 text-sm text-gray-400">
+      <CardContent className="space-y-4">
+        <p className="text-gray-300 text-sm line-clamp-3">
+          {event.description}
+        </p>
+
+        <div className="space-y-2">
+          {event.location && (
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
               <MapPin className="w-4 h-4" />
-              <span>{event.venue_name || event.location}</span>
+              {event.location}
             </div>
           )}
-
-          {event.business_id && (
-            <div className="flex items-center gap-1 text-sm text-gray-400">
-              <Building2 className="w-4 h-4" />
-              <span>Hosted by Business</span>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-sm text-gray-400">
-              <Users className="w-4 h-4" />
-              <span>{event.attendee_count || 0} attending</span>
-              {event.max_attendees && (
-                <span className="text-gray-500">/ {event.max_attendees}</span>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              {!event.user_rsvp || event.user_rsvp.status !== 'going' ? (
-                <Button
-                  size="sm"
-                  onClick={() => handleRSVP('going')}
-                  disabled={updateRSVP.isPending}
-                  className="bg-[#00C2FF] hover:bg-[#0099CC] text-white"
-                >
-                  RSVP
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleRSVP('not_going')}
-                  disabled={updateRSVP.isPending}
-                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                >
-                  Cancel
-                </Button>
-              )}
-              
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => onViewDetails(event)}
-                className="text-gray-400 hover:text-white"
-              >
-                Details
-              </Button>
-            </div>
+          
+          <div className="flex items-center gap-2 text-gray-400 text-sm">
+            <Users className="w-4 h-4" />
+            {event.attendee_count || 0} attending
+            {event.max_attendees && ` • ${event.max_attendees} max`}
           </div>
         </div>
+
+        {event.tags && event.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {event.tags.slice(0, 3).map((tag: string, index: number) => (
+              <Badge key={index} variant="outline" className="text-xs border-gray-600 text-gray-400">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {!isPast && (
+          <div className="pt-2 border-t border-gray-700">
+            {user ? (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={userRsvpStatus === 'going' ? "default" : "outline"}
+                  onClick={() => handleRSVP('going')}
+                  disabled={isUpdatingRSVP}
+                  className="flex-1"
+                >
+                  Going
+                </Button>
+                <Button
+                  size="sm"
+                  variant={userRsvpStatus === 'maybe' ? "default" : "outline"}
+                  onClick={() => handleRSVP('maybe')}
+                  disabled={isUpdatingRSVP}
+                  className="flex-1"
+                >
+                  Maybe
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-400 text-sm mb-2">Sign in to RSVP</p>
+                <Button size="sm" variant="outline" className="w-full">
+                  <Heart className="w-4 h-4 mr-2" />
+                  Interested
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {event.meeting_url && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full border-gray-600"
+            onClick={() => window.open(event.meeting_url, '_blank')}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Join Meeting
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

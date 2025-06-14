@@ -1,24 +1,20 @@
 
 import { useState } from 'react';
+import { Calendar, Plus, Users, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Calendar, Users, Clock } from 'lucide-react';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
-import SEO from '@/components/seo/SEO';
 import EventCard from '@/components/events/EventCard';
-import EventsCalendar from '@/components/events/EventsCalendar';
 import CreateEventForm from '@/components/events/CreateEventForm';
-import { useEvents, useMyEvents } from '@/hooks/useEvents';
-import { EventWithAttendees } from '@/types/events';
+import EventsCalendar from '@/components/events/EventsCalendar';
+import { useEvents } from '@/hooks/useEvents';
 
 const Events = () => {
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventWithAttendees | null>(null);
-  const { data: events = [], isLoading: eventsLoading, error: eventsError } = useEvents();
-  const { data: myEvents = [], isLoading: myEventsLoading } = useMyEvents();
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const { events, eventsLoading } = useEvents();
 
   const upcomingEvents = events.filter(event => 
     new Date(event.event_date) > new Date()
@@ -28,35 +24,20 @@ const Events = () => {
     new Date(event.event_date) <= new Date()
   );
 
-  const handleCreateSuccess = () => {
-    setShowCreateDialog(false);
-  };
-
-  const handleDateSelect = (date: Date, dayEvents: EventWithAttendees[]) => {
-    console.log('Selected date:', date, 'Events:', dayEvents);
-  };
-
-  const handleViewDetails = (event: EventWithAttendees) => {
-    setSelectedEvent(event);
-  };
-
   if (eventsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
         <Header />
-        <div className="container mx-auto px-6 py-8">
-          <div className="text-center text-white">Loading events...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (eventsError) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-        <Header />
-        <div className="container mx-auto px-6 py-8">
-          <div className="text-center text-red-400">Error loading events. Please try again.</div>
+        <div className="container mx-auto px-6 py-16">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-700 rounded w-1/3"></div>
+            <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-64 bg-gray-700 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -64,208 +45,118 @@ const Events = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <SEO 
-        title="Events & Meetups"
-        description="Discover AI events, workshops, and networking opportunities in Alabama. Connect with the local AI community."
-      />
-      
       <Header />
-
-      <main className="container mx-auto px-6 py-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Events & Meetups
-            </h1>
-            <p className="text-gray-400">
-              Connect with Alabama's AI community through events, workshops, and networking opportunities.
-            </p>
-          </div>
-          
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#00C2FF] hover:bg-[#0099CC] text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Event
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-gray-900 border-gray-700">
-              <DialogHeader>
-                <DialogTitle className="text-white">Create New Event</DialogTitle>
-              </DialogHeader>
-              <CreateEventForm 
-                onSuccess={handleCreateSuccess}
-                onCancel={() => setShowCreateDialog(false)}
-              />
-            </DialogContent>
-          </Dialog>
+      
+      <div className="container mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-white mb-4">
+            AI Events & Meetups
+          </h1>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+            Connect with Alabama's AI community through workshops, conferences, and networking events
+          </p>
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            className="bg-[#00C2FF] hover:bg-[#00A8D8]"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Event
+          </Button>
         </div>
 
-        {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats */}
+        <div className="grid md:grid-cols-4 gap-6 mb-12">
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-8 h-8 text-[#00C2FF]" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{upcomingEvents.length}</p>
-                  <p className="text-gray-400">Upcoming Events</p>
-                </div>
-              </div>
+            <CardContent className="p-6 text-center">
+              <Calendar className="w-8 h-8 text-[#00C2FF] mx-auto mb-2" />
+              <div className="text-2xl font-bold text-white">{upcomingEvents.length}</div>
+              <div className="text-gray-400">Upcoming Events</div>
             </CardContent>
           </Card>
-
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <Users className="w-8 h-8 text-[#00C2FF]" />
-                <div>
-                  <p className="text-2xl font-bold text-white">
-                    {events.reduce((sum, event) => sum + (event.attendee_count || 0), 0)}
-                  </p>
-                  <p className="text-gray-400">Total RSVPs</p>
-                </div>
+            <CardContent className="p-6 text-center">
+              <Users className="w-8 h-8 text-green-400 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-white">
+                {events.reduce((sum, event) => sum + (event.attendee_count || 0), 0)}
               </div>
+              <div className="text-gray-400">Total RSVPs</div>
             </CardContent>
           </Card>
-
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <Clock className="w-8 h-8 text-[#00C2FF]" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{myEvents.length}</p>
-                  <p className="text-gray-400">Your Events</p>
-                </div>
+            <CardContent className="p-6 text-center">
+              <MapPin className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-white">
+                {new Set(events.map(e => e.location?.split(',')[0])).size}
               </div>
+              <div className="text-gray-400">Cities</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-6 text-center">
+              <Clock className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-white">{pastEvents.length}</div>
+              <div className="text-gray-400">Past Events</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
-        <Tabs defaultValue="upcoming" className="space-y-6">
-          <TabsList className="bg-gray-800 border-gray-700">
-            <TabsTrigger value="upcoming" className="data-[state=active]:bg-[#00C2FF]">
-              Upcoming Events
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#00C2FF]">
-              Calendar View
-            </TabsTrigger>
-            <TabsTrigger value="past" className="data-[state=active]:bg-[#00C2FF]">
-              Past Events
-            </TabsTrigger>
-            <TabsTrigger value="my-events" className="data-[state=active]:bg-[#00C2FF]">
-              My Events
-            </TabsTrigger>
+        {/* Events Content */}
+        <Tabs defaultValue="grid" className="space-y-6">
+          <TabsList className="bg-gray-800">
+            <TabsTrigger value="grid">Grid View</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="upcoming" className="space-y-6">
-            {upcomingEvents.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {upcomingEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    onViewDetails={handleViewDetails}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardContent className="p-8 text-center">
-                  <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">No Upcoming Events</h3>
-                  <p className="text-gray-400 mb-4">
-                    Be the first to create an event for the Alabama AI community!
-                  </p>
-                  <Button 
-                    onClick={() => setShowCreateDialog(true)}
-                    className="bg-[#00C2FF] hover:bg-[#0099CC] text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Event
-                  </Button>
-                </CardContent>
-              </Card>
+          <TabsContent value="grid" className="space-y-6">
+            {/* Upcoming Events */}
+            <section>
+              <h2 className="text-2xl font-bold text-white mb-6">Upcoming Events</h2>
+              {upcomingEvents.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {upcomingEvents.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardContent className="p-12 text-center">
+                    <Calendar className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-white mb-2">No Upcoming Events</h3>
+                    <p className="text-gray-400 mb-4">Be the first to create an event for the community!</p>
+                    <Button onClick={() => setShowCreateForm(true)}>
+                      Create First Event
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </section>
+
+            {/* Past Events */}
+            {pastEvents.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-bold text-white mb-6">Past Events</h2>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {pastEvents.slice(0, 6).map((event) => (
+                    <EventCard key={event.id} event={event} isPast />
+                  ))}
+                </div>
+              </section>
             )}
           </TabsContent>
 
-          <TabsContent value="calendar" className="space-y-6">
-            <EventsCalendar events={events} onDateSelect={handleDateSelect} />
-          </TabsContent>
-
-          <TabsContent value="past" className="space-y-6">
-            {pastEvents.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pastEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    onViewDetails={handleViewDetails}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardContent className="p-8 text-center">
-                  <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">No Past Events</h3>
-                  <p className="text-gray-400">Past events will appear here.</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="my-events" className="space-y-6">
-            {!myEventsLoading && myEvents.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    onViewDetails={handleViewDetails}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardContent className="p-8 text-center">
-                  <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">No Events Created</h3>
-                  <p className="text-gray-400 mb-4">
-                    Create your first event to get started organizing meetups.
-                  </p>
-                  <Button 
-                    onClick={() => setShowCreateDialog(true)}
-                    className="bg-[#00C2FF] hover:bg-[#0099CC] text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Event
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+          <TabsContent value="calendar">
+            <EventsCalendar events={events} />
           </TabsContent>
         </Tabs>
-      </main>
+
+        {/* Create Event Modal */}
+        {showCreateForm && (
+          <CreateEventForm onClose={() => setShowCreateForm(false)} />
+        )}
+      </div>
 
       <Footer />
-
-      {/* Event Details Dialog */}
-      {selectedEvent && (
-        <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-          <DialogContent className="max-w-2xl bg-gray-900 border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">{selectedEvent.title}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-gray-300">{selectedEvent.description}</p>
-              {/* Add more event details here */}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };
