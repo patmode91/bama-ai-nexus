@@ -23,7 +23,12 @@ export const useVerificationRequests = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      
+      // Type assertion to ensure status is properly typed
+      return (data || []).map(item => ({
+        ...item,
+        status: item.status as 'pending' | 'approved' | 'rejected'
+      }));
     },
   });
 };
