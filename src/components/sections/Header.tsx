@@ -1,232 +1,111 @@
-import { useState, useEffect } from 'react';
-import { Building2, Menu, X, User, Settings, LogOut, BarChart3, Building } from 'lucide-react';
+
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+import { Menu, X, Users, Building2, TrendingUp, BookOpen } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check initial auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
-
-  const handleSignIn = () => {
-    navigate('/auth');
-  };
+  const navItems = [
+    { name: 'Directory', href: '/', icon: Building2 },
+    { name: 'Analytics', href: '/analytics', icon: TrendingUp },
+    { name: 'Blog', href: '/blog', icon: BookOpen },
+    { name: 'About', href: '/about', icon: Users },
+  ];
 
   return (
-    <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-40">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+    <header className="bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
+      <div className="container mx-auto px-6">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div 
-            className="flex items-center space-x-2 cursor-pointer" 
-            onClick={() => navigate('/')}
-          >
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-[#00C2FF] rounded-lg flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-[#00C2FF] rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">BA</span>
             </div>
-            <span className="text-xl font-bold text-white">BamaAI Connect</span>
-          </div>
+            <span className="text-white font-bold text-xl">BamaAI Connect</span>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <button 
-              onClick={() => navigate('/')}
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              Directory
-            </button>
-            <button 
-              onClick={() => navigate('/about')}
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              About
-            </button>
-            <button 
-              onClick={() => navigate('/contact')}
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              Contact
-            </button>
-            <button 
-              onClick={() => navigate('/analytics')}
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              Analytics
-            </button>
-            {user && (
-              <button 
-                onClick={() => navigate('/admin')}
-                className="text-gray-300 hover:text-white transition-colors"
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className="flex items-center space-x-1 text-gray-300 hover:text-white transition-colors"
               >
-                Admin
-              </button>
-            )}
+                <item.icon className="w-4 h-4" />
+                <span>{item.name}</span>
+              </Link>
+            ))}
           </nav>
 
-          {/* Auth Section */}
+          {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-gray-300 hover:text-white">
-                    <User className="w-4 h-4 mr-2" />
-                    {user.email?.split('@')[0]}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                  <DropdownMenuItem 
-                    onClick={() => navigate('/profile')}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer"
-                  >
-                    <User className="w-4 h-4 mr-2" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => navigate('/dashboard')}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer"
-                  >
-                    <Building className="w-4 h-4 mr-2" />
-                    Business Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => navigate('/analytics')}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer"
-                  >
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Analytics
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-gray-700" />
-                  <DropdownMenuItem 
-                    onClick={handleSignOut}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <>
-                <Button 
-                  variant="ghost" 
-                  onClick={handleSignIn}
-                  className="text-gray-300 hover:text-white"
-                >
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={handleSignIn}
-                  className="bg-[#00C2FF] hover:bg-[#00A8D8]"
-                >
-                  Get Started
-                </Button>
-              </>
-            )}
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/auth')}
+              className="border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
+            >
+              Sign In
+            </Button>
+            <Button 
+              onClick={() => navigate('/auth')}
+              className="bg-[#00C2FF] hover:bg-[#0099CC] text-white"
+            >
+              Get Started
+            </Button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden text-gray-300 hover:text-white"
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden text-gray-400"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-gray-700 pt-4">
-            <nav className="flex flex-col space-y-4">
-              <button 
-                onClick={() => { navigate('/'); setIsMenuOpen(false); }}
-                className="text-gray-300 hover:text-white transition-colors text-left"
-              >
-                Directory
-              </button>
-              <button 
-                onClick={() => { navigate('/about'); setIsMenuOpen(false); }}
-                className="text-gray-300 hover:text-white transition-colors text-left"
-              >
-                About
-              </button>
-              <button 
-                onClick={() => { navigate('/contact'); setIsMenuOpen(false); }}
-                className="text-gray-300 hover:text-white transition-colors text-left"
-              >
-                Contact
-              </button>
-              <button 
-                onClick={() => { navigate('/analytics'); setIsMenuOpen(false); }}
-                className="text-gray-300 hover:text-white transition-colors text-left"
-              >
-                Analytics
-              </button>
-              
-              {user ? (
-                <>
-                  <button 
-                    onClick={() => { navigate('/profile'); setIsMenuOpen(false); }}
-                    className="text-gray-300 hover:text-white transition-colors text-left"
-                  >
-                    Profile
-                  </button>
-                  <button 
-                    onClick={() => { navigate('/dashboard'); setIsMenuOpen(false); }}
-                    className="text-gray-300 hover:text-white transition-colors text-left"
-                  >
-                    Business Dashboard
-                  </button>
-                  <button 
-                    onClick={() => { navigate('/admin'); setIsMenuOpen(false); }}
-                    className="text-gray-300 hover:text-white transition-colors text-left"
-                  >
-                    Admin
-                  </button>
-                  <button 
-                    onClick={() => { handleSignOut(); setIsMenuOpen(false); }}
-                    className="text-gray-300 hover:text-white transition-colors text-left"
-                  >
-                    Sign Out
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={() => { handleSignIn(); setIsMenuOpen(false); }}
-                  className="text-gray-300 hover:text-white transition-colors text-left"
+          <div className="md:hidden py-4 border-t border-gray-700">
+            <div className="flex flex-col space-y-4">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <item.icon className="w-4 h-4" />
+                  <span>{item.name}</span>
+                </Link>
+              ))}
+              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-700">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    navigate('/auth');
+                    setIsMenuOpen(false);
+                  }}
+                  className="justify-start border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
                 >
                   Sign In
-                </button>
-              )}
-            </nav>
+                </Button>
+                <Button 
+                  onClick={() => {
+                    navigate('/auth');
+                    setIsMenuOpen(false);
+                  }}
+                  className="justify-start bg-[#00C2FF] hover:bg-[#0099CC] text-white"
+                >
+                  Get Started
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

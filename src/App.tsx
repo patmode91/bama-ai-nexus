@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import ComparisonPage from "./pages/ComparisonPage";
 import Integrations from "./pages/Integrations";
 import MobileSettings from "./pages/MobileSettings";
+import Blog from "./pages/Blog";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/blog" element={<Blog />} />
               <Route path="/compare" element={<ComparisonPage />} />
               <Route path="/business/:id" element={<BusinessProfile />} />
               <Route path="/profile" element={<Profile />} />
