@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Search, MapPin, Building2, Users, TrendingUp, Zap, ArrowRight, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,9 +50,9 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-800 to-gray-900">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-gray-700 bg-gray-800/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -61,15 +60,15 @@ const Index = () => {
                 <Zap className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">BamaAI Connect</h1>
-                <p className="text-xs text-slate-600">Alabama's AI Ecosystem Hub</p>
+                <h1 className="text-xl font-bold text-white">BamaAI Connect</h1>
+                <p className="text-xs text-gray-300">Alabama's AI Ecosystem Hub</p>
               </div>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#directory" className="text-slate-700 hover:text-[#00C2FF] transition-colors">Directory</a>
-              <a href="#insights" className="text-slate-700 hover:text-[#00C2FF] transition-colors">Insights</a>
-              <a href="#jobs" className="text-slate-700 hover:text-[#00C2FF] transition-colors">Jobs</a>
-              <Button variant="outline" size="sm">Sign In</Button>
+              <a href="#directory" className="text-gray-300 hover:text-[#00C2FF] transition-colors">Directory</a>
+              <a href="#insights" className="text-gray-300 hover:text-[#00C2FF] transition-colors">Insights</a>
+              <a href="#jobs" className="text-gray-300 hover:text-[#00C2FF] transition-colors">Jobs</a>
+              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">Sign In</Button>
               <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">Join Directory</Button>
             </nav>
           </div>
@@ -79,16 +78,16 @@ const Index = () => {
       {/* Hero Section */}
       <section className="py-20 px-6">
         <div className="container mx-auto text-center max-w-4xl">
-          <div className="inline-flex items-center px-4 py-2 bg-[#00C2FF]/10 rounded-full text-[#00C2FF] text-sm font-medium mb-6">
+          <div className="inline-flex items-center px-4 py-2 bg-[#00C2FF]/20 rounded-full text-[#00C2FF] text-sm font-medium mb-6">
             <Zap className="w-4 h-4 mr-2" />
             Powered by AI Intelligence
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
             Alabama's
             <span className="bg-gradient-to-r from-[#00C2FF] to-blue-600 bg-clip-text text-transparent"> AI Ecosystem</span>
             <br />Connected
           </h1>
-          <p className="text-xl text-slate-600 mb-8 leading-relaxed">
+          <p className="text-xl text-gray-300 mb-8 leading-relaxed">
             Discover, connect, and grow with Alabama's thriving artificial intelligence community. 
             From Birmingham to Huntsville, find the AI solutions and talent that drive innovation.
           </p>
@@ -96,12 +95,12 @@ const Index = () => {
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto mb-12">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
                 placeholder="Search for AI companies, jobs, or expertise..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 py-4 text-lg border-2 border-slate-200 focus:border-[#00C2FF] rounded-full"
+                className="pl-12 pr-4 py-4 text-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400 focus:border-[#00C2FF] rounded-full"
               />
               <Button 
                 size="lg" 
@@ -116,10 +115,10 @@ const Index = () => {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
             {stats.map((stat, index) => (
-              <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+              <div key={index} className="bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-700">
                 <stat.icon className="w-8 h-8 text-[#00C2FF] mb-3 mx-auto" />
-                <div className="text-2xl font-bold text-slate-900 mb-1">{stat.value}</div>
-                <div className="text-sm text-slate-600">{stat.label}</div>
+                <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
+                <div className="text-sm text-gray-400">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -127,50 +126,50 @@ const Index = () => {
       </section>
 
       {/* Featured Companies */}
-      <section id="directory" className="py-16 px-6 bg-slate-50">
+      <section id="directory" className="py-16 px-6 bg-gray-900">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Featured AI Companies</h2>
-            <p className="text-lg text-slate-600">Leading the future of artificial intelligence in Alabama</p>
+            <h2 className="text-3xl font-bold text-white mb-4">Featured AI Companies</h2>
+            <p className="text-lg text-gray-300">Leading the future of artificial intelligence in Alabama</p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {featuredCompanies.map((company) => (
-              <Card key={company.id} className="hover:shadow-lg transition-shadow cursor-pointer group">
+              <Card key={company.id} className="hover:shadow-lg transition-shadow cursor-pointer group bg-gray-800 border-gray-700">
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="text-2xl">{company.logo}</div>
                       <div>
-                        <CardTitle className="text-lg group-hover:text-[#00C2FF] transition-colors">
+                        <CardTitle className="text-lg group-hover:text-[#00C2FF] transition-colors text-white">
                           {company.name}
                         </CardTitle>
-                        <div className="flex items-center text-sm text-slate-500 mt-1">
+                        <div className="flex items-center text-sm text-gray-400 mt-1">
                           <MapPin className="w-3 h-3 mr-1" />
                           {company.location}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center text-sm">
+                    <div className="flex items-center text-sm text-gray-300">
                       <Star className="w-4 h-4 text-yellow-400 mr-1" />
                       {company.rating}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-600 text-sm mb-4 leading-relaxed">
+                  <p className="text-gray-300 text-sm mb-4 leading-relaxed">
                     {company.description}
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="flex space-x-2">
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
                         {company.category}
                       </Badge>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
                         {company.employees}
                       </Badge>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-[#00C2FF] hover:text-[#00A8D8]">
+                    <Button variant="ghost" size="sm" className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700">
                       View Profile
                       <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
