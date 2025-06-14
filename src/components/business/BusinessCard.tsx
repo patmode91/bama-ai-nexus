@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, MapPin, Users, Calendar, Star, Heart, ExternalLink, Mail } from 'lucide-react';
 import { Business } from '@/hooks/useBusinesses';
 import { useSavedBusinesses } from '@/hooks/useSavedBusinesses';
+import { useTrackEvent } from '@/hooks/useAnalytics';
 import { supabase } from '@/integrations/supabase/client';
+import VerificationBadge from '@/components/verification/VerificationBadge';
 
 interface BusinessCardProps {
   business: Business;
@@ -16,6 +18,7 @@ interface BusinessCardProps {
 const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
   const [user, setUser] = useState<any>(null);
   const { isBusinessSaved, saveBusiness, unsaveBusiness, isSaving, isUnsaving } = useSavedBusinesses();
+  const trackEvent = useTrackEvent();
 
   // Check if user is logged in
   useState(() => {
@@ -35,6 +38,33 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
     } else {
       saveBusiness(business.id);
     }
+  };
+
+  const handleViewProfile = () => {
+    trackEvent.mutate({
+      event_type: 'business_click',
+      business_id: business.id,
+      metadata: { business_name: business.businessname }
+    });
+    onViewProfile(business.id);
+  };
+
+  const handleWebsiteClick = () => {
+    trackEvent.mutate({
+      event_type: 'website_click',
+      business_id: business.id,
+      metadata: { website: business.website }
+    });
+    window.open(business.website, '_blank');
+  };
+
+  const handleEmailClick = () => {
+    trackEvent.mutate({
+      event_type: 'email_click',
+      business_id: business.id,
+      metadata: { email: business.contactemail }
+    });
+    window.open(`mailto:${business.contactemail}`, '_blank');
   };
 
   const isProcessing = isSaving || isUnsaving;
@@ -60,11 +90,13 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
               <h3 className="text-xl font-semibold text-white line-clamp-1">
                 {business.businessname}
               </h3>
-              {business.verified && (
-                <Badge variant="secondary" className="bg-green-600 text-white">
-                  ✓ Verified
-                </Badge>
-              )}
+            </div>
+            
+            <div className="mb-3">
+              <VerificationBadge 
+                businessId={business.id}
+                isVerified={business.verified || false}
+              />
             </div>
             
             <p className="text-gray-300 text-sm mb-4 line-clamp-3">
@@ -139,7 +171,7 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
 
         <div className="flex gap-2 pt-4 border-t border-gray-700">
           <Button 
-            onClick={() => onViewProfile(business.id)}
+            onClick={handleViewProfile}
             className="flex-1 bg-[#00C2FF] hover:bg-[#00A8D8]"
             size="sm"
           >
@@ -150,7 +182,7 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open(business.website, '_blank')}
+              onClick={handleWebsiteClick}
               className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               <ExternalLink className="w-4 h-4" />
@@ -161,7 +193,7 @@ const BusinessCard = ({ business, onViewProfile }: BusinessCardProps) => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open(`mailto:${business.contactemail}`, '_blank')}
+              onClick={handleEmailClick}
               className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               <Mail className="w-4 h-4" />

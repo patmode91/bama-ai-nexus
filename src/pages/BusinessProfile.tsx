@@ -8,15 +8,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useSavedBusinesses } from '@/hooks/useSavedBusinesses';
+import { useTrackEvent } from '@/hooks/useAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
+import BusinessReviews from '@/components/reviews/BusinessReviews';
+import VerificationBadge from '@/components/verification/VerificationBadge';
 
 const BusinessProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: businesses, isLoading } = useBusinesses();
   const { isBusinessSaved, saveBusiness, unsaveBusiness, isSaving, isUnsaving } = useSavedBusinesses();
+  const trackEvent = useTrackEvent();
   const [user, setUser] = useState<any>(null);
   
   const business = businesses?.find(b => b.id === parseInt(id || ''));
@@ -34,6 +38,17 @@ const BusinessProfile = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    // Track business view
+    if (business) {
+      trackEvent.mutate({
+        event_type: 'business_view',
+        business_id: business.id,
+        metadata: { business_name: business.businessname }
+      });
+    }
+  }, [business, trackEvent]);
 
   const handleSaveToggle = () => {
     if (!user || !business) return;
@@ -109,7 +124,7 @@ const BusinessProfile = () => {
           
           <div className="grid md:grid-cols-3 gap-8">
             {/* Main Content */}
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 space-y-6">
               <div className="flex items-start space-x-4 mb-6">
                 <div className="text-4xl">
                   {business.logo_url ? (
@@ -123,12 +138,11 @@ const BusinessProfile = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h1 className="text-3xl font-bold text-white">{business.businessname}</h1>
-                    {business.verified && (
-                      <Badge className="bg-yellow-400/20 text-yellow-400 border-yellow-400/30">
-                        <Star className="w-3 h-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
+                    <VerificationBadge 
+                      businessId={business.id}
+                      isVerified={business.verified || false}
+                      showRequestButton={true}
+                    />
                   </div>
                   <div className="flex items-center text-gray-400 mb-2">
                     <MapPin className="w-4 h-4 mr-2" />
@@ -141,7 +155,7 @@ const BusinessProfile = () => {
               </div>
 
               {/* Description */}
-              <Card className="bg-gray-800 border-gray-700 mb-6">
+              <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
                   <CardTitle className="text-white">About</CardTitle>
                 </CardHeader>
@@ -154,7 +168,7 @@ const BusinessProfile = () => {
 
               {/* Tags */}
               {business.tags && business.tags.length > 0 && (
-                <Card className="bg-gray-800 border-gray-700 mb-6">
+                <Card className="bg-gray-800 border-gray-700">
                   <CardHeader>
                     <CardTitle className="text-white">Specializations</CardTitle>
                   </CardHeader>
@@ -169,6 +183,9 @@ const BusinessProfile = () => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Reviews Section */}
+              <BusinessReviews businessId={business.id} />
             </div>
 
             {/* Sidebar */}
@@ -228,7 +245,7 @@ const BusinessProfile = () => {
                       <span className="text-white">{business.founded_year}</span>
                     </div>
                   )}
-                  {business.rating && (
+                  {business.rating && business.rating > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400">Rating</span>
                       <div className="flex items-center">
