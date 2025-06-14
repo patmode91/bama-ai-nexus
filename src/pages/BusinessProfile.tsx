@@ -1,11 +1,14 @@
 
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Globe, Mail, Phone, MapPin, Users, Calendar, Star, ExternalLink, Building2 } from 'lucide-react';
+import { ArrowLeft, Globe, Mail, Phone, MapPin, Users, Calendar, Star, ExternalLink, Building2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useBusinesses } from '@/hooks/useBusinesses';
+import { useSavedBusinesses } from '@/hooks/useSavedBusinesses';
+import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
 
@@ -13,8 +16,37 @@ const BusinessProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: businesses, isLoading } = useBusinesses();
+  const { isBusinessSaved, saveBusiness, unsaveBusiness, isSaving, isUnsaving } = useSavedBusinesses();
+  const [user, setUser] = useState<any>(null);
   
   const business = businesses?.find(b => b.id === parseInt(id || ''));
+
+  useEffect(() => {
+    // Check if user is logged in
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSaveToggle = () => {
+    if (!user || !business) return;
+
+    if (isBusinessSaved(business.id)) {
+      unsaveBusiness(business.id);
+    } else {
+      saveBusiness(business.id);
+    }
+  };
+
+  const isProcessing = isSaving || isUnsaving;
+  const isSaved = business ? isBusinessSaved(business.id) : false;
 
   if (isLoading) {
     return (
@@ -211,15 +243,37 @@ const BusinessProfile = () => {
               {/* Action Buttons */}
               <div className="space-y-3">
                 {business.contactemail && (
-                  <Button className="w-full bg-[#00C2FF] hover:bg-[#00A8D8]">
+                  <Button 
+                    className="w-full bg-[#00C2FF] hover:bg-[#00A8D8]"
+                    onClick={() => window.open(`mailto:${business.contactemail}`, '_blank')}
+                  >
                     <Mail className="w-4 h-4 mr-2" />
                     Contact Business
                   </Button>
                 )}
-                <Button variant="outline" className="w-full border-gray-600 text-gray-300 hover:bg-gray-700">
-                  <Star className="w-4 h-4 mr-2" />
-                  Save to Favorites
-                </Button>
+                {user && (
+                  <Button 
+                    variant="outline" 
+                    className={`w-full border-gray-600 hover:bg-gray-700 ${
+                      isSaved ? 'text-red-400 border-red-400 hover:border-red-300' : 'text-gray-300'
+                    }`}
+                    onClick={handleSaveToggle}
+                    disabled={isProcessing}
+                  >
+                    <Heart className={`w-4 h-4 mr-2 ${isSaved ? 'fill-current' : ''}`} />
+                    {isProcessing ? 'Saving...' : isSaved ? 'Remove from Favorites' : 'Save to Favorites'}
+                  </Button>
+                )}
+                {!user && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                    onClick={() => navigate('/profile')}
+                  >
+                    <Star className="w-4 h-4 mr-2" />
+                    Sign in to Save
+                  </Button>
+                )}
               </div>
             </div>
           </div>

@@ -10,6 +10,9 @@ import HeroSection from '@/components/sections/HeroSection';
 import FeaturedCompaniesSection from '@/components/sections/FeaturedCompaniesSection';
 import CTASection from '@/components/sections/CTASection';
 import Footer from '@/components/sections/Footer';
+import AdvancedSearch from '@/components/search/AdvancedSearch';
+import BusinessStats from '@/components/business/BusinessStats';
+import CategoryBrowser from '@/components/business/CategoryBrowser';
 import { useBusinesses } from '@/hooks/useBusinesses';
 
 const Index = () => {
@@ -18,6 +21,7 @@ const Index = () => {
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(false);
+  const [currentView, setCurrentView] = useState<'directory' | 'categories'>('directory');
 
   // Fetch real businesses data
   const { data: businesses, isLoading: businessesLoading, error: businessesError } = useBusinesses();
@@ -31,9 +35,9 @@ const Index = () => {
   const handleSearch = (query: string, filters: any) => {
     console.log('Searching with:', query, filters);
     if (businesses) {
-      // Filter businesses based on search query and filters
       let filtered = businesses;
       
+      // Text search
       if (query) {
         filtered = filtered.filter(business => 
           business.businessname?.toLowerCase().includes(query.toLowerCase()) ||
@@ -43,20 +47,76 @@ const Index = () => {
         );
       }
       
-      if (filters.category && filters.category !== 'all') {
+      // Category filter
+      if (filters.category && filters.category !== '') {
         filtered = filtered.filter(business => 
           business.category?.toLowerCase() === filters.category.toLowerCase()
         );
       }
       
-      if (filters.location && filters.location !== 'all') {
+      // Location filter
+      if (filters.location && filters.location !== '') {
         filtered = filtered.filter(business => 
           business.location?.toLowerCase().includes(filters.location.toLowerCase())
         );
       }
       
+      // Employee range filter
+      if (filters.employeeRange && filters.employeeRange !== '') {
+        filtered = filtered.filter(business => {
+          const count = business.employees_count;
+          if (!count) return false;
+          
+          switch (filters.employeeRange) {
+            case '1-10': return count <= 10;
+            case '11-50': return count >= 11 && count <= 50;
+            case '51-200': return count >= 51 && count <= 200;
+            case '201-500': return count >= 201 && count <= 500;
+            case '500+': return count > 500;
+            default: return true;
+          }
+        });
+      }
+      
+      // Founded year range filter
+      if (filters.foundedYearRange && filters.foundedYearRange !== '') {
+        filtered = filtered.filter(business => {
+          const year = business.founded_year;
+          if (!year) return false;
+          
+          switch (filters.foundedYearRange) {
+            case '2020-2024': return year >= 2020;
+            case '2015-2019': return year >= 2015 && year <= 2019;
+            case '2010-2014': return year >= 2010 && year <= 2014;
+            case '2000-2009': return year >= 2000 && year <= 2009;
+            case 'Before 2000': return year < 2000;
+            default: return true;
+          }
+        });
+      }
+      
+      // Verification filter
+      if (filters.verified !== null) {
+        filtered = filtered.filter(business => 
+          business.verified === filters.verified
+        );
+      }
+      
       setFilteredCompanies(filtered);
+      setCurrentView('directory');
     }
+  };
+
+  const handleCategorySelect = (category: string) => {
+    if (category) {
+      const filtered = businesses?.filter(business => 
+        business.category?.toLowerCase() === category.toLowerCase()
+      ) || [];
+      setFilteredCompanies(filtered);
+    } else {
+      setFilteredCompanies([]);
+    }
+    setCurrentView('directory');
   };
 
   const handleViewProfile = (companyId: number) => {
@@ -108,6 +168,33 @@ const Index = () => {
           </div>
         </section>
       )}
+
+      {/* Business Statistics */}
+      <section className="py-8 px-6 bg-gray-900">
+        <div className="container mx-auto">
+          <BusinessStats />
+        </div>
+      </section>
+
+      {/* Advanced Search */}
+      <section className="py-8 px-6">
+        <div className="container mx-auto">
+          <AdvancedSearch 
+            onSearch={handleSearch}
+            onClearSearch={() => {
+              setFilteredCompanies([]);
+              setCurrentView('directory');
+            }}
+          />
+        </div>
+      </section>
+
+      {/* Category Browser */}
+      <section className="py-8 px-6 bg-gray-900">
+        <div className="container mx-auto">
+          <CategoryBrowser onCategorySelect={handleCategorySelect} />
+        </div>
+      </section>
 
       <FeaturedCompaniesSection
         companies={displayedCompanies}
