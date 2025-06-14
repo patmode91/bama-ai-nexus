@@ -18,6 +18,7 @@ import ComparisonPage from "./pages/ComparisonPage";
 import Integrations from "./pages/Integrations";
 import MobileSettings from "./pages/MobileSettings";
 import Blog from "./pages/Blog";
+import Events from "./pages/Events";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/events" element={<Events />} />
               <Route path="/compare" element={<ComparisonPage />} />
               <Route path="/business/:id" element={<BusinessProfile />} />
               <Route path="/profile" element={<Profile />} />

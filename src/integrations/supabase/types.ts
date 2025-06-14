@@ -160,6 +160,112 @@ export type Database = {
         }
         Relationships: []
       }
+      event_rsvps: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          business_id: number | null
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date: string | null
+          event_date: string
+          event_type: string | null
+          featured_image: string | null
+          id: string
+          is_virtual: boolean | null
+          location: string | null
+          max_attendees: number | null
+          meeting_url: string | null
+          status: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          venue_name: string | null
+        }
+        Insert: {
+          business_id?: number | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          event_date: string
+          event_type?: string | null
+          featured_image?: string | null
+          id?: string
+          is_virtual?: boolean | null
+          location?: string | null
+          max_attendees?: number | null
+          meeting_url?: string | null
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          venue_name?: string | null
+        }
+        Update: {
+          business_id?: number | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          event_date?: string
+          event_type?: string | null
+          featured_image?: string | null
+          id?: string
+          is_virtual?: boolean | null
+          location?: string | null
+          max_attendees?: number | null
+          meeting_url?: string | null
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          venue_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company: string | null
@@ -312,6 +418,10 @@ export type Database = {
       approve_business_claim: {
         Args: { claim_id: string }
         Returns: undefined
+      }
+      get_event_attendee_count: {
+        Args: { event_uuid: string }
+        Returns: number
       }
       get_saved_business_ids: {
         Args: { user_id: string }
