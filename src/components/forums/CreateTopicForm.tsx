@@ -1,67 +1,89 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { X, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForums } from '@/hooks/useForums';
-import { CreateTopicData } from '@/types/forums';
 
-interface CreateTopicFormProps {
-  onSuccess?: () => void;
-  initialCategoryId?: string;
+interface ForumCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
 }
 
-const CreateTopicForm = ({ onSuccess, initialCategoryId }: CreateTopicFormProps) => {
-  const { categories, createTopic, isCreatingTopic } = useForums();
-  const [formData, setFormData] = useState<CreateTopicData>({
-    category_id: initialCategoryId || '',
-    title: '',
-    content: '',
-  });
+interface CreateTopicFormProps {
+  categories: ForumCategory[];
+  onClose: () => void;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const CreateTopicForm = ({ categories, onClose }: CreateTopicFormProps) => {
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const { createTopic, isCreatingTopic } = useForums();
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.category_id || !formData.title.trim() || !formData.content.trim()) {
-      return;
-    }
-
-    createTopic(formData, {
-      onSuccess: () => {
-        setFormData({
-          category_id: initialCategoryId || '',
-          title: '',
-          content: '',
-        });
-        onSuccess?.();
-      },
+    if (!title.trim() || !content.trim() || !categoryId) return;
+    
+    createTopic({
+      title: title.trim(),
+      content: content.trim(),
+      category_id: categoryId
     });
-  };
-
-  const handleChange = (field: keyof CreateTopicData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
+    
+    // Reset form
+    setTitle('');
+    setContent('');
+    setCategoryId('');
+    onClose();
   };
 
   return (
-    <Card>
+    <Card className="w-full max-w-2xl bg-gray-800 border-gray-700">
       <CardHeader>
-        <CardTitle>Create New Topic</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-[#00C2FF]" />
+            Create New Topic
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="category">Category</Label>
-            <Select 
-              value={formData.category_id} 
-              onValueChange={(value) => handleChange('category_id', value)}
-            >
-              <SelectTrigger>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Title
+            </label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter topic title..."
+              className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Category
+            </label>
+            <Select value={categoryId} onValueChange={setCategoryId} required>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
@@ -75,32 +97,32 @@ const CreateTopicForm = ({ onSuccess, initialCategoryId }: CreateTopicFormProps)
           </div>
 
           <div>
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="Enter topic title..."
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="content">Content</Label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Content
+            </label>
             <Textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) => handleChange('content', e.target.value)}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
               placeholder="What would you like to discuss?"
+              className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
               rows={6}
               required
             />
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="border-gray-600 text-gray-300 hover:text-white"
+            >
+              Cancel
+            </Button>
             <Button
               type="submit"
-              disabled={isCreatingTopic || !formData.category_id || !formData.title.trim() || !formData.content.trim()}
+              disabled={!title.trim() || !content.trim() || !categoryId || isCreatingTopic}
+              className="bg-[#00C2FF] hover:bg-[#00A8D8]"
             >
               {isCreatingTopic ? 'Creating...' : 'Create Topic'}
             </Button>

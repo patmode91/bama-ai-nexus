@@ -1,11 +1,9 @@
 
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { MessageSquare, ThumbsUp, Eye, Clock, Pin, Lock } from 'lucide-react';
+import { MessageSquare, User, Calendar } from 'lucide-react';
 import { ForumTopic } from '@/types/forums';
-import { formatDistanceToNow } from 'date-fns';
-import { useForums } from '@/hooks/useForums';
 
 interface ForumCardProps {
   topic: ForumTopic;
@@ -13,88 +11,55 @@ interface ForumCardProps {
 }
 
 const ForumCard = ({ topic, onClick }: ForumCardProps) => {
-  const { vote, isVoting } = useForums();
-
-  const handleVote = (e: React.MouseEvent, voteType: 'up' | 'down') => {
-    e.stopPropagation();
-    vote({
-      type: 'topic',
-      targetId: topic.id,
-      voteType,
-      currentVote: topic.user_vote,
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onClick}>
-      <CardHeader className="pb-2">
+    <Card 
+      className="bg-gray-800 border-gray-700 hover:border-gray-600 cursor-pointer transition-colors"
+      onClick={onClick}
+    >
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              {topic.is_pinned && (
-                <Pin className="w-4 h-4 text-blue-500" />
-              )}
-              {topic.is_locked && (
-                <Lock className="w-4 h-4 text-gray-500" />
-              )}
-              {topic.category && (
-                <Badge 
-                  variant="secondary" 
-                  className="text-xs"
-                  style={{ backgroundColor: topic.category.color + '20', color: topic.category.color }}
-                >
-                  {topic.category.name}
-                </Badge>
-              )}
+            <CardTitle className="text-white text-lg mb-2">{topic.title}</CardTitle>
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <div className="flex items-center gap-1">
+                <User className="w-4 h-4" />
+                <span>{topic.author?.full_name || 'Anonymous'}</span>
+                {topic.author?.company && (
+                  <span className="text-gray-500">• {topic.author.company}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                <span>{formatDate(topic.created_at)}</span>
+              </div>
             </div>
-            <CardTitle className="text-lg leading-tight">{topic.title}</CardTitle>
           </div>
-          <div className="flex flex-col items-center gap-1 ml-4">
-            <Button
-              variant={topic.user_vote === 'up' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={(e) => handleVote(e, 'up')}
-              disabled={isVoting}
+          <div className="flex flex-col items-end gap-2">
+            <Badge 
+              style={{ backgroundColor: topic.category?.color || '#3B82F6' }}
+              className="text-white"
             >
-              <ThumbsUp className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium">{topic.upvotes || 0}</span>
-            <Button
-              variant={topic.user_vote === 'down' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 w-8 p-0 rotate-180"
-              onClick={(e) => handleVote(e, 'down')}
-              disabled={isVoting}
-            >
-              <ThumbsUp className="w-4 h-4" />
-            </Button>
+              {topic.category?.name || 'General'}
+            </Badge>
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <MessageSquare className="w-4 h-4" />
+              <span>{topic.views_count || 0} views</span>
+            </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <p className="text-gray-600 text-sm line-clamp-2 mb-3">{topic.content}</p>
-        
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <MessageSquare className="w-3 h-3" />
-              <span>{topic.reply_count || 0}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
-              <span>{topic.views_count || 0}</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span>by {topic.author?.full_name || 'Anonymous'}</span>
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              <span>{formatDistanceToNow(new Date(topic.last_reply_at || topic.created_at))} ago</span>
-            </div>
-          </div>
-        </div>
+      <CardContent className="pt-0">
+        <p className="text-gray-300 text-sm line-clamp-2">
+          {topic.content?.slice(0, 150)}...
+        </p>
       </CardContent>
     </Card>
   );

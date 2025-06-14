@@ -7,8 +7,16 @@ import { useEvents } from '@/hooks/useEvents';
 
 const localizer = momentLocalizer(moment);
 
-const EventsCalendar = () => {
-  const { data: events = [], isLoading } = useEvents();
+interface EventsCalendarProps {
+  events?: any[];
+  onDateSelect?: (date: Date) => void;
+}
+
+const EventsCalendar = ({ events: propEvents, onDateSelect }: EventsCalendarProps) => {
+  const { events: hookEvents, eventsLoading } = useEvents();
+  
+  // Use prop events if provided, otherwise use hook events
+  const events = propEvents || hookEvents || [];
 
   const calendarEvents = events.map(event => ({
     id: event.id,
@@ -18,7 +26,7 @@ const EventsCalendar = () => {
     resource: event
   }));
 
-  if (isLoading) {
+  if (eventsLoading && !propEvents) {
     return <div className="p-4 text-center">Loading calendar...</div>;
   }
 
@@ -32,6 +40,8 @@ const EventsCalendar = () => {
         style={{ height: '100%' }}
         views={['month', 'week', 'day']}
         defaultView="month"
+        onSelectSlot={onDateSelect ? ({ start }) => onDateSelect(start) : undefined}
+        selectable={!!onDateSelect}
       />
     </div>
   );

@@ -1,175 +1,160 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { ArrowLeft, MessageSquare, User, Calendar, ThumbsUp, Reply } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, MessageSquare, Eye, Clock, Pin, Lock, ArrowLeft } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { useForums } from '@/hooks/useForums';
+import { Textarea } from '@/components/ui/textarea';
 import { ForumTopic, ForumReply } from '@/types/forums';
+import { useForums } from '@/hooks/useForums';
 
 interface TopicViewProps {
   topic: ForumTopic;
   replies: ForumReply[];
+  isLoading?: boolean;
   onBack: () => void;
 }
 
-const TopicView = ({ topic, replies, onBack }: TopicViewProps) => {
-  const { createReply, isCreatingReply, vote, isVoting } = useForums();
+const TopicView = ({ topic, replies, isLoading, onBack }: TopicViewProps) => {
   const [replyContent, setReplyContent] = useState('');
+  const { createReply, isCreatingReply, vote, isVoting } = useForums();
 
-  const handleVote = (type: 'topic' | 'reply', targetId: string, voteType: 'up' | 'down', currentVote?: 'up' | 'down' | null) => {
-    vote({
-      type,
-      targetId,
-      voteType,
-      currentVote,
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
-  const handleSubmitReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleReply = () => {
     if (!replyContent.trim()) return;
-
+    
     createReply({
       topic_id: topic.id,
-      content: replyContent,
-    }, {
-      onSuccess: () => {
-        setReplyContent('');
-      },
+      content: replyContent
     });
+    
+    setReplyContent('');
   };
+
+  const handleVote = (targetId: string, targetType: 'topic' | 'reply', voteType: 'up' | 'down') => {
+    vote(targetId, targetType, voteType);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-400">Loading topic...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Topics
-        </Button>
-      </div>
+      {/* Back Button */}
+      <Button 
+        onClick={onBack}
+        variant="outline" 
+        className="border-gray-600 text-gray-300 hover:text-white"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Forums
+      </Button>
 
       {/* Topic */}
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                {topic.is_pinned && (
-                  <Pin className="w-4 h-4 text-blue-500" />
-                )}
-                {topic.is_locked && (
-                  <Lock className="w-4 h-4 text-gray-500" />
-                )}
-                {topic.category && (
-                  <Badge 
-                    variant="secondary"
-                    style={{ backgroundColor: topic.category.color + '20', color: topic.category.color }}
-                  >
-                    {topic.category.name}
-                  </Badge>
-                )}
-              </div>
-              <h1 className="text-2xl font-bold">{topic.title}</h1>
-              
-              <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
-                <span>by {topic.author?.full_name || 'Anonymous'}</span>
-                {topic.author?.company && (
-                  <span>from {topic.author.company}</span>
-                )}
+              <CardTitle className="text-white text-xl mb-3">{topic.title}</CardTitle>
+              <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
                 <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  <span>{formatDistanceToNow(new Date(topic.created_at))} ago</span>
+                  <User className="w-4 h-4" />
+                  <span>{topic.author?.full_name || 'Anonymous'}</span>
+                  {topic.author?.company && (
+                    <span className="text-gray-500">• {topic.author.company}</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
+                  <Calendar className="w-4 h-4" />
+                  <span>{formatDate(topic.created_at)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <MessageSquare className="w-4 h-4" />
                   <span>{topic.views_count || 0} views</span>
                 </div>
               </div>
             </div>
-            
-            <div className="flex flex-col items-center gap-1 ml-4">
-              <Button
-                variant={topic.user_vote === 'up' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => handleVote('topic', topic.id, 'up', topic.user_vote)}
-                disabled={isVoting}
-              >
-                <ThumbsUp className="w-4 h-4" />
-              </Button>
-              <span className="text-sm font-medium">{topic.upvotes || 0}</span>
-              <Button
-                variant={topic.user_vote === 'down' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-8 w-8 p-0 rotate-180"
-                onClick={() => handleVote('topic', topic.id, 'down', topic.user_vote)}
-                disabled={isVoting}
-              >
-                <ThumbsUp className="w-4 h-4" />
-              </Button>
-            </div>
+            <Badge 
+              style={{ backgroundColor: topic.category?.color || '#3B82F6' }}
+              className="text-white"
+            >
+              {topic.category?.name || 'General'}
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="prose max-w-none">
-            <p className="whitespace-pre-wrap">{topic.content}</p>
+          <div className="prose prose-invert max-w-none">
+            <p className="text-gray-300 whitespace-pre-wrap">{topic.content}</p>
+          </div>
+          
+          <div className="flex items-center gap-2 mt-6 pt-4 border-t border-gray-700">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleVote(topic.id, 'topic', 'up')}
+              disabled={isVoting}
+              className="text-gray-400 hover:text-green-400"
+            >
+              <ThumbsUp className="w-4 h-4 mr-1" />
+              Upvote
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Replies */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
+        <h3 className="text-xl font-semibold text-white">
           Replies ({replies.length})
-        </h2>
-
+        </h3>
+        
         {replies.map((reply) => (
-          <Card key={reply.id}>
-            <CardContent className="pt-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2 text-sm text-gray-500">
-                    <span className="font-medium">{reply.author?.full_name || 'Anonymous'}</span>
-                    {reply.author?.company && (
-                      <span>from {reply.author.company}</span>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatDistanceToNow(new Date(reply.created_at))} ago</span>
-                    </div>
-                  </div>
-                  <div className="prose max-w-none">
-                    <p className="whitespace-pre-wrap">{reply.content}</p>
-                  </div>
+          <Card key={reply.id} className="bg-gray-800 border-gray-700">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-4 text-sm text-gray-400">
+                <div className="flex items-center gap-1">
+                  <User className="w-4 h-4" />
+                  <span>{reply.author?.full_name || 'Anonymous'}</span>
+                  {reply.author?.company && (
+                    <span className="text-gray-500">• {reply.author.company}</span>
+                  )}
                 </div>
-                
-                <div className="flex flex-col items-center gap-1 ml-4">
-                  <Button
-                    variant={reply.user_vote === 'up' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => handleVote('reply', reply.id, 'up', reply.user_vote)}
-                    disabled={isVoting}
-                  >
-                    <ThumbsUp className="w-3 h-3" />
-                  </Button>
-                  <span className="text-xs font-medium">{reply.upvotes || 0}</span>
-                  <Button
-                    variant={reply.user_vote === 'down' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-6 w-6 p-0 rotate-180"
-                    onClick={() => handleVote('reply', reply.id, 'down', reply.user_vote)}
-                    disabled={isVoting}
-                  >
-                    <ThumbsUp className="w-3 h-3" />
-                  </Button>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>{formatDate(reply.created_at)}</span>
                 </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-invert max-w-none">
+                <p className="text-gray-300 whitespace-pre-wrap">{reply.content}</p>
+              </div>
+              
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-700">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleVote(reply.id, 'reply', 'up')}
+                  disabled={isVoting}
+                  className="text-gray-400 hover:text-green-400"
+                >
+                  <ThumbsUp className="w-4 h-4 mr-1" />
+                  {reply.upvotes || 0}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -177,32 +162,32 @@ const TopicView = ({ topic, replies, onBack }: TopicViewProps) => {
       </div>
 
       {/* Reply Form */}
-      {!topic.is_locked && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold">Post a Reply</h3>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitReply} className="space-y-4">
-              <Textarea
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Share your thoughts..."
-                rows={4}
-                required
-              />
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  disabled={isCreatingReply || !replyContent.trim()}
-                >
-                  {isCreatingReply ? 'Posting...' : 'Post Reply'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Reply className="w-5 h-5" />
+            Post a Reply
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            placeholder="Share your thoughts..."
+            className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
+            rows={4}
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={handleReply}
+              disabled={!replyContent.trim() || isCreatingReply}
+              className="bg-[#00C2FF] hover:bg-[#00A8D8]"
+            >
+              {isCreatingReply ? 'Posting...' : 'Post Reply'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
