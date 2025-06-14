@@ -34,10 +34,13 @@ export const useUserPreferences = () => {
 
   useEffect(() => {
     if (profile) {
-      // Parse preferences from profile metadata or use defaults
-      const savedPreferences = profile.metadata 
-        ? (profile.metadata as any)?.preferences || defaultPreferences
-        : defaultPreferences;
+      // For now, we'll use the industry field and extend it with more data
+      // In a real implementation, you'd want to add a preferences JSON field to the profiles table
+      const savedPreferences = {
+        ...defaultPreferences,
+        industries: profile.industry ? [profile.industry] : [],
+        location: profile.company || '',
+      };
       
       setPreferences(savedPreferences);
     }
@@ -48,13 +51,11 @@ export const useUserPreferences = () => {
     const updatedPreferences = { ...preferences, ...newPreferences };
     setPreferences(updatedPreferences);
 
-    // Save to profile metadata
+    // For now, we'll update the industry field with the first selected industry
+    // In a real implementation, you'd store this in a JSON preferences field
     try {
       await updateProfile({
-        metadata: {
-          ...(profile?.metadata || {}),
-          preferences: updatedPreferences
-        }
+        industry: updatedPreferences.industries[0] || ''
       });
     } catch (error) {
       console.error('Failed to save preferences:', error);

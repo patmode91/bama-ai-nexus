@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 const PersonalizedRecommendations = () => {
   const { preferences, getMatchingCriteria } = useUserPreferences();
-  const { businesses } = useBusinesses();
+  const { data: businesses } = useBusinesses();
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const navigate = useNavigate();
 
