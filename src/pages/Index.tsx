@@ -1,8 +1,9 @@
+
 import { useState } from 'react';
 import QuickStartQuiz from '@/components/ai/QuickStartQuiz';
 import AIMatchmaking from '@/components/ai/AIMatchmaking';
 import MobileNavigation from '@/components/mobile/MobileNavigation';
-import BamaBot from '@/components/ai/BamaBot';
+import EnhancedBamaBot from '@/components/ai/EnhancedBamaBot';
 import AuthPage from '@/components/auth/AuthPage';
 import Header from '@/components/sections/Header';
 import HeroSection from '@/components/sections/HeroSection';
