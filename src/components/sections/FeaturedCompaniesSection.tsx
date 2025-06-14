@@ -1,8 +1,8 @@
-
 import { MapPin, Star, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 
 interface Company {
   id: number;
@@ -33,6 +33,16 @@ const FeaturedCompaniesSection = ({
   isFiltered, 
   onViewProfile 
 }: FeaturedCompaniesSectionProps) => {
+  const navigate = useNavigate();
+
+  const handleViewProfile = (companyId: number) => {
+    navigate(`/business/${companyId}`);
+  };
+
+  const handleCardClick = (companyId: number) => {
+    navigate(`/business/${companyId}`);
+  };
+
   if (isLoading) {
     return (
       <section id="directory" className="py-16 px-6 bg-gray-800">
@@ -91,7 +101,11 @@ const FeaturedCompaniesSection = ({
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companies.map((company) => (
-            <Card key={company.id} className="hover:shadow-lg transition-shadow cursor-pointer group bg-gray-800 border-gray-700">
+            <Card 
+              key={company.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer group bg-gray-800 border-gray-700"
+              onClick={() => handleCardClick(company.id)}
+            >
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -162,7 +176,15 @@ const FeaturedCompaniesSection = ({
                       Visit Website
                     </a>
                   )}
-                  <Button variant="ghost" size="sm" className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700" onClick={() => onViewProfile(company.id)}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewProfile(company.id);
+                    }}
+                  >
                     View Profile
                     <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
