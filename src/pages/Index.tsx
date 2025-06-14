@@ -210,7 +210,7 @@ const Index = () => {
 
       <MobileNavigation />
       
-      <BamaBot />
+      <EnhancedBamaBot />
     </div>
   );
 };
