@@ -1,9 +1,10 @@
 
 import { useState } from 'react';
-import { Search, MapPin, Building2, Users, TrendingUp, Zap, ArrowRight, Star } from 'lucide-react';
+import { Search, MapPin, Building2, Users, TrendingUp, Zap, ArrowRight, Star, Upload, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import SearchFilters from '@/components/search/SearchFilters';
 import QuickStartQuiz from '@/components/ai/QuickStartQuiz';
 import AIMatchmaking from '@/components/ai/AIMatchmaking';
@@ -12,6 +13,7 @@ import BamaBot from '@/components/ai/BamaBot';
 import DataDashboard from '@/components/dashboard/DataDashboard';
 import AuthPage from '@/components/auth/AuthPage';
 import { useBusinesses } from '@/hooks/useBusinesses';
+import { useBusinessImport } from '@/hooks/useBusinessImport';
 
 const Index = () => {
   const [showQuiz, setShowQuiz] = useState(false);
@@ -22,6 +24,15 @@ const Index = () => {
 
   // Fetch real businesses data
   const { data: businesses, isLoading: businessesLoading, error: businessesError } = useBusinesses();
+  
+  // Business import functionality
+  const { 
+    importBusinesses, 
+    isImporting, 
+    importError, 
+    importSuccess, 
+    checkImportStatus 
+  } = useBusinessImport();
 
   const handleQuizComplete = (answers: Record<string, string>) => {
     setUserAnswers(answers);
@@ -39,7 +50,8 @@ const Index = () => {
         filtered = filtered.filter(business => 
           business.businessname?.toLowerCase().includes(query.toLowerCase()) ||
           business.description?.toLowerCase().includes(query.toLowerCase()) ||
-          business.category?.toLowerCase().includes(query.toLowerCase())
+          business.category?.toLowerCase().includes(query.toLowerCase()) ||
+          business.tags?.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
         );
       }
       
@@ -64,6 +76,10 @@ const Index = () => {
     // Navigate to company profile
   };
 
+  const handleImportData = () => {
+    importBusinesses();
+  };
+
   if (showAuth) {
     return (
       <AuthPage 
@@ -73,8 +89,9 @@ const Index = () => {
     );
   }
 
-  // Use real businesses data or fall back to mock data for featured companies
+  // Use real businesses data or fall back to empty array
   const featuredCompanies = businesses?.slice(0, 6) || [];
+  const displayedCompanies = filteredCompanies.length > 0 ? filteredCompanies : featuredCompanies;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
@@ -125,6 +142,41 @@ const Index = () => {
             Discover, connect, and grow with Alabama's thriving artificial intelligence community. 
             From Birmingham to Huntsville, find the AI solutions and talent that drive innovation.
           </p>
+          
+          {/* Data Import Alert */}
+          {checkImportStatus.data?.needsImport && (
+            <Alert className="mb-6 bg-blue-900/20 border-blue-600">
+              <Database className="h-4 w-4" />
+              <AlertDescription className="text-blue-200">
+                Ready to import {checkImportStatus.data.totalToImport} businesses from Mobile & Baldwin counties into your directory.
+                <Button 
+                  onClick={handleImportData} 
+                  disabled={isImporting}
+                  className="ml-4 bg-blue-600 hover:bg-blue-700"
+                  size="sm"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {isImporting ? 'Importing...' : 'Import Business Data'}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {importSuccess && (
+            <Alert className="mb-6 bg-green-900/20 border-green-600">
+              <AlertDescription className="text-green-200">
+                Business data imported successfully! Your directory now includes companies from Mobile and Baldwin counties.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {importError && (
+            <Alert className="mb-6 bg-red-900/20 border-red-600">
+              <AlertDescription className="text-red-200">
+                Error importing business data. Please try again.
+              </AlertDescription>
+            </Alert>
+          )}
           
           {/* Quick Start CTA */}
           <div className="mb-8">
@@ -181,7 +233,7 @@ const Index = () => {
             <p className="text-lg text-gray-300">
               {filteredCompanies.length > 0 
                 ? `Found ${filteredCompanies.length} companies matching your criteria`
-                : 'Leading the future of artificial intelligence in Alabama'
+                : `Showcasing ${businesses?.length || 0} companies from Mobile & Baldwin counties`
               }
             </p>
           </div>
@@ -214,7 +266,7 @@ const Index = () => {
 
           {!businessesLoading && !businessesError && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(filteredCompanies.length > 0 ? filteredCompanies : featuredCompanies).map((company) => (
+              {displayedCompanies.map((company) => (
                 <Card key={company.id} className="hover:shadow-lg transition-shadow cursor-pointer group bg-gray-800 border-gray-700">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
@@ -247,20 +299,45 @@ const Index = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-300 text-sm mb-4 leading-relaxed">
+                    <p className="text-gray-300 text-sm mb-4 leading-relaxed line-clamp-3">
                       {company.description || 'AI solutions provider in Alabama'}
                     </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex space-x-2">
-                        <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
-                          {company.category || 'AI Services'}
+                    <div className="flex items-center justify-between mb-3">
+                      <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
+                        {company.category || 'AI Services'}
+                      </Badge>
+                      {company.employees_count && (
+                        <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
+                          {company.employees_count} employees
                         </Badge>
-                        {company.employees_count && (
-                          <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
-                            {company.employees_count} employees
+                      )}
+                    </div>
+                    {company.tags && company.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {company.tags.slice(0, 3).map((tag: string, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs border-[#00C2FF]/30 text-[#00C2FF] px-2 py-1">
+                            {tag}
+                          </Badge>
+                        ))}
+                        {company.tags.length > 3 && (
+                          <Badge variant="outline" className="text-xs border-gray-600 text-gray-400 px-2 py-1">
+                            +{company.tags.length - 3}
                           </Badge>
                         )}
                       </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      {company.website && (
+                        <a 
+                          href={company.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#00C2FF] hover:text-[#00A8D8] underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Visit Website
+                        </a>
+                      )}
                       <Button variant="ghost" size="sm" className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700" onClick={() => handleViewProfile(company.id)}>
                         View Profile
                         <ArrowRight className="w-3 h-3 ml-1" />
