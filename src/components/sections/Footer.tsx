@@ -1,5 +1,6 @@
 
-import { Zap } from 'lucide-react';
+import { Zap, Twitter, Linkedin, Facebook } from 'lucide-react';
+import NewsletterSignup from '../marketing/NewsletterSignup';
 
 const Footer = () => {
   return (
@@ -21,6 +22,11 @@ const Footer = () => {
               <Zap className="w-4 h-4 mr-2 text-[#00C2FF]" />
               AI-Powered Platform
             </div>
+            <div className="flex space-x-4 mt-4">
+              <a href="#" aria-label="Twitter" className="text-slate-500 hover:text-[#00C2FF] transition-colors"><Twitter /></a>
+              <a href="#" aria-label="LinkedIn" className="text-slate-500 hover:text-[#00C2FF] transition-colors"><Linkedin /></a>
+              <a href="#" aria-label="Facebook" className="text-slate-500 hover:text-[#00C2FF] transition-colors"><Facebook /></a>
+            </div>
           </div>
           <div>
             <h3 className="font-semibold text-slate-900 mb-4">Platform</h3>
@@ -41,8 +47,15 @@ const Footer = () => {
             </ul>
           </div>
         </div>
-        <div className="border-t mt-8 pt-8 text-center text-slate-500">
-          <p>&copy; 2024 BamaAI Connect. Empowering Alabama's AI ecosystem.</p>
+        <div className="border-t mt-8 pt-8">
+          <div className="max-w-md mx-auto mb-8">
+            <h3 className="font-semibold text-slate-900 mb-2 text-center">Stay Connected</h3>
+            <p className="text-slate-600 mb-4 text-center">
+              Join our newsletter for the latest updates on Alabama's AI scene.
+            </p>
+            <NewsletterSignup />
+          </div>
+          <p className="text-center text-slate-500">&copy; 2024 BamaAI Connect. Empowering Alabama's AI ecosystem.</p>
         </div>
       </div>
     </footer>

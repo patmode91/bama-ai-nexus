@@ -1,8 +1,12 @@
 
 import { Building2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import SocialShareButtons from '../social/SocialShareButtons';
 
 const CTASection = () => {
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareTitle = "Discover Alabama's AI Ecosystem on BamaAI Connect!";
+
   return (
     <section className="py-16 px-6 bg-gradient-to-r from-gray-800 to-gray-700">
       <div className="container mx-auto text-center">
@@ -20,6 +24,10 @@ const CTASection = () => {
             Find AI Solutions
             <Search className="w-4 h-4 ml-2" />
           </Button>
+        </div>
+        <div className="mt-8">
+          <p className="text-slate-300 mb-4">Share BamaAI Connect</p>
+          <SocialShareButtons url={shareUrl} title={shareTitle} />
         </div>
       </div>
     </section>
