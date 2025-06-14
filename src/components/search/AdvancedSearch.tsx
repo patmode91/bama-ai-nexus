@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Search, Filter, MapPin, Building2, Users, Calendar } from 'lucide-react';
+import { Search, Filter, MapPin, Building2, Users, Calendar, DollarSign, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,18 +20,21 @@ interface SearchFilters {
   foundedYearRange: string;
   verified: boolean | null;
   tags: string[];
+  projectBudgetRange: string;
 }
 
 const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [tagInput, setTagInput] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({
     category: '',
     location: '',
     employeeRange: '',
     foundedYearRange: '',
     verified: null,
-    tags: []
+    tags: [],
+    projectBudgetRange: ''
   });
 
   const categories = [
@@ -41,7 +44,8 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
 
   const locations = [
     'Mobile', 'Baldwin County', 'Birmingham', 'Huntsville', 'Montgomery',
-    'Tuscaloosa', 'Auburn', 'Madison', 'Hoover', 'Dothan'
+    'Tuscaloosa', 'Auburn', 'Madison', 'Hoover', 'Dothan', 'Decatur',
+    'Florence', 'Gadsden', 'Prattville', 'Vestavia Hills'
   ];
 
   const employeeRanges = [
@@ -50,6 +54,10 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
 
   const foundedYearRanges = [
     '2020-2024', '2015-2019', '2010-2014', '2000-2009', 'Before 2000'
+  ];
+
+  const projectBudgetRanges = [
+    '<$10k', '$10k-$50k', '$50k-$100k', '$100k-$250k', '>$250k'
   ];
 
   const handleSearch = () => {
@@ -64,13 +72,30 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
       employeeRange: '',
       foundedYearRange: '',
       verified: null,
-      tags: []
+      tags: [],
+      projectBudgetRange: ''
     });
+    setTagInput('');
     onClearSearch();
   };
 
   const updateFilter = (key: keyof SearchFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && tagInput.trim() !== '') {
+      e.preventDefault();
+      const newTag = tagInput.trim().toLowerCase();
+      if (!filters.tags.includes(newTag)) {
+        updateFilter('tags', [...filters.tags, newTag]);
+      }
+      setTagInput('');
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    updateFilter('tags', filters.tags.filter(tag => tag !== tagToRemove));
   };
 
   const hasActiveFilters = Object.values(filters).some(value => 
@@ -191,6 +216,40 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Project Budget</label>
+                <Select value={filters.projectBudgetRange} onValueChange={(value) => updateFilter('projectBudgetRange', value)}>
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                    <SelectValue placeholder="Any Budget" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="">Any Budget</SelectItem>
+                    {projectBudgetRanges.map(range => (
+                      <SelectItem key={range} value={range}>{range}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <label className="text-sm font-medium text-gray-300">Tags / Certifications</label>
+                <Input
+                  placeholder="Type a tag and press Enter"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleAddTag}
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                />
+                <div className="flex flex-wrap gap-1 pt-1 min-h-[24px]">
+                  {filters.tags.map(tag => (
+                    <Badge key={tag} variant="secondary" className="bg-gray-600 text-white">
+                      {tag}
+                      <button onClick={() => handleRemoveTag(tag)} className="ml-1.5 text-gray-400 hover:text-white text-xs font-bold">x</button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
@@ -230,6 +289,18 @@ const AdvancedSearch = ({ onSearch, onClearSearch }: AdvancedSearchProps) => {
                   {filters.foundedYearRange}
                 </Badge>
               )}
+              {filters.projectBudgetRange && (
+                <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
+                  <DollarSign className="w-3 h-3 mr-1" />
+                  {filters.projectBudgetRange}
+                </Badge>
+              )}
+              {filters.tags.map(tag => (
+                 <Badge key={tag} variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
+                  <Tag className="w-3 h-3 mr-1" />
+                  {tag}
+                </Badge>
+              ))}
               {filters.verified !== null && (
                 <Badge variant="outline" className="border-[#00C2FF] text-[#00C2FF]">
                   {filters.verified ? 'Verified' : 'Unverified'}

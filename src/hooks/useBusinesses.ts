@@ -21,6 +21,9 @@ export interface Business {
   updated_at: string | null;
   verified: boolean | null;
   website: string | null;
+  certifications: string[] | null;
+  project_budget_min: number | null;
+  project_budget_max: number | null;
 }
 
 export const useBusinesses = () => {

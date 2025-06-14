@@ -92,6 +92,7 @@ export type Database = {
         Row: {
           businessname: string | null
           category: string | null
+          certifications: string[] | null
           contactemail: string | null
           contactname: string | null
           created_at: string | null
@@ -103,6 +104,8 @@ export type Database = {
           location: string | null
           logo_url: string | null
           owner_id: string | null
+          project_budget_max: number | null
+          project_budget_min: number | null
           rating: number | null
           tags: string[] | null
           updated_at: string | null
@@ -112,6 +115,7 @@ export type Database = {
         Insert: {
           businessname?: string | null
           category?: string | null
+          certifications?: string[] | null
           contactemail?: string | null
           contactname?: string | null
           created_at?: string | null
@@ -123,6 +127,8 @@ export type Database = {
           location?: string | null
           logo_url?: string | null
           owner_id?: string | null
+          project_budget_max?: number | null
+          project_budget_min?: number | null
           rating?: number | null
           tags?: string[] | null
           updated_at?: string | null
@@ -132,6 +138,7 @@ export type Database = {
         Update: {
           businessname?: string | null
           category?: string | null
+          certifications?: string[] | null
           contactemail?: string | null
           contactname?: string | null
           created_at?: string | null
@@ -143,6 +150,8 @@ export type Database = {
           location?: string | null
           logo_url?: string | null
           owner_id?: string | null
+          project_budget_max?: number | null
+          project_budget_min?: number | null
           rating?: number | null
           tags?: string[] | null
           updated_at?: string | null

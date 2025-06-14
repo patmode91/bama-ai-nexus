@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useBusinesses } from '@/hooks/useBusinesses';
 
@@ -77,6 +76,36 @@ export const useIndexPage = () => {
             case 'Before 2000': return year < 2000;
             default: return true;
           }
+        });
+      }
+      
+      // Project budget range filter
+      if (filters.projectBudgetRange && filters.projectBudgetRange !== '') {
+        filtered = filtered.filter(business => {
+          const min = business.project_budget_min;
+          const max = business.project_budget_max;
+
+          if (min === null || max === null) return false;
+
+          switch (filters.projectBudgetRange) {
+            case '<$10k': return max < 10000;
+            case '$10k-$50k': return min < 50000 && max >= 10000;
+            case '$50k-$100k': return min < 100000 && max >= 50000;
+            case '$100k-$250k': return min < 250000 && max >= 100000;
+            case '>$250k': return min > 250000;
+            default: return true;
+          }
+        });
+      }
+      
+      // Tags/Certifications filter
+      if (filters.tags && filters.tags.length > 0) {
+        filtered = filtered.filter(business => {
+          if (!business.tags && !business.certifications) return false;
+          const businessTags = business.tags?.map(t => t.toLowerCase()) || [];
+          const businessCerts = business.certifications?.map(c => c.toLowerCase()) || [];
+          const combined = [...businessTags, ...businessCerts];
+          return filters.tags.every((filterTag: string) => combined.includes(filterTag.toLowerCase()));
         });
       }
       
