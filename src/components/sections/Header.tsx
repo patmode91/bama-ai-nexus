@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Building2, Menu, X, User, Settings, LogOut, BarChart3, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,6 +82,14 @@ const Header = () => {
             >
               Analytics
             </button>
+            {user && (
+              <button 
+                onClick={() => navigate('/admin')}
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                Admin
+              </button>
+            )}
           </nav>
 
           {/* Auth Section */}
@@ -197,6 +204,12 @@ const Header = () => {
                     className="text-gray-300 hover:text-white transition-colors text-left"
                   >
                     Business Dashboard
+                  </button>
+                  <button 
+                    onClick={() => { navigate('/admin'); setIsMenuOpen(false); }}
+                    className="text-gray-300 hover:text-white transition-colors text-left"
+                  >
+                    Admin
                   </button>
                   <button 
                     onClick={() => { handleSignOut(); setIsMenuOpen(false); }}
