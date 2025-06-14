@@ -1,12 +1,11 @@
+
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Bot, User, Minimize2, Sparkles, TrendingUp, Building, MapPin } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Minimize2, Sparkles, TrendingUp, Building, MapPin, Zap, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { aiService } from '@/services/aiService';
-import { semanticSearchService } from '@/services/semanticSearchService';
-import { matchmakingService } from '@/services/matchmakingService';
+import { supabase } from '@/integrations/supabase/client';
 import { useBusinesses } from '@/hooks/useBusinesses';
 
 interface Message {
@@ -14,14 +13,8 @@ interface Message {
   text: string;
   isBot: boolean;
   timestamp: Date;
-  type?: 'text' | 'business_recommendation' | 'market_insight' | 'content_suggestion';
+  type?: 'text' | 'business_analysis' | 'market_intelligence' | 'recommendations' | 'error';
   data?: any;
-}
-
-interface BusinessRecommendation {
-  business: any;
-  matchScore: number;
-  reasons: string[];
 }
 
 const EnhancedBamaBot = () => {
@@ -30,7 +23,7 @@ const EnhancedBamaBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm BamaBot 2.0, your enhanced AI assistant for Alabama's business ecosystem. I have deep knowledge of local industries, market trends, and can provide intelligent business matching. I can also help you with semantic search and AI matchmaking! How can I help you today?",
+      text: "Hello! I'm BamaBot 2.0, powered by advanced AI and deep knowledge of Alabama's business ecosystem. I can help you with intelligent business matching, market analysis, and strategic insights. What would you like to explore today?",
       isBot: true,
       timestamp: new Date(),
       type: 'text'
@@ -50,141 +43,58 @@ const EnhancedBamaBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const generateEnhancedResponse = async (userMessage: string): Promise<Message> => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Semantic search queries
-    if (lowerMessage.includes('search') || lowerMessage.includes('find')) {
-      try {
-        const searchResults = await semanticSearchService.searchBusinesses({
-          query: userMessage,
-          limit: 3
-        });
-        
-        return {
-          id: Date.now().toString(),
-          text: `I found ${searchResults.length} businesses matching your search:`,
-          isBot: true,
-          timestamp: new Date(),
-          type: 'business_recommendation',
-          data: searchResults.map(result => ({
-            business: result.business,
-            matchScore: result.relevanceScore,
-            matchReasons: result.matchingReasons
-          }))
-        };
-      } catch (error) {
-        console.error('Search error:', error);
-      }
+  const callGeminiService = async (message: string, type: string = 'chat') => {
+    try {
+      const { data, error } = await supabase.functions.invoke('enhanced-bamabot', {
+        body: {
+          message,
+          context: userContext,
+          type,
+          businessId: type === 'business_analysis' ? extractBusinessId(message) : undefined,
+          sector: type === 'market_intelligence' ? extractSector(message) : undefined
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Gemini service error:', error);
+      throw error;
     }
-    
-    // Matchmaking queries
-    if (lowerMessage.includes('match') || lowerMessage.includes('recommend')) {
-      try {
-        const context = extractUserContext(userMessage);
-        const matches = await matchmakingService.findMatches({
-          type: 'b2b',
-          description: userMessage,
-          requirements: context
-        });
-        
-        return {
-          id: Date.now().toString(),
-          text: `Based on your needs, I found ${matches.length} great matches:`,
-          isBot: true,
-          timestamp: new Date(),
-          type: 'business_recommendation',
-          data: matches.slice(0, 3)
-        };
-      } catch (error) {
-        console.error('Matchmaking error:', error);
-      }
-    }
-    
-    // Market insight queries
-    if (lowerMessage.includes('market') || lowerMessage.includes('trend') || lowerMessage.includes('industry')) {
-      return generateMarketInsights(userMessage);
-    }
-    
-    // Content generation queries
-    if (lowerMessage.includes('describe') || lowerMessage.includes('write') || lowerMessage.includes('content')) {
-      return generateContentSuggestions(userMessage);
-    }
-    
-    // Location-specific queries
-    if (lowerMessage.includes('huntsville') || lowerMessage.includes('birmingham') || lowerMessage.includes('mobile')) {
-      return generateLocationInsights(userMessage);
-    }
-    
-    // Knowledge base queries
-    const knowledgeResponse = aiService.queryKnowledgeBase(userMessage);
-    return {
-      id: Date.now().toString(),
-      text: knowledgeResponse,
-      isBot: true,
-      timestamp: new Date(),
-      type: 'text'
-    };
   };
 
-  const generateMarketInsights = (query: string): Message => {
-    const insights = aiService.generateMarketInsights();
-    
-    return {
-      id: Date.now().toString(),
-      text: "Here are the latest market insights for Alabama's business ecosystem:",
-      isBot: true,
-      timestamp: new Date(),
-      type: 'market_insight',
-      data: insights.slice(0, 3)
-    };
+  const extractBusinessId = (message: string): number | undefined => {
+    // Simple extraction - in production, you'd want more sophisticated entity recognition
+    const businessMatch = businesses?.find(b => 
+      message.toLowerCase().includes(b.businessname.toLowerCase())
+    );
+    return businessMatch?.id;
   };
 
-  const generateContentSuggestions = (query: string): Message => {
-    const mockBusiness = {
-      businessname: "Example Tech Company",
-      category: "Technology",
-      location: "Birmingham, AL"
-    };
-    
-    const contentSuggestion = aiService.generateBusinessContent(mockBusiness);
-    
-    return {
-      id: Date.now().toString(),
-      text: "Here's an AI-generated content suggestion:",
-      isBot: true,
-      timestamp: new Date(),
-      type: 'content_suggestion',
-      data: contentSuggestion
-    };
+  const extractSector = (message: string): string => {
+    const sectors = ['technology', 'healthcare', 'aerospace', 'automotive', 'manufacturing', 'finance'];
+    const foundSector = sectors.find(sector => 
+      message.toLowerCase().includes(sector)
+    );
+    return foundSector || 'general';
   };
 
-  const generateLocationInsights = (query: string): Message => {
-    const response = aiService.queryKnowledgeBase(query);
+  const determineRequestType = (message: string): string => {
+    const lowerMessage = message.toLowerCase();
     
-    return {
-      id: Date.now().toString(),
-      text: response,
-      isBot: true,
-      timestamp: new Date(),
-      type: 'text'
-    };
-  };
-
-  const extractUserContext = (query: string): any => {
-    const context: any = {};
+    if (lowerMessage.includes('analyze') && (lowerMessage.includes('business') || lowerMessage.includes('company'))) {
+      return 'business_analysis';
+    }
     
-    if (query.includes('tech')) context.industry = 'technology';
-    if (query.includes('health')) context.industry = 'healthcare';
-    if (query.includes('aerospace')) context.industry = 'aerospace';
+    if (lowerMessage.includes('market') || lowerMessage.includes('trend') || lowerMessage.includes('intelligence')) {
+      return 'market_intelligence';
+    }
     
-    if (query.includes('huntsville')) context.location = 'Huntsville, AL';
-    if (query.includes('birmingham')) context.location = 'Birmingham, AL';
-    if (query.includes('mobile')) context.location = 'Mobile, AL';
+    if (lowerMessage.includes('recommend') || lowerMessage.includes('match') || lowerMessage.includes('find businesses')) {
+      return 'recommendations';
+    }
     
-    if (query.includes('urgent') || query.includes('immediate')) context.urgency = 'immediate';
-    
-    return context;
+    return 'chat';
   };
 
   const handleSendMessage = async () => {
@@ -199,30 +109,83 @@ const EnhancedBamaBot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue('');
     setIsTyping(true);
 
-    const newContext = extractUserContext(inputValue);
+    // Update user context
+    const newContext = extractUserContext(currentInput);
     setUserContext(prev => ({ ...prev, ...newContext }));
 
-    setTimeout(async () => {
-      try {
-        const botResponse = await generateEnhancedResponse(inputValue);
-        setMessages(prev => [...prev, botResponse]);
-      } catch (error) {
-        console.error('Error generating response:', error);
-        const fallbackResponse: Message = {
-          id: Date.now().toString(),
-          text: "I apologize, but I'm having trouble processing your request right now. Please try asking something else or check back later.",
-          isBot: true,
-          timestamp: new Date(),
-          type: 'text'
-        };
-        setMessages(prev => [...prev, fallbackResponse]);
-      } finally {
-        setIsTyping(false);
+    try {
+      const requestType = determineRequestType(currentInput);
+      const response = await callGeminiService(currentInput, requestType);
+      
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: response.response || response.summary || 'I received your request and processed it successfully.',
+        isBot: true,
+        timestamp: new Date(),
+        type: response.type || 'text',
+        data: response
+      };
+      
+      setMessages(prev => [...prev, botResponse]);
+      
+      // Add follow-up suggestions if provided
+      if (response.suggestions && response.suggestions.length > 0) {
+        setTimeout(() => {
+          const suggestionMessage: Message = {
+            id: (Date.now() + 2).toString(),
+            text: "Here are some follow-up questions you might find helpful:",
+            isBot: true,
+            timestamp: new Date(),
+            type: 'text',
+            data: { suggestions: response.suggestions }
+          };
+          setMessages(prev => [...prev, suggestionMessage]);
+        }, 1000);
       }
-    }, 1000 + Math.random() * 1500);
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I apologize, but I'm experiencing some technical difficulties right now. Please try again in a moment, or rephrase your question.",
+        isBot: true,
+        timestamp: new Date(),
+        type: 'error'
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const extractUserContext = (query: string): any => {
+    const context: any = {};
+    
+    // Extract industry
+    const industries = ['technology', 'healthcare', 'aerospace', 'automotive', 'manufacturing', 'finance'];
+    const foundIndustry = industries.find(ind => query.toLowerCase().includes(ind));
+    if (foundIndustry) context.industry = foundIndustry;
+    
+    // Extract location
+    const locations = ['birmingham', 'huntsville', 'mobile', 'montgomery', 'tuscaloosa'];
+    const foundLocation = locations.find(loc => query.toLowerCase().includes(loc));
+    if (foundLocation) context.userLocation = foundLocation;
+    
+    // Extract company size preferences
+    if (query.includes('startup')) context.companySize = 'startup';
+    if (query.includes('small business')) context.companySize = 'small';
+    if (query.includes('large company')) context.companySize = 'large';
+    
+    // Add to recent interactions
+    if (!context.recentInteractions) context.recentInteractions = [];
+    context.recentInteractions.unshift(query);
+    context.recentInteractions = context.recentInteractions.slice(0, 5);
+    
+    return context;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -231,28 +194,102 @@ const EnhancedBamaBot = () => {
     }
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setInputValue(suggestion);
+  };
+
   const renderMessageContent = (message: Message) => {
-    if (message.type === 'business_recommendation' && message.data) {
+    if (message.type === 'business_analysis' && message.data?.analysis) {
+      const { business, analysis } = message.data;
+      return (
+        <div className="space-y-4">
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+              <Building className="w-4 h-4 mr-2" />
+              {business.businessname} Analysis
+            </h4>
+            <p className="text-sm text-blue-800">{analysis.marketPosition}</p>
+          </div>
+          
+          <div className="grid gap-3">
+            <div className="bg-green-50 rounded p-3 border border-green-200">
+              <h5 className="font-medium text-green-900 mb-2">Competitive Advantages</h5>
+              <ul className="text-sm text-green-800 space-y-1">
+                {analysis.competitiveAdvantages.map((advantage: string, index: number) => (
+                  <li key={index}>• {advantage}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="bg-purple-50 rounded p-3 border border-purple-200">
+              <h5 className="font-medium text-purple-900 mb-2">Growth Opportunities</h5>
+              <ul className="text-sm text-purple-800 space-y-1">
+                {analysis.growthOpportunities.slice(0, 3).map((opportunity: string, index: number) => (
+                  <li key={index}>• {opportunity}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (message.type === 'market_intelligence' && message.data?.intelligence) {
+      const { intelligence, sector } = message.data;
+      return (
+        <div className="space-y-4">
+          <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+            <h4 className="font-semibold text-indigo-900 mb-2 flex items-center">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              {sector.charAt(0).toUpperCase() + sector.slice(1)} Market Intelligence
+            </h4>
+            <p className="text-sm text-indigo-800">{intelligence.trendAnalysis}</p>
+          </div>
+          
+          <div className="grid gap-3">
+            <div className="bg-orange-50 rounded p-3 border border-orange-200">
+              <h5 className="font-medium text-orange-900 mb-2">Key Opportunities</h5>
+              <ul className="text-sm text-orange-800 space-y-1">
+                {intelligence.opportunityAreas?.slice(0, 3).map((area: string, index: number) => (
+                  <li key={index}>• {area}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="bg-teal-50 rounded p-3 border border-teal-200">
+              <h5 className="font-medium text-teal-900 mb-2">Alabama Advantages</h5>
+              <ul className="text-sm text-teal-800 space-y-1">
+                {intelligence.alabamaAdvantages?.slice(0, 3).map((advantage: string, index: number) => (
+                  <li key={index}>• {advantage}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (message.type === 'recommendations' && message.data?.recommendations) {
       return (
         <div className="space-y-3">
           <p className="text-sm mb-3">{message.text}</p>
-          {message.data.map((match: any, index: number) => (
+          {message.data.recommendations.slice(0, 3).map((rec: any, index: number) => (
             <div key={index} className="bg-white/10 rounded-lg p-3 border border-gray-300">
               <div className="flex justify-between items-start mb-2">
-                <h4 className="font-semibold text-gray-800">{match.business.businessname}</h4>
+                <h4 className="font-semibold text-gray-800">{rec.business.businessname}</h4>
                 <Badge className="bg-green-500 text-white">
-                  {match.matchScore}% Match
+                  {rec.matchScore}% Match
                 </Badge>
               </div>
-              <p className="text-sm text-gray-600 mb-2">{match.business.description?.slice(0, 100)}...</p>
+              <p className="text-sm text-gray-600 mb-2">{rec.business.description?.slice(0, 100)}...</p>
               <div className="flex items-center text-xs text-gray-500 mb-2">
                 <MapPin className="w-3 h-3 mr-1" />
-                {match.business.location}
+                {rec.business.location}
                 <Building className="w-3 h-3 ml-3 mr-1" />
-                {match.business.category}
+                {rec.business.category}
               </div>
               <div className="flex flex-wrap gap-1">
-                {match.matchReasons?.map((reason: string, reasonIndex: number) => (
+                {rec.matchReasons?.slice(0, 3).map((reason: string, reasonIndex: number) => (
                   <Badge key={reasonIndex} variant="outline" className="text-xs">
                     {reason}
                   </Badge>
@@ -264,55 +301,23 @@ const EnhancedBamaBot = () => {
       );
     }
 
-    if (message.type === 'market_insight' && message.data) {
+    // Handle suggestions
+    if (message.data?.suggestions) {
       return (
         <div className="space-y-3">
-          <p className="text-sm mb-3">{message.text}</p>
-          {message.data.map((insight: any, index: number) => (
-            <div key={index} className="bg-white/10 rounded-lg p-3 border border-gray-300">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-semibold text-gray-800">{insight.category}</h4>
-                <div className="flex items-center">
-                  <TrendingUp className="w-4 h-4 mr-1 text-green-500" />
-                  <span className="text-sm text-green-600">+{insight.growthRate}%</span>
-                </div>
-              </div>
-              <div className="space-y-1 text-sm text-gray-600">
-                {insight.insights.slice(0, 2).map((item: string, itemIndex: number) => (
-                  <p key={itemIndex}>• {item}</p>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (message.type === 'content_suggestion' && message.data) {
-      return (
-        <div className="space-y-3">
-          <p className="text-sm mb-3">{message.text}</p>
-          <div className="bg-white/10 rounded-lg p-3 border border-gray-300">
-            <h4 className="font-semibold text-gray-800 mb-2">{message.data.title}</h4>
-            <p className="text-sm text-gray-600 mb-3">{message.data.description}</p>
-            <div className="space-y-2">
-              <div>
-                <span className="text-xs font-medium text-gray-700">Tags: </span>
-                {message.data.tags.map((tag: string, index: number) => (
-                  <Badge key={index} variant="outline" className="text-xs mr-1">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-              <div>
-                <span className="text-xs font-medium text-gray-700">Marketing Points:</span>
-                <ul className="text-xs text-gray-600 mt-1">
-                  {message.data.marketingPoints.slice(0, 3).map((point: string, index: number) => (
-                    <li key={index}>• {point}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          <p className="text-sm">{message.text}</p>
+          <div className="flex flex-wrap gap-2">
+            {message.data.suggestions.map((suggestion: string, index: number) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
+              >
+                {suggestion}
+              </Button>
+            ))}
           </div>
         </div>
       );
@@ -352,7 +357,7 @@ const EnhancedBamaBot = () => {
                 <Bot className="w-4 h-4" />
               </div>
               <span className="font-semibold">BamaBot 2.0</span>
-              <Badge className="bg-purple-500 text-white text-xs">Enhanced AI</Badge>
+              <Badge className="bg-purple-500 text-white text-xs">Gemini AI</Badge>
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
             </div>
             <div className="flex space-x-1">
@@ -430,7 +435,7 @@ const EnhancedBamaBot = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask about businesses, trends, or get AI matches..."
+                  placeholder="Ask about businesses, analyze companies, get market insights..."
                   className="flex-1 border-gray-300"
                 />
                 <Button
@@ -442,8 +447,8 @@ const EnhancedBamaBot = () => {
                 </Button>
               </div>
               <div className="flex items-center mt-2 text-xs text-gray-500">
-                <Sparkles className="w-3 h-3 mr-1" />
-                Enhanced with AI search & matchmaking
+                <Zap className="w-3 h-3 mr-1" />
+                Powered by Google Gemini 2.0 Flash
               </div>
             </div>
           </CardContent>

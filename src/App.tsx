@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +21,7 @@ import Blog from "./pages/Blog";
 import Events from "./pages/Events";
 import Forums from "./pages/Forums";
 import AISearch from "./pages/AISearch";
+import EnhancedBamaBot from "./components/ai/EnhancedBamaBot";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +51,7 @@ function App() {
               <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <EnhancedBamaBot />
           </BrowserRouter>
         </HelmetProvider>
       </TooltipProvider>
