@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, Sparkles, Search, Calendar, MessageSquare, Users } from 'lucide-react';
+import { Menu, X, Sparkles, Search, Calendar, MessageSquare, Users, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
@@ -10,7 +10,7 @@ const Header = () => {
 
   const navItems = [
     { label: 'Directory', href: '/', icon: Users },
-    { label: 'AI Search', href: '/ai-search', icon: Sparkles },
+    { label: 'AI Search', href: '/ai-search', icon: Brain },
     { label: 'Events', href: '/events', icon: Calendar },
     { label: 'Forums', href: '/forums', icon: MessageSquare },
     { label: 'Blog', href: '/blog', icon: Search },

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Search, Building2, Users, Menu, Home, Phone, Info, User } from 'lucide-react';
+import { Search, Building2, Users, Menu, Home, Phone, Info, User, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,7 @@ const MobileNavigation = () => {
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home, action: () => navigate('/') },
+    { id: 'ai-search', label: 'AI Search', icon: Brain, action: () => navigate('/ai-search') },
     { id: 'directory', label: 'Directory', icon: Building2, action: () => navigate('/#directory') },
     { id: 'about', label: 'About', icon: Info, action: () => navigate('/about') },
     ...(user ? [
@@ -44,7 +45,7 @@ const MobileNavigation = () => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 md:hidden z-50">
       <div className="flex items-center justify-around py-2">
-        {navItems.map((item) => (
+        {navItems.slice(0, 4).map((item) => (
           <Button
             key={item.id}
             variant="ghost"

@@ -1,17 +1,21 @@
 
 import { useState } from 'react';
-import { Sparkles, Search, Zap } from 'lucide-react';
+import { Sparkles, Search, Zap, TrendingUp, Users, MapPin } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
 import SemanticSearch from '@/components/search/SemanticSearch';
 import MatchmakingForm from '@/components/ai/MatchmakingForm';
 import MatchResults from '@/components/ai/MatchResults';
 import SEO from '@/components/seo/SEO';
+import { useBusinesses } from '@/hooks/useBusinesses';
 
 const AISearch = () => {
   const [matchResults, setMatchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const { data: businesses } = useBusinesses();
 
   const handleMatchResults = (results: any[]) => {
     setMatchResults(results);
@@ -22,6 +26,12 @@ const AISearch = () => {
     setShowResults(false);
     setMatchResults([]);
   };
+
+  // Calculate ecosystem stats
+  const totalBusinesses = businesses?.length || 0;
+  const verifiedBusinesses = businesses?.filter(b => b.verified).length || 0;
+  const categories = [...new Set(businesses?.map(b => b.category).filter(Boolean))].length;
+  const locations = [...new Set(businesses?.map(b => b.location).filter(Boolean))].length;
 
   if (showResults) {
     return (
@@ -54,9 +64,37 @@ const AISearch = () => {
             <Sparkles className="w-10 h-10 text-[#00C2FF]" />
             AI-Powered Discovery
           </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-6">
             Experience the future of business discovery with our intelligent search and matchmaking engine
           </p>
+          
+          {/* Ecosystem Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-[#00C2FF]">{totalBusinesses}</div>
+                <div className="text-sm text-gray-400">Total Businesses</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-400">{verifiedBusinesses}</div>
+                <div className="text-sm text-gray-400">Verified</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-400">{categories}</div>
+                <div className="text-sm text-gray-400">Industries</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-400">{locations}</div>
+                <div className="text-sm text-gray-400">Locations</div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* AI Features Showcase */}
