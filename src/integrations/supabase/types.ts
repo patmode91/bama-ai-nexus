@@ -17,8 +17,16 @@ export type Database = {
           contactname: string | null
           created_at: string | null
           description: string | null
+          employees_count: number | null
+          founded_year: number | null
           id: number
           interestcheckbox: boolean | null
+          location: string | null
+          logo_url: string | null
+          rating: number | null
+          tags: string[] | null
+          updated_at: string | null
+          verified: boolean | null
           website: string | null
         }
         Insert: {
@@ -28,8 +36,16 @@ export type Database = {
           contactname?: string | null
           created_at?: string | null
           description?: string | null
+          employees_count?: number | null
+          founded_year?: number | null
           id?: never
           interestcheckbox?: boolean | null
+          location?: string | null
+          logo_url?: string | null
+          rating?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          verified?: boolean | null
           website?: string | null
         }
         Update: {
@@ -39,9 +55,50 @@ export type Database = {
           contactname?: string | null
           created_at?: string | null
           description?: string | null
+          employees_count?: number | null
+          founded_year?: number | null
           id?: never
           interestcheckbox?: boolean | null
+          location?: string | null
+          logo_url?: string | null
+          rating?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          verified?: boolean | null
           website?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          industry: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          industry?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          industry?: string | null
+          role?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

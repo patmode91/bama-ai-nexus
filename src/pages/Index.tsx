@@ -8,53 +8,20 @@ import SearchFilters from '@/components/search/SearchFilters';
 import QuickStartQuiz from '@/components/ai/QuickStartQuiz';
 import AIMatchmaking from '@/components/ai/AIMatchmaking';
 import MobileNavigation from '@/components/mobile/MobileNavigation';
+import BamaBot from '@/components/ai/BamaBot';
+import DataDashboard from '@/components/dashboard/DataDashboard';
+import AuthPage from '@/components/auth/AuthPage';
+import { useBusinesses } from '@/hooks/useBusinesses';
 
 const Index = () => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
+  const [showAuth, setShowAuth] = useState(false);
 
-  // Mock data for demonstration
-  const featuredCompanies = [
-    {
-      id: 1,
-      name: "Birmingham AI Solutions",
-      description: "Machine learning consulting and custom AI development for healthcare and manufacturing.",
-      location: "Birmingham, AL",
-      category: "ML Consulting",
-      employees: "25-50",
-      rating: 4.8,
-      logo: "🤖"
-    },
-    {
-      id: 2,
-      name: "Huntsville Robotics Lab",
-      description: "Advanced robotics and computer vision systems for aerospace and defense applications.",
-      location: "Huntsville, AL",
-      category: "Robotics",
-      employees: "51-100",
-      rating: 4.9,
-      logo: "🔬"
-    },
-    {
-      id: 3,
-      name: "Mobile Data Analytics",
-      description: "Big data processing and predictive analytics for retail and logistics companies.",
-      location: "Mobile, AL",
-      category: "Data Analytics",
-      employees: "10-25",
-      rating: 4.7,
-      logo: "📊"
-    }
-  ];
-
-  const stats = [
-    { label: "AI Companies", value: "150+", icon: Building2 },
-    { label: "Job Openings", value: "300+", icon: Users },
-    { label: "Total Funding", value: "$45M+", icon: TrendingUp },
-    { label: "Success Stories", value: "50+", icon: Star }
-  ];
+  // Fetch real businesses data
+  const { data: businesses, isLoading: businessesLoading, error: businessesError } = useBusinesses();
 
   const handleQuizComplete = (answers: Record<string, string>) => {
     setUserAnswers(answers);
@@ -63,15 +30,51 @@ const Index = () => {
   };
 
   const handleSearch = (query: string, filters: any) => {
-    // Mock search implementation
     console.log('Searching with:', query, filters);
-    setFilteredCompanies(featuredCompanies);
+    if (businesses) {
+      // Filter businesses based on search query and filters
+      let filtered = businesses;
+      
+      if (query) {
+        filtered = filtered.filter(business => 
+          business.businessname?.toLowerCase().includes(query.toLowerCase()) ||
+          business.description?.toLowerCase().includes(query.toLowerCase()) ||
+          business.category?.toLowerCase().includes(query.toLowerCase())
+        );
+      }
+      
+      if (filters.category && filters.category !== 'all') {
+        filtered = filtered.filter(business => 
+          business.category?.toLowerCase() === filters.category.toLowerCase()
+        );
+      }
+      
+      if (filters.location && filters.location !== 'all') {
+        filtered = filtered.filter(business => 
+          business.location?.toLowerCase().includes(filters.location.toLowerCase())
+        );
+      }
+      
+      setFilteredCompanies(filtered);
+    }
   };
 
   const handleViewProfile = (companyId: number) => {
     console.log('Viewing profile for company:', companyId);
     // Navigate to company profile
   };
+
+  if (showAuth) {
+    return (
+      <AuthPage 
+        onAuthSuccess={() => setShowAuth(false)}
+        onBack={() => setShowAuth(false)}
+      />
+    );
+  }
+
+  // Use real businesses data or fall back to mock data for featured companies
+  const featuredCompanies = businesses?.slice(0, 6) || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
@@ -92,7 +95,14 @@ const Index = () => {
               <a href="#directory" className="text-gray-300 hover:text-[#00C2FF] transition-colors">Directory</a>
               <a href="#insights" className="text-gray-300 hover:text-[#00C2FF] transition-colors">Insights</a>
               <a href="#jobs" className="text-gray-300 hover:text-[#00C2FF] transition-colors">Jobs</a>
-              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">Sign In</Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                onClick={() => setShowAuth(true)}
+              >
+                Sign In
+              </Button>
               <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">Join Directory</Button>
             </nav>
           </div>
@@ -132,15 +142,9 @@ const Index = () => {
           {/* Enhanced Search Bar */}
           <SearchFilters onSearch={handleSearch} onClear={() => setFilteredCompanies([])} />
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
-            {stats.map((stat, index) => (
-              <div key={index} className="bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-700">
-                <stat.icon className="w-8 h-8 text-[#00C2FF] mb-3 mx-auto" />
-                <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-400">{stat.label}</div>
-              </div>
-            ))}
+          {/* Real-time Data Dashboard */}
+          <div className="mt-12">
+            <DataDashboard />
           </div>
         </div>
       </section>
@@ -171,55 +175,102 @@ const Index = () => {
       <section id="directory" className="py-16 px-6 bg-gray-800">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-white mb-4">Featured AI Companies</h2>
-            <p className="text-lg text-gray-300">Leading the future of artificial intelligence in Alabama</p>
+            <h2 className="text-3xl font-bold text-white mb-4">
+              {filteredCompanies.length > 0 ? 'Search Results' : 'Featured AI Companies'}
+            </h2>
+            <p className="text-lg text-gray-300">
+              {filteredCompanies.length > 0 
+                ? `Found ${filteredCompanies.length} companies matching your criteria`
+                : 'Leading the future of artificial intelligence in Alabama'
+              }
+            </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredCompanies.map((company) => (
-              <Card key={company.id} className="hover:shadow-lg transition-shadow cursor-pointer group bg-gray-800 border-gray-700">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="text-2xl">{company.logo}</div>
-                      <div>
-                        <CardTitle className="text-lg group-hover:text-[#00C2FF] transition-colors text-white">
-                          {company.name}
-                        </CardTitle>
-                        <div className="flex items-center text-sm text-gray-400 mt-1">
-                          <MapPin className="w-3 h-3 mr-1" />
-                          {company.location}
+          {businessesLoading && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, index) => (
+                <Card key={index} className="bg-gray-800 border-gray-700 animate-pulse">
+                  <CardHeader>
+                    <div className="h-6 bg-gray-700 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-16 bg-gray-700 rounded mb-4"></div>
+                    <div className="flex justify-between">
+                      <div className="h-6 bg-gray-700 rounded w-1/3"></div>
+                      <div className="h-6 bg-gray-700 rounded w-1/4"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {businessesError && (
+            <div className="text-center text-gray-400 py-8">
+              <p>Unable to load companies. Please try again later.</p>
+            </div>
+          )}
+
+          {!businessesLoading && !businessesError && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(filteredCompanies.length > 0 ? filteredCompanies : featuredCompanies).map((company) => (
+                <Card key={company.id} className="hover:shadow-lg transition-shadow cursor-pointer group bg-gray-800 border-gray-700">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="text-2xl">
+                          {company.logo_url ? (
+                            <img src={company.logo_url} alt={company.businessname} className="w-8 h-8 rounded" />
+                          ) : (
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-[#00C2FF] rounded flex items-center justify-center text-white text-sm font-bold">
+                              {company.businessname?.charAt(0) || 'A'}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg group-hover:text-[#00C2FF] transition-colors text-white">
+                            {company.businessname || 'Unnamed Company'}
+                          </CardTitle>
+                          <div className="flex items-center text-sm text-gray-400 mt-1">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {company.location || 'Alabama'}
+                          </div>
                         </div>
                       </div>
+                      {company.verified && (
+                        <div className="flex items-center text-sm text-gray-300">
+                          <Star className="w-4 h-4 text-yellow-400 mr-1" />
+                          {company.rating || 4.5}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center text-sm text-gray-300">
-                      <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                      {company.rating}
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-300 text-sm mb-4 leading-relaxed">
+                      {company.description || 'AI solutions provider in Alabama'}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex space-x-2">
+                        <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
+                          {company.category || 'AI Services'}
+                        </Badge>
+                        {company.employees_count && (
+                          <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
+                            {company.employees_count} employees
+                          </Badge>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700" onClick={() => handleViewProfile(company.id)}>
+                        View Profile
+                        <ArrowRight className="w-3 h-3 ml-1" />
+                      </Button>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-300 text-sm mb-4 leading-relaxed">
-                    {company.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
-                        {company.category}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
-                        {company.employees}
-                      </Badge>
-                    </div>
-                    <Button variant="ghost" size="sm" className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700">
-                      View Profile
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
           
           <div className="text-center mt-8">
             <Button variant="outline" size="lg" className="border-[#00C2FF] text-[#00C2FF] hover:bg-[#00C2FF] hover:text-white">
@@ -298,6 +349,9 @@ const Index = () => {
 
       {/* Mobile Navigation */}
       <MobileNavigation />
+      
+      {/* BamaBot AI Assistant */}
+      <BamaBot />
     </div>
   );
 };
