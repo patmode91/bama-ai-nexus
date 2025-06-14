@@ -3,24 +3,23 @@ import { useState } from 'react';
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart3, TrendingUp, Users, Download, RefreshCw } from 'lucide-react';
-import MetricsOverview from '@/components/analytics/MetricsOverview';
+import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import CategoryInsights from '@/components/analytics/CategoryInsights';
 import UserEngagement from '@/components/analytics/UserEngagement';
 import AuthGuard from '@/components/auth/AuthGuard';
-import { useBusinesses } from '@/hooks/useBusinesses';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 const Analytics = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { refetch: refetchBusinesses } = useBusinesses();
+  const queryClient = useQueryClient();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refetchBusinesses();
+      await queryClient.invalidateQueries({ queryKey: ['analytics'] });
       toast.success('Analytics data refreshed');
     } catch (error) {
       toast.error('Failed to refresh data');
@@ -100,29 +99,7 @@ const Analytics = () => {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <MetricsOverview />
-              
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Quick Insights</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <p className="text-gray-300">Most Active Category</p>
-                      <p className="text-white font-semibold">Technology</p>
-                    </div>
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <p className="text-gray-300">Growth This Month</p>
-                      <p className="text-green-400 font-semibold">+12.5%</p>
-                    </div>
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <p className="text-gray-300">Avg Session Time</p>
-                      <p className="text-white font-semibold">4m 32s</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <AnalyticsDashboard />
             </TabsContent>
 
             <TabsContent value="categories" className="space-y-6">

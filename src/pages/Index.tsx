@@ -14,6 +14,7 @@ import AdvancedSearch from '@/components/search/AdvancedSearch';
 import BusinessStats from '@/components/business/BusinessStats';
 import CategoryBrowser from '@/components/business/CategoryBrowser';
 import { useBusinesses } from '@/hooks/useBusinesses';
+import SEO from '@/components/seo/SEO';
 
 const Index = () => {
   const [showQuiz, setShowQuiz] = useState(false);
@@ -139,6 +140,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
+      <SEO 
+        title="Home"
+        description="Discover, connect, and grow with Alabama's thriving artificial intelligence community. From Birmingham to Huntsville, find the AI solutions and talent that drive innovation."
+      />
       <Header />
 
       <HeroSection 
