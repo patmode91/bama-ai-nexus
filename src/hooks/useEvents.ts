@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Event, EventRSVP, EventWithAttendees, CreateEventData } from '@/types/events';
+import { EventWithAttendees, CreateEventData, RSVPData } from '@/types/events';
 
 export const useEvents = () => {
   const { toast } = useToast();
@@ -10,8 +10,7 @@ export const useEvents = () => {
 
   const {
     data: events = [],
-    isLoading,
-    error,
+    isLoading: eventsLoading,
   } = useQuery({
     queryKey: ['events'],
     queryFn: async (): Promise<EventWithAttendees[]> => {
@@ -39,11 +38,12 @@ export const useEvents = () => {
       // Get attendee counts and user RSVPs for each event
       const eventsWithDetails = await Promise.all(
         data.map(async (event) => {
-          // Get attendee count
-          const { data: attendeeCount } = await supabase
-            .rpc('get_event_attendee_count', { event_uuid: event.id });
+          const { count: attendeeCount } = await supabase
+            .from('event_rsvps')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'going');
 
-          // Get user's RSVP if logged in
           let userRsvp = null;
           if (user) {
             const { data: rsvp } = await supabase
@@ -57,17 +57,12 @@ export const useEvents = () => {
 
           return {
             ...event,
-            status: event.status as 'active' | 'cancelled' | 'completed',
             attendee_count: attendeeCount || 0,
-            user_rsvp: userRsvp ? {
-              ...userRsvp,
-              status: userRsvp.status as 'going' | 'maybe' | 'not_going'
-            } : undefined,
+            user_rsvp: userRsvp,
           };
         })
       );
 
-      console.log('Events fetched:', eventsWithDetails);
       return eventsWithDetails;
     },
   });
@@ -89,10 +84,7 @@ export const useEvents = () => {
         .single();
 
       if (error) throw error;
-      return {
-        ...data,
-        status: data.status as 'active' | 'cancelled' | 'completed'
-      };
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -107,13 +99,12 @@ export const useEvents = () => {
         description: error.message,
         variant: "destructive",
       });
-      console.error('Event creation error:', error);
     },
   });
 
-  const rsvpMutation = useMutation({
-    mutationFn: async ({ eventId, status }: { eventId: string; status: 'going' | 'maybe' | 'not_going' }) => {
-      console.log('RSVP to event:', eventId, status);
+  const updateRSVPMutation = useMutation({
+    mutationFn: async ({ eventId, status }: RSVPData) => {
+      console.log('Updating RSVP:', { eventId, status });
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
@@ -129,10 +120,7 @@ export const useEvents = () => {
         .single();
 
       if (error) throw error;
-      return {
-        ...data,
-        status: data.status as 'going' | 'maybe' | 'not_going'
-      };
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -147,52 +135,26 @@ export const useEvents = () => {
         description: error.message,
         variant: "destructive",
       });
-      console.error('RSVP error:', error);
     },
-  });
-
-  const {
-    data: userEvents = [],
-    isLoading: userEventsLoading,
-  } = useQuery({
-    queryKey: ['user-events'],
-    queryFn: async (): Promise<Event[]> => {
-      console.log('Fetching user events...');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('event_date', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching user events:', error);
-        throw error;
-      }
-
-      const typedEvents = data.map(event => ({
-        ...event,
-        status: event.status as 'active' | 'cancelled' | 'completed'
-      }));
-
-      console.log('User events fetched:', typedEvents);
-      return typedEvents;
-    },
-    enabled: true,
   });
 
   return {
     events,
-    userEvents,
-    isLoading,
-    userEventsLoading,
-    error,
+    eventsLoading,
     createEvent: createEventMutation.mutate,
-    isCreating: createEventMutation.isPending,
-    rsvp: rsvpMutation.mutate,
-    isRsvping: rsvpMutation.isPending,
+    isCreatingEvent: createEventMutation.isPending,
+    updateRSVP: updateRSVPMutation.mutate,
+    isUpdatingRSVP: updateRSVPMutation.isPending,
   };
+};
+
+// Export individual functions for backward compatibility
+export const useCreateEvent = () => {
+  const { createEvent, isCreatingEvent } = useEvents();
+  return { createEvent, isCreatingEvent };
+};
+
+export const useUpdateRSVP = () => {
+  const { updateRSVP, isUpdatingRSVP } = useEvents();
+  return { updateRSVP, isUpdatingRSVP };
 };
