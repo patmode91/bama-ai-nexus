@@ -29,12 +29,13 @@ const SearchFilters = ({ onSearch, onClear }: SearchFiltersProps) => {
   });
 
   const categories = [
-    'ML Consulting', 'Robotics', 'Data Analytics', 'Computer Vision', 
-    'NLP', 'Healthcare AI', 'Manufacturing AI', 'Financial AI'
+    'AI Solutions', 'Software Development', 'IT Services', 'Web Development',
+    'Digital Marketing', 'Manufacturing', 'Healthcare Technology', 'Cybersecurity',
+    'Industrial Automation', 'Aerospace', 'Security Systems'
   ];
 
   const companySizes = ['1-10', '11-25', '26-50', '51-100', '100+'];
-  const locations = ['Birmingham, AL', 'Huntsville, AL', 'Mobile, AL', 'Montgomery, AL', 'Tuscaloosa, AL'];
+  const locations = ['Mobile, AL', 'Baldwin County, AL', 'Fairhope, AL', 'Daphne, AL', 'Foley, AL', 'Gulf Shores, AL'];
 
   const handleSearch = () => {
     onSearch(searchQuery, filters);
@@ -95,7 +96,7 @@ const SearchFilters = ({ onSearch, onClear }: SearchFiltersProps) => {
         {/* Quick Search Suggestions */}
         <div className="flex flex-wrap gap-2 mb-4">
           <span className="text-sm text-gray-400">Quick search:</span>
-          {['Healthcare AI', 'Computer Vision', 'Manufacturing', 'Chatbots'].map((suggestion) => (
+          {['AI Solutions', 'Web Development', 'IT Services', 'Industrial Automation'].map((suggestion) => (
             <Button
               key={suggestion}
               variant="ghost"
