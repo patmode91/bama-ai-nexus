@@ -88,15 +88,15 @@ class MarketDataService {
   private getFallbackNews(category?: string): NewsItem[] {
     const baseNews = [
       {
-        title: 'Alabama's Tech Sector Shows Strong Growth',
-        description: 'Recent reports indicate continued expansion in Alabama\'s technology sector, with Birmingham and Huntsville leading the way.',
+        title: 'Alabama Tech Sector Shows Strong Growth',
+        description: 'Recent reports indicate continued expansion in Alabama tech sector, with Birmingham and Huntsville leading the way.',
         url: '#',
         publishedAt: new Date().toISOString(),
         source: 'Alabama Business Journal'
       },
       {
         title: 'Aerospace Innovation Hub Expands in Huntsville',
-        description: 'New aerospace technology initiatives announced, strengthening Alabama\'s position in the industry.',
+        description: 'New aerospace technology initiatives announced, strengthening Alabama position in the industry.',
         url: '#',
         publishedAt: new Date().toISOString(),
         source: 'Huntsville Times'
@@ -141,7 +141,7 @@ class MarketDataService {
       
       return [{
         title: `${companyName} Announces New Initiatives`,
-        description: `Recent developments and news regarding ${companyName}'s operations in Alabama.`,
+        description: `Recent developments and news regarding ${companyName} operations in Alabama.`,
         url: '#',
         publishedAt: new Date().toISOString(),
         source: 'Business Wire'
