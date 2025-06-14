@@ -50,9 +50,9 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
       {/* Header */}
-      <header className="border-b border-gray-700 bg-gray-800/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-gray-600 bg-gray-700/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -126,7 +126,7 @@ const Index = () => {
       </section>
 
       {/* Featured Companies */}
-      <section id="directory" className="py-16 px-6 bg-gray-900">
+      <section id="directory" className="py-16 px-6 bg-gray-800">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-white mb-4">Featured AI Companies</h2>
@@ -189,7 +189,7 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 px-6 bg-gradient-to-r from-slate-900 to-slate-800">
+      <section className="py-16 px-6 bg-gradient-to-r from-gray-800 to-gray-700">
         <div className="container mx-auto text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Join Alabama's AI Revolution?</h2>
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
