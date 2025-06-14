@@ -32,7 +32,7 @@ export const useForumTopics = (categoryId?: string) => {
         .select(`
           *,
           forum_categories!inner(name, color),
-          profiles!forum_topics_author_id_fkey(full_name, company)
+          profiles(full_name, company)
         `)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false });
@@ -88,7 +88,7 @@ export const useForumTopic = (topicId: string) => {
         .select(`
           *,
           forum_categories!inner(name, color),
-          profiles!forum_topics_author_id_fkey(full_name, company)
+          profiles(full_name, company)
         `)
         .eq('id', topicId)
         .single();
@@ -115,7 +115,7 @@ export const useForumReplies = (topicId: string) => {
         .from('forum_replies')
         .select(`
           *,
-          profiles!forum_replies_author_id_fkey(full_name, company)
+          profiles(full_name, company)
         `)
         .eq('topic_id', topicId)
         .order('created_at', { ascending: true });
@@ -261,7 +261,6 @@ export const useVoteReply = () => {
       return data;
     },
     onSuccess: (_, variables) => {
-      // Find which topic this reply belongs to and invalidate its queries
       queryClient.invalidateQueries({ queryKey: ['forum-replies'] });
     },
     onError: (error: any) => {
@@ -272,4 +271,26 @@ export const useVoteReply = () => {
       });
     },
   });
+};
+
+// Main hook that combines all forum functionality
+export const useForums = () => {
+  const categoriesQuery = useForumCategories();
+  const topicsQuery = useForumTopics();
+  const createTopicMutation = useCreateTopic();
+  const createReplyMutation = useCreateReply();
+  const voteReplyMutation = useVoteReply();
+
+  return {
+    categories: categoriesQuery.data || [],
+    categoriesLoading: categoriesQuery.isLoading,
+    topics: topicsQuery.data || [],
+    topicsLoading: topicsQuery.isLoading,
+    createTopic: createTopicMutation.mutate,
+    createReply: createReplyMutation.mutate,
+    voteReply: voteReplyMutation.mutate,
+    isCreatingTopic: createTopicMutation.isPending,
+    isCreatingReply: createReplyMutation.isPending,
+    isVoting: voteReplyMutation.isPending,
+  };
 };

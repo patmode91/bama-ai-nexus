@@ -24,6 +24,11 @@ const Events = () => {
     new Date(event.event_date) <= new Date()
   );
 
+  const handleDateSelect = (date: Date) => {
+    console.log('Selected date:', date);
+    // Could be used to filter events or create new event on selected date
+  };
+
   if (eventsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
@@ -146,7 +151,7 @@ const Events = () => {
           </TabsContent>
 
           <TabsContent value="calendar">
-            <EventsCalendar events={events} />
+            <EventsCalendar events={events} onDateSelect={handleDateSelect} />
           </TabsContent>
         </Tabs>
 

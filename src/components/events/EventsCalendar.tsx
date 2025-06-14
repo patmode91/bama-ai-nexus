@@ -1,139 +1,100 @@
 
 import { useState } from 'react';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EventWithAttendees } from '@/types/events';
-import { format, isSameDay, parseISO } from 'date-fns';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const locales = {
+  'en-US': enUS,
+};
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
 
 interface EventsCalendarProps {
   events: EventWithAttendees[];
-  onDateSelect: (date: Date, events: EventWithAttendees[]) => void;
+  onDateSelect?: (date: Date) => void;
 }
 
 const EventsCalendar = ({ events, onDateSelect }: EventsCalendarProps) => {
-  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedEvent, setSelectedEvent] = useState<EventWithAttendees | null>(null);
 
-  const getEventsForDate = (date: Date) => {
-    return events.filter(event => 
-      isSameDay(parseISO(event.event_date), date)
-    );
+  const calendarEvents = events.map(event => ({
+    id: event.id,
+    title: event.title,
+    start: new Date(event.event_date),
+    end: event.end_date ? new Date(event.end_date) : new Date(event.event_date),
+    resource: event,
+  }));
+
+  const handleSelectEvent = (event: any) => {
+    setSelectedEvent(event.resource);
   };
 
-  const hasEventsOnDate = (date: Date) => {
-    return getEventsForDate(date).length > 0;
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
-      const dayEvents = getEventsForDate(date);
-      onDateSelect(date, dayEvents);
+  const handleSelectSlot = ({ start }: { start: Date }) => {
+    if (onDateSelect) {
+      onDateSelect(start);
     }
   };
 
-  const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate) : [];
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">Events Calendar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDateSelect}
-            className="rounded-md border border-gray-600"
-            modifiers={{
-              hasEvents: (date) => hasEventsOnDate(date)
-            }}
-            modifiersStyles={{
-              hasEvents: {
-                backgroundColor: '#00C2FF',
-                color: 'white',
-                fontWeight: 'bold'
-              }
-            }}
-          />
-          <div className="mt-4 text-sm text-gray-400">
-            <p className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-[#00C2FF] rounded"></div>
-              Days with events
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="h-96 bg-white rounded-lg p-4">
+        <Calendar
+          localizer={localizer}
+          events={calendarEvents}
+          startAccessor="start"
+          endAccessor="end"
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          selectable
+          views={['month', 'week', 'day']}
+          defaultView="month"
+          style={{ height: '100%' }}
+          eventPropGetter={() => ({
+            style: {
+              backgroundColor: '#00C2FF',
+              borderColor: '#00A8D8',
+            },
+          })}
+        />
+      </div>
 
-      <Card className="bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">
-            {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a Date'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {selectedDate ? (
-            <div className="space-y-4">
-              {selectedDateEvents.length > 0 ? (
-                selectedDateEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className="p-4 bg-gray-700 rounded-lg border border-gray-600"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-white mb-2">{event.title}</h4>
-                        <p className="text-sm text-gray-400 mb-2">
-                          {format(parseISO(event.event_date), 'h:mm a')}
-                          {event.end_date && (
-                            ` - ${format(parseISO(event.end_date), 'h:mm a')}`
-                          )}
-                        </p>
-                        {event.location && (
-                          <p className="text-sm text-gray-400 mb-2">{event.location}</p>
-                        )}
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {event.event_type}
-                          </Badge>
-                          {event.is_virtual && (
-                            <Badge variant="outline" className="text-xs text-blue-400">
-                              Virtual
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-400">
-                          {event.attendee_count || 0} attending
-                        </p>
-                        {event.user_rsvp && (
-                          <Badge 
-                            variant="secondary" 
-                            className="text-xs mt-1 bg-green-400/20 text-green-400"
-                          >
-                            {event.user_rsvp.status === 'going' ? 'Going' : 
-                             event.user_rsvp.status === 'maybe' ? 'Maybe' : 'Not Going'}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-400 text-center py-8">
-                  No events scheduled for this date.
-                </p>
-              )}
+      {selectedEvent && (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <CardTitle className="text-white">{selectedEvent.title}</CardTitle>
+              <Badge variant="secondary" className="bg-[#00C2FF]/20 text-[#00C2FF]">
+                {selectedEvent.event_type}
+              </Badge>
             </div>
-          ) : (
-            <p className="text-gray-400 text-center py-8">
-              Click on a date to see events for that day.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-4 text-gray-300">
+            <p>{selectedEvent.description}</p>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">
+                {format(new Date(selectedEvent.event_date), 'PPp')}
+              </Badge>
+              {selectedEvent.location && (
+                <Badge variant="outline">{selectedEvent.location}</Badge>
+              )}
+              <Badge variant="outline">
+                {selectedEvent.attendee_count || 0} attending
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
