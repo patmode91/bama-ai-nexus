@@ -20,20 +20,29 @@ export const useSavedBusinesses = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from('saved_businesses')
-        .select(`
-          business_id,
-          businesses (*)
-        `)
-        .eq('user_id', user.id);
+      // First get the business IDs that are saved by this user
+      const { data: savedIds, error: savedError } = await supabase
+        .rpc('get_saved_business_ids', { user_id: user.id });
 
-      if (error) {
-        console.error('Error fetching saved businesses:', error);
-        throw error;
+      if (savedError) {
+        console.error('Error fetching saved business IDs:', savedError);
+        // If the function doesn't exist, fall back to empty array
+        return [];
       }
 
-      const businesses = data?.map(item => item.businesses).filter(Boolean) as Business[];
+      if (!savedIds || savedIds.length === 0) return [];
+
+      // Then fetch the actual business data
+      const { data: businesses, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .in('id', savedIds);
+
+      if (businessError) {
+        console.error('Error fetching saved businesses:', businessError);
+        throw businessError;
+      }
+
       console.log('Saved businesses fetched:', businesses);
       return businesses || [];
     },
@@ -46,12 +55,11 @@ export const useSavedBusinesses = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
-      const { error } = await supabase
-        .from('saved_businesses')
-        .insert({
-          user_id: user.id,
-          business_id: businessId,
-        });
+      // Use RPC function to handle the insert
+      const { error } = await supabase.rpc('save_business', {
+        user_id: user.id,
+        business_id: businessId
+      });
 
       if (error) throw error;
       return businessId;
@@ -79,11 +87,11 @@ export const useSavedBusinesses = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
-      const { error } = await supabase
-        .from('saved_businesses')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('business_id', businessId);
+      // Use RPC function to handle the delete
+      const { error } = await supabase.rpc('unsave_business', {
+        user_id: user.id,
+        business_id: businessId
+      });
 
       if (error) throw error;
       return businessId;
