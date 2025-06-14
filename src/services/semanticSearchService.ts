@@ -1,215 +1,336 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+interface SearchFilters {
+  location?: string;
+  category?: string;
+  verified?: boolean;
+  tags?: string[];
+  employeeRange?: string;
+  fundingStage?: string;
+}
+
 interface SearchQuery {
   query: string;
-  filters?: {
-    location?: string;
-    category?: string;
-    verified?: boolean;
-  };
+  filters?: SearchFilters;
   limit?: number;
+  includeAnalysis?: boolean;
 }
 
 interface SearchResult {
   business: any;
   relevanceScore: number;
   matchingReasons: string[];
+  contextualInsights?: string;
 }
 
-export class SemanticSearchService {
-  
-  async searchBusinesses(searchQuery: SearchQuery): Promise<SearchResult[]> {
-    const { query, filters, limit = 10 } = searchQuery;
-    
+interface SearchResponse {
+  results: SearchResult[];
+  totalCount: number;
+  searchInsights: string;
+  suggestedFilters: string[];
+  relatedQueries: string[];
+}
+
+class SemanticSearchService {
+  private async analyzeSearchIntent(query: string): Promise<{
+    intent: 'find_businesses' | 'market_research' | 'partnership' | 'investment';
+    extractedCriteria: any;
+    searchTerms: string[];
+  }> {
+    // Enhanced intent analysis using Gemini
     try {
-      // For now, we'll implement a sophisticated keyword-based search
-      // Later this can be enhanced with vector embeddings
-      const searchTerms = this.extractSearchTerms(query);
-      
-      let supabaseQuery = supabase
-        .from('businesses')
-        .select('*')
-        .limit(limit);
-      
-      // Apply filters
-      if (filters?.location) {
-        supabaseQuery = supabaseQuery.ilike('location', `%${filters.location}%`);
-      }
-      
-      if (filters?.category) {
-        supabaseQuery = supabaseQuery.eq('category', filters.category);
-      }
-      
-      if (filters?.verified !== undefined) {
-        supabaseQuery = supabaseQuery.eq('verified', filters.verified);
-      }
-      
-      const { data: businesses, error } = await supabaseQuery;
-      
+      const { data, error } = await supabase.functions.invoke('enhanced-bamabot', {
+        body: {
+          message: `Analyze this search query and extract search intent: "${query}"
+          
+          Return JSON format:
+          {
+            "intent": "find_businesses|market_research|partnership|investment",
+            "extractedCriteria": {
+              "technologies": [],
+              "industries": [],
+              "locations": [],
+              "companySize": "",
+              "services": [],
+              "keywords": []
+            },
+            "searchTerms": ["relevant", "search", "terms"]
+          }`,
+          type: 'chat'
+        }
+      });
+
       if (error) throw error;
+
+      // Parse the AI response
+      const response = data.response || '{}';
+      try {
+        const parsed = JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
+        return parsed;
+      } catch {
+        // Fallback analysis
+        return this.basicIntentAnalysis(query);
+      }
+    } catch (error) {
+      console.error('Intent analysis error:', error);
+      return this.basicIntentAnalysis(query);
+    }
+  }
+
+  private basicIntentAnalysis(query: string): any {
+    const lowercaseQuery = query.toLowerCase();
+    
+    let intent = 'find_businesses';
+    if (lowercaseQuery.includes('market') || lowercaseQuery.includes('trend')) {
+      intent = 'market_research';
+    } else if (lowercaseQuery.includes('partner') || lowercaseQuery.includes('collaborate')) {
+      intent = 'partnership';
+    } else if (lowercaseQuery.includes('invest') || lowercaseQuery.includes('funding')) {
+      intent = 'investment';
+    }
+
+    const technologies = this.extractTechnologies(query);
+    const industries = this.extractIndustries(query);
+    const locations = this.extractLocations(query);
+
+    return {
+      intent,
+      extractedCriteria: {
+        technologies,
+        industries,
+        locations,
+        services: [],
+        keywords: query.split(' ').filter(word => word.length > 3)
+      },
+      searchTerms: [query]
+    };
+  }
+
+  private extractTechnologies(query: string): string[] {
+    const techKeywords = [
+      'ai', 'artificial intelligence', 'machine learning', 'ml', 'deep learning',
+      'computer vision', 'nlp', 'natural language processing', 'robotics',
+      'automation', 'blockchain', 'iot', 'internet of things', 'cloud',
+      'saas', 'software', 'mobile app', 'web development', 'data science',
+      'analytics', 'big data', 'cybersecurity', 'fintech', 'healthtech'
+    ];
+    
+    return techKeywords.filter(keyword => 
+      query.toLowerCase().includes(keyword)
+    );
+  }
+
+  private extractIndustries(query: string): string[] {
+    const industryKeywords = [
+      'healthcare', 'aerospace', 'manufacturing', 'automotive', 'finance',
+      'education', 'retail', 'logistics', 'agriculture', 'energy',
+      'real estate', 'hospitality', 'media', 'telecommunications',
+      'defense', 'government', 'nonprofit'
+    ];
+    
+    return industryKeywords.filter(keyword => 
+      query.toLowerCase().includes(keyword)
+    );
+  }
+
+  private extractLocations(query: string): string[] {
+    const locationKeywords = [
+      'birmingham', 'huntsville', 'mobile', 'montgomery', 'tuscaloosa',
+      'auburn', 'dothan', 'florence', 'gadsden', 'hoover', 'alabama'
+    ];
+    
+    return locationKeywords.filter(keyword => 
+      query.toLowerCase().includes(keyword)
+    );
+  }
+
+  private buildSearchQuery(criteria: any, filters: SearchFilters = {}): any {
+    let query = supabase.from('businesses').select('*');
+
+    // Apply text search
+    if (criteria.keywords?.length > 0) {
+      const searchTerms = criteria.keywords.join(' | ');
+      query = query.or(`businessname.ilike.%${searchTerms}%,description.ilike.%${searchTerms}%,category.ilike.%${searchTerms}%`);
+    }
+
+    // Apply location filter
+    if (filters.location || criteria.locations?.length > 0) {
+      const location = filters.location || criteria.locations[0];
+      if (location) {
+        query = query.ilike('location', `%${location}%`);
+      }
+    }
+
+    // Apply category filter
+    if (filters.category || criteria.industries?.length > 0) {
+      const category = filters.category || criteria.industries[0];
+      if (category) {
+        query = query.ilike('category', `%${category}%`);
+      }
+    }
+
+    // Apply verified filter
+    if (filters.verified !== undefined) {
+      query = query.eq('verified', filters.verified);
+    }
+
+    return query;
+  }
+
+  private async scoreBusinessRelevance(business: any, criteria: any, query: string): Promise<{
+    score: number;
+    reasons: string[];
+  }> {
+    let score = 0;
+    const reasons: string[] = [];
+
+    // Name match
+    if (business.businessname?.toLowerCase().includes(query.toLowerCase().split(' ')[0])) {
+      score += 30;
+      reasons.push('Business name matches search term');
+    }
+
+    // Category/Industry match
+    if (criteria.industries?.some((industry: string) => 
+      business.category?.toLowerCase().includes(industry.toLowerCase())
+    )) {
+      score += 25;
+      reasons.push('Industry match');
+    }
+
+    // Technology match in description
+    if (criteria.technologies?.some((tech: string) => 
+      business.description?.toLowerCase().includes(tech.toLowerCase())
+    )) {
+      score += 25;
+      reasons.push('Technology alignment');
+    }
+
+    // Location match
+    if (criteria.locations?.some((location: string) => 
+      business.location?.toLowerCase().includes(location.toLowerCase())
+    )) {
+      score += 15;
+      reasons.push('Location match');
+    }
+
+    // Verified bonus
+    if (business.verified) {
+      score += 10;
+      reasons.push('Verified company');
+    }
+
+    // Description relevance
+    if (business.description && criteria.keywords?.some((keyword: string) => 
+      business.description.toLowerCase().includes(keyword.toLowerCase())
+    )) {
+      score += 20;
+      reasons.push('Description relevance');
+    }
+
+    return { score: Math.min(score, 100), reasons };
+  }
+
+  async searchBusinesses(searchQuery: SearchQuery): Promise<SearchResult[]> {
+    try {
+      // Analyze search intent
+      const analysis = await this.analyzeSearchIntent(searchQuery.query);
       
-      // Score and rank results based on semantic relevance
-      const scoredResults = businesses?.map(business => {
-        const score = this.calculateRelevanceScore(business, searchTerms, query);
-        const reasons = this.generateMatchingReasons(business, searchTerms, query);
-        
-        return {
-          business,
-          relevanceScore: score,
-          matchingReasons: reasons
-        };
-      }) || [];
-      
-      // Sort by relevance score (highest first)
+      // Build and execute database query
+      const dbQuery = this.buildSearchQuery(analysis.extractedCriteria, searchQuery.filters);
+      const { data: businesses, error } = await dbQuery.limit(searchQuery.limit || 50);
+
+      if (error) throw error;
+
+      if (!businesses || businesses.length === 0) {
+        return [];
+      }
+
+      // Score and rank results
+      const scoredResults = await Promise.all(
+        businesses.map(async (business) => {
+          const { score, reasons } = await this.scoreBusinessRelevance(
+            business, 
+            analysis.extractedCriteria, 
+            searchQuery.query
+          );
+
+          return {
+            business,
+            relevanceScore: score,
+            matchingReasons: reasons
+          };
+        })
+      );
+
+      // Sort by relevance score
       return scoredResults
-        .filter(result => result.relevanceScore > 0)
+        .filter(result => result.relevanceScore > 10)
         .sort((a, b) => b.relevanceScore - a.relevanceScore);
-      
+
     } catch (error) {
       console.error('Semantic search error:', error);
       throw error;
     }
   }
-  
-  private extractSearchTerms(query: string): string[] {
-    // Extract meaningful terms from the query
-    const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'that', 'this', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should']);
-    
-    return query
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(term => term.length > 2 && !stopWords.has(term));
-  }
-  
-  private calculateRelevanceScore(business: any, searchTerms: string[], originalQuery: string): number {
-    let score = 0;
-    const searchableText = this.getSearchableText(business);
-    const lowerQuery = originalQuery.toLowerCase();
-    
-    // Exact phrase matching (highest weight)
-    if (searchableText.includes(lowerQuery)) {
-      score += 100;
-    }
-    
-    // Individual term matching
-    searchTerms.forEach(term => {
-      const termRegex = new RegExp(`\\b${term}\\b`, 'gi');
-      const matches = searchableText.match(termRegex);
-      if (matches) {
-        // Weight by field importance and frequency
-        if (business.businessname?.toLowerCase().includes(term)) score += 50;
-        if (business.description?.toLowerCase().includes(term)) score += 30;
-        if (business.category?.toLowerCase().includes(term)) score += 40;
-        if (business.tags?.some((tag: string) => tag.toLowerCase().includes(term))) score += 35;
-        
-        score += matches.length * 10; // Frequency bonus
-      }
-    });
-    
-    // Industry/category relevance
-    if (this.hasIndustryRelevance(business, originalQuery)) {
-      score += 25;
-    }
-    
-    // Location relevance
-    if (this.hasLocationRelevance(business, originalQuery)) {
-      score += 20;
-    }
-    
-    // Verified business bonus
-    if (business.verified) {
-      score += 15;
-    }
-    
-    return score;
-  }
-  
-  private getSearchableText(business: any): string {
-    const fields = [
-      business.businessname || '',
-      business.description || '',
-      business.category || '',
-      business.location || '',
-      ...(business.tags || []),
-      ...(business.certifications || [])
+
+  async getSearchSuggestions(partialQuery: string): Promise<string[]> {
+    const suggestions = [
+      "AI companies in Birmingham using computer vision",
+      "Healthcare technology startups in Huntsville",
+      "Manufacturing companies with automation solutions",
+      "Fintech companies in Alabama",
+      "Aerospace companies using machine learning",
+      "Software development companies in Mobile",
+      "Data analytics firms in Montgomery",
+      "Cybersecurity companies in Alabama",
+      "IoT solutions for agriculture",
+      "Verified tech companies offering consulting services"
     ];
-    
-    return fields.join(' ').toLowerCase();
+
+    if (!partialQuery || partialQuery.length < 2) {
+      return suggestions.slice(0, 5);
+    }
+
+    return suggestions
+      .filter(suggestion => 
+        suggestion.toLowerCase().includes(partialQuery.toLowerCase())
+      )
+      .slice(0, 5);
   }
-  
-  private hasIndustryRelevance(business: any, query: string): boolean {
-    const industryKeywords = {
-      'healthcare': ['medical', 'health', 'patient', 'clinical', 'diagnosis', 'treatment'],
-      'finance': ['financial', 'banking', 'investment', 'trading', 'fintech', 'payment'],
-      'manufacturing': ['factory', 'production', 'automation', 'quality control', 'supply chain'],
-      'aerospace': ['aircraft', 'satellite', 'space', 'defense', 'aviation', 'rocket'],
-      'education': ['learning', 'training', 'academic', 'student', 'curriculum', 'university'],
-      'retail': ['commerce', 'shopping', 'customer', 'sales', 'inventory', 'ecommerce']
-    };
-    
-    const queryLower = query.toLowerCase();
-    const businessCategory = business.category?.toLowerCase() || '';
-    
-    for (const [industry, keywords] of Object.entries(industryKeywords)) {
-      if (businessCategory.includes(industry) && 
-          keywords.some(keyword => queryLower.includes(keyword))) {
-        return true;
+
+  async getRelatedQueries(originalQuery: string): Promise<string[]> {
+    try {
+      const { data, error } = await supabase.functions.invoke('enhanced-bamabot', {
+        body: {
+          message: `Generate 3 related search queries for: "${originalQuery}". Focus on Alabama businesses and AI/tech ecosystem. Return as JSON array of strings.`,
+          type: 'chat'
+        }
+      });
+
+      if (error) throw error;
+
+      try {
+        const response = data.response || '[]';
+        const parsed = JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
+        return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
+      } catch {
+        return this.getDefaultRelatedQueries(originalQuery);
       }
+    } catch (error) {
+      console.error('Related queries error:', error);
+      return this.getDefaultRelatedQueries(originalQuery);
     }
-    
-    return false;
   }
-  
-  private hasLocationRelevance(business: any, query: string): boolean {
-    const locations = ['birmingham', 'huntsville', 'mobile', 'montgomery', 'tuscaloosa', 'auburn', 'alabama'];
-    const queryLower = query.toLowerCase();
-    const businessLocation = business.location?.toLowerCase() || '';
-    
-    return locations.some(location => 
-      queryLower.includes(location) && businessLocation.includes(location)
-    );
-  }
-  
-  private generateMatchingReasons(business: any, searchTerms: string[], originalQuery: string): string[] {
-    const reasons: string[] = [];
-    const searchableText = this.getSearchableText(business);
-    
-    // Check for direct matches
-    if (business.businessname?.toLowerCase().includes(originalQuery.toLowerCase())) {
-      reasons.push('Company name matches your search');
-    }
-    
-    if (business.description?.toLowerCase().includes(originalQuery.toLowerCase())) {
-      reasons.push('Service description matches your query');
-    }
-    
-    // Check category alignment
-    if (business.category && this.hasIndustryRelevance(business, originalQuery)) {
-      reasons.push(`Specializes in ${business.category}`);
-    }
-    
-    // Check location relevance
-    if (this.hasLocationRelevance(business, originalQuery)) {
-      reasons.push('Located in your specified area');
-    }
-    
-    // Check for specific capabilities
-    const capabilityTerms = searchTerms.filter(term => 
-      ['ai', 'machine learning', 'nlp', 'computer vision', 'automation', 'analytics', 'prediction'].includes(term)
-    );
-    
-    if (capabilityTerms.length > 0) {
-      reasons.push(`Offers ${capabilityTerms.join(', ')} capabilities`);
-    }
-    
-    // Verification status
-    if (business.verified) {
-      reasons.push('Verified company profile');
-    }
-    
-    return reasons.slice(0, 3); // Limit to top 3 reasons
+
+  private getDefaultRelatedQueries(query: string): string[] {
+    const defaults = [
+      "Similar companies in Alabama",
+      "AI solutions in the same industry",
+      "Verified companies with similar services"
+    ];
+    return defaults;
   }
 }
 
