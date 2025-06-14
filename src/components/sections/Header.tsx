@@ -1,17 +1,15 @@
 
 import { useState, useEffect } from 'react';
-import { Zap, User } from 'lucide-react';
+import { Zap, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
-interface HeaderProps {
-  onSignIn: () => void;
-}
-
-const Header = ({ onSignIn }: HeaderProps) => {
+const Header = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -30,6 +28,22 @@ const Header = ({ onSignIn }: HeaderProps) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Signed out",
+        description: "You've been signed out successfully.",
+      });
+    }
+  };
 
   return (
     <header className="border-b border-gray-600 bg-gray-700/80 backdrop-blur-md sticky top-0 z-40">
@@ -78,8 +92,14 @@ const Header = ({ onSignIn }: HeaderProps) => {
                   <User className="w-4 h-4 mr-2" />
                   Profile
                 </Button>
-                <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">
-                  Join Directory
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
                 </Button>
               </div>
             ) : (
@@ -88,11 +108,15 @@ const Header = ({ onSignIn }: HeaderProps) => {
                   variant="outline" 
                   size="sm" 
                   className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  onClick={onSignIn}
+                  onClick={() => navigate('/auth')}
                 >
                   Sign In
                 </Button>
-                <Button size="sm" className="bg-[#00C2FF] hover:bg-[#00A8D8]">
+                <Button 
+                  size="sm" 
+                  className="bg-[#00C2FF] hover:bg-[#00A8D8]"
+                  onClick={() => navigate('/auth')}
+                >
                   Join Directory
                 </Button>
               </div>

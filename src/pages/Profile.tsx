@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Zap, User, Building2, Heart, ArrowLeft, Save, LogOut } from 'lucide-react';
+import { User, Building2, Heart, ArrowLeft, Save } from 'lucide-react';
 import Header from '@/components/sections/Header';
 import MobileNavigation from '@/components/mobile/MobileNavigation';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
@@ -32,28 +32,20 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    // Check for existing session
+    // Get current user session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (!session?.user) {
-        navigate('/');
-      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (!session?.user) {
-        navigate('/');
-      }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     if (profile) {
@@ -65,23 +57,6 @@ const Profile = () => {
       });
     }
   }, [profile]);
-
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Signed out",
-        description: "You've been signed out successfully.",
-      });
-      navigate('/');
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,13 +70,9 @@ const Profile = () => {
     }));
   };
 
-  if (!user) {
-    return null; // Loading or redirecting
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header onSignIn={() => {}} />
+      <Header />
 
       <div className="container mx-auto px-6 py-8 max-w-4xl">
         <div className="flex items-center gap-4 mb-8">
@@ -122,17 +93,7 @@ const Profile = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white">{profile?.full_name || 'User Profile'}</h1>
-            <p className="text-gray-300">{user.email}</p>
-          </div>
-          <div className="ml-auto">
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            <p className="text-gray-300">{user?.email}</p>
           </div>
         </div>
 

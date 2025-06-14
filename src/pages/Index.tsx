@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import QuickStartQuiz from '@/components/ai/QuickStartQuiz';
 import AIMatchmaking from '@/components/ai/AIMatchmaking';
@@ -139,7 +138,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-      <Header onSignIn={() => setShowAuth(true)} />
+      <Header />
 
       <HeroSection 
         onStartQuiz={() => setShowQuiz(true)}
