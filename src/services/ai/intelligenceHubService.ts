@@ -120,7 +120,7 @@ class IntelligenceHubService {
   }
 
   private async analyzeMarketTrends(): Promise<void> {
-    const businesses = businessStateManager.getBusinesses();
+    const businessState = businessStateManager.getState();
     const analyticsOverview = enterpriseAnalyticsService.getAnalyticsOverview();
 
     // Simulate trend analysis
@@ -204,7 +204,7 @@ class IntelligenceHubService {
   }
 
   private async identifyOpportunities(): Promise<void> {
-    const businesses = businessStateManager.getBusinesses();
+    const businessState = businessStateManager.getState();
     
     // Simulate opportunity identification
     const opportunities = [
