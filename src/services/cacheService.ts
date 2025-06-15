@@ -1,3 +1,4 @@
+
 interface CacheItem<T> {
   data: T;
   timestamp: number;
@@ -80,6 +81,5 @@ setInterval(() => {
   cacheService.cleanup();
 }, 10 * 60 * 1000);
 
-// Re-export the advanced cache service as the main cache service
-export { advancedCacheService as cacheService } from './advancedCacheService';
-export { businessCache, searchCache, aiCache } from './advancedCacheService';
+// Re-export the advanced cache service components
+export { advancedCacheService, businessCache, searchCache, aiCache } from './advancedCacheService';

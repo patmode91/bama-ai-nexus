@@ -57,7 +57,7 @@ export const useCachedBusinesses = (options?: {
   };
 
   const preloadBusiness = async (businessId: string) => {
-    const business = businessesData?.find(b => b.id === businessId);
+    const business = businessesData?.find(b => b.id.toString() === businessId);
     if (business) {
       await businessCache.set(`business-${businessId}`, business, {
         ttl: 30 * 60 * 1000, // 30 minutes
