@@ -4,10 +4,14 @@ import { Integration } from '@/types/integrations';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import IntegrationCard from './IntegrationCard';
 import IntegrationConfig from './IntegrationConfig';
+import WebhookTester from './WebhookTester';
+import APIDocumentation from './APIDocumentation';
+import IntegrationMarketplace from './IntegrationMarketplace';
+import IntegrationAnalytics from './IntegrationAnalytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plug, Activity, Code, Zap } from 'lucide-react';
+import { Plug, Activity, Code, Zap, Store, TestTube } from 'lucide-react';
 
 const IntegrationsManager = () => {
   const {
@@ -42,7 +46,7 @@ const IntegrationsManager = () => {
         <div>
           <h1 className="text-3xl font-bold flex items-center space-x-2">
             <Plug className="w-8 h-8" />
-            <span>Integrations</span>
+            <span>Integrations Hub</span>
           </h1>
           <p className="text-gray-400 mt-2">
             Connect your business with external tools and services
@@ -98,9 +102,26 @@ const IntegrationsManager = () => {
       {/* Main Content */}
       <Tabs defaultValue="integrations" className="space-y-4">
         <TabsList className="bg-gray-800 border-gray-700">
-          <TabsTrigger value="integrations">Available Integrations</TabsTrigger>
-          <TabsTrigger value="events">Event History</TabsTrigger>
-          <TabsTrigger value="documentation">API Documentation</TabsTrigger>
+          <TabsTrigger value="integrations">
+            <Zap className="w-4 h-4 mr-2" />
+            My Integrations
+          </TabsTrigger>
+          <TabsTrigger value="marketplace">
+            <Store className="w-4 h-4 mr-2" />
+            Marketplace
+          </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <Activity className="w-4 h-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="tester">
+            <TestTube className="w-4 h-4 mr-2" />
+            Webhook Tester
+          </TabsTrigger>
+          <TabsTrigger value="documentation">
+            <Code className="w-4 h-4 mr-2" />
+            API Docs
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="integrations" className="space-y-4">
@@ -117,69 +138,20 @@ const IntegrationsManager = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="events" className="space-y-4">
-          <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
-            <CardHeader>
-              <CardTitle>Recent Events</CardTitle>
-              <CardDescription>
-                History of integration events and webhook deliveries
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-400">
-                <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No events yet. Configure and activate integrations to see activity here.</p>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="marketplace" className="space-y-4">
+          <IntegrationMarketplace />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <IntegrationAnalytics />
+        </TabsContent>
+
+        <TabsContent value="tester" className="space-y-4">
+          <WebhookTester />
         </TabsContent>
 
         <TabsContent value="documentation" className="space-y-4">
-          <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
-            <CardHeader>
-              <CardTitle>API Documentation</CardTitle>
-              <CardDescription>
-                Learn how to integrate with Alabama AI Directory
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="prose prose-invert max-w-none">
-                <h3>Authentication</h3>
-                <p>Use your API key in the Authorization header:</p>
-                <pre className="bg-gray-800 p-3 rounded text-sm overflow-x-auto">
-                  <code>Authorization: Bearer your_api_key_here</code>
-                </pre>
-
-                <h3>Available Endpoints</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">GET</Badge>
-                    <code>/api/business/profile</code>
-                    <span className="text-gray-400">- Get business profile</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">PUT</Badge>
-                    <code>/api/business/profile</code>
-                    <span className="text-gray-400">- Update business profile</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">GET</Badge>
-                    <code>/api/business/reviews</code>
-                    <span className="text-gray-400">- Get business reviews</span>
-                  </div>
-                </div>
-
-                <h3>Webhook Events</h3>
-                <p>Your webhook endpoint will receive POST requests for these events:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li><code>new_contact</code> - New contact form submission</li>
-                  <li><code>new_review</code> - New review posted</li>
-                  <li><code>profile_update</code> - Business profile updated</li>
-                  <li><code>verification_status</code> - Verification status changed</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+          <APIDocumentation />
         </TabsContent>
       </Tabs>
 

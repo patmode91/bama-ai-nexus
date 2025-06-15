@@ -9,8 +9,9 @@ const Integrations = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800 text-white">
       <SEO 
-        title="Integrations"
-        description="Connect your business with external tools and services. Set up webhooks, API access, and popular integrations like Zapier and Slack."
+        title="Integration Hub - Alabama Business Directory"
+        description="Connect your business with external tools and services. Access our comprehensive integration marketplace, API documentation, webhook testing tools, and analytics dashboard."
+        keywords="business integrations, API, webhooks, Zapier, Slack, automation, business tools"
       />
       <Header />
       
