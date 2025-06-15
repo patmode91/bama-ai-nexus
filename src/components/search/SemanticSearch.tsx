@@ -162,9 +162,10 @@ const SemanticSearch = () => {
                   {searchResults.map((result, index) => (
                     <SearchResultCard
                       key={index}
-                      result={result}
-                      onViewProfile={handleViewProfile}
-                      onCompareToggle={handleCompareToggle}
+                      business={result.business || result}
+                      relevanceScore={result.relevanceScore || 75}
+                      matchHighlights={result.matchHighlights || []}
+                      onClick={() => handleViewProfile(result.business?.id || result.id)}
                     />
                   ))}
                 </div>
