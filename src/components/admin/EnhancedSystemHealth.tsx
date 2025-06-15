@@ -193,7 +193,7 @@ const EnhancedSystemHealth = () => {
                     <div className="text-2xl font-bold text-white">
                       {typeof metric.value === 'number' ? metric.value.toFixed(1) : metric.value}
                     </div>
-                    <Badge className={getHealthColor(metric.status)} size="sm">
+                    <Badge className={getHealthColor(metric.status)}>
                       {metric.status}
                     </Badge>
                   </div>
