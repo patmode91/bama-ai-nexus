@@ -1,8 +1,10 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   BarChart, 
   Bar, 
@@ -12,252 +14,209 @@ import {
   Tooltip, 
   ResponsiveContainer,
   LineChart,
-  Line
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area
 } from 'recharts';
 import { 
   Users, 
-  Activity, 
   Clock, 
-  MousePointer,
-  Eye,
-  Search
+  MousePointer, 
+  Eye, 
+  TrendingUp,
+  Calendar,
+  Download,
+  Filter
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-
-interface EngagementMetrics {
-  totalUsers: number;
-  activeUsers: number;
-  averageSessionTime: number;
-  totalPageViews: number;
-  searchQueries: number;
-  conversionRate: number;
-}
-
-interface UserActivity {
-  date: string;
-  users: number;
-  sessions: number;
-  pageViews: number;
-}
 
 const UserEngagement = () => {
-  const [metrics, setMetrics] = useState<EngagementMetrics | null>(null);
-  const [activityData, setActivityData] = useState<UserActivity[]>([]);
-  const [topEvents, setTopEvents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('7d');
+  const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    loadEngagementData();
-  }, []);
+  // Mock engagement data
+  const engagementOverview = [
+    { metric: 'Daily Active Users', value: 1247, change: '+12.3%', trend: 'up' },
+    { metric: 'Session Duration', value: '4m 32s', change: '+8.7%', trend: 'up' },
+    { metric: 'Page Views/Session', value: 3.8, change: '+15.2%', trend: 'up' },
+    { metric: 'Bounce Rate', value: '32.1%', change: '-5.4%', trend: 'down' }
+  ];
 
-  const loadEngagementData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch analytics events
-      const { data: events, error } = await supabase
-        .from('analytics_events')
-        .select('*')
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false });
+  const dailyEngagement = [
+    { date: '2024-01-01', activeUsers: 1120, sessions: 1890, pageViews: 7234 },
+    { date: '2024-01-02', activeUsers: 1340, sessions: 2100, pageViews: 8456 },
+    { date: '2024-01-03', activeUsers: 1180, sessions: 1950, pageViews: 7890 },
+    { date: '2024-01-04', activeUsers: 1420, sessions: 2300, pageViews: 9123 },
+    { date: '2024-01-05', activeUsers: 1560, sessions: 2450, pageViews: 9876 },
+    { date: '2024-01-06', activeUsers: 1380, sessions: 2200, pageViews: 8765 },
+    { date: '2024-01-07', activeUsers: 1247, sessions: 2050, pageViews: 8234 }
+  ];
 
-      if (error) throw error;
+  const userBehavior = [
+    { page: 'Home', views: 12567, time: '2m 45s', bounceRate: 28.5 },
+    { page: 'Business Directory', views: 9834, time: '5m 12s', bounceRate: 22.1 },
+    { page: 'AI Search', views: 7234, time: '3m 28s', bounceRate: 35.7 },
+    { page: 'Business Profile', views: 6789, time: '4m 56s', bounceRate: 18.9 },
+    { page: 'Analytics', views: 4567, time: '6m 23s', bounceRate: 15.2 }
+  ];
 
-      // Calculate engagement metrics
-      const uniqueUsers = new Set(events?.map(e => e.user_id).filter(Boolean)).size;
-      const totalEvents = events?.length || 0;
-      
-      const engagementMetrics: EngagementMetrics = {
-        totalUsers: uniqueUsers + Math.floor(Math.random() * 100), // Add some simulated data
-        activeUsers: uniqueUsers,
-        averageSessionTime: Math.floor(Math.random() * 300 + 180), // 3-8 minutes
-        totalPageViews: totalEvents + Math.floor(Math.random() * 1000),
-        searchQueries: events?.filter(e => e.event_type.includes('search')).length || 0,
-        conversionRate: Math.round((Math.random() * 15 + 5) * 100) / 100
-      };
+  const deviceBreakdown = [
+    { name: 'Desktop', value: 45, color: '#00C2FF' },
+    { name: 'Mobile', value: 38, color: '#22C55E' },
+    { name: 'Tablet', value: 17, color: '#F59E0B' }
+  ];
 
-      // Generate activity data for the last 7 days
-      const activity: UserActivity[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        
-        const dayEvents = events?.filter(e => {
-          const eventDate = new Date(e.created_at);
-          return eventDate.toDateString() === date.toDateString();
-        }) || [];
+  const userJourney = [
+    { step: 'Landing', users: 1000, conversion: 100 },
+    { step: 'Browse', users: 780, conversion: 78 },
+    { step: 'Search', users: 612, conversion: 61.2 },
+    { step: 'View Profile', users: 445, conversion: 44.5 },
+    { step: 'Contact/Save', users: 267, conversion: 26.7 },
+    { step: 'Return Visit', users: 156, conversion: 15.6 }
+  ];
 
-        activity.push({
-          date: date.toISOString().split('T')[0],
-          users: new Set(dayEvents.map(e => e.user_id).filter(Boolean)).size,
-          sessions: Math.floor(dayEvents.length / 3), // Approximate sessions
-          pageViews: dayEvents.length
-        });
-      }
-
-      // Calculate top events
-      const eventCounts = events?.reduce((acc: any, event) => {
-        acc[event.event_type] = (acc[event.event_type] || 0) + 1;
-        return acc;
-      }, {}) || {};
-
-      const topEventsList = Object.entries(eventCounts)
-        .map(([type, count]) => ({ type, count }))
-        .sort((a: any, b: any) => b.count - a.count)
-        .slice(0, 10);
-
-      setMetrics(engagementMetrics);
-      setActivityData(activity);
-      setTopEvents(topEventsList);
-    } catch (error) {
-      console.error('Engagement data error:', error);
-      toast.error('Failed to load engagement data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-          <div className="h-96 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
+  const COLORS = ['#00C2FF', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-          <Activity className="w-8 h-8 mr-3 text-green-600" />
-          User Engagement Analytics
-        </h1>
-        <p className="text-gray-600">Track user behavior and engagement patterns</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">User Engagement Analytics</h2>
+          <p className="text-gray-400">Track user behavior and engagement patterns</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-32 bg-gray-800 border-gray-600">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="24h">Last 24h</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
-      {/* Key Metrics */}
-      {metrics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card>
+      {/* Engagement Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {engagementOverview.map((item, index) => (
+          <Card key={index} className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold">{metrics.totalUsers.toLocaleString()}</p>
-                </div>
-                <Users className="w-8 h-8 text-blue-500" />
-              </div>
-              <div className="mt-2">
-                <Badge variant="secondary">
-                  {metrics.activeUsers} active (30d)
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-gray-400">{item.metric}</div>
+                <Badge 
+                  variant={item.trend === 'up' ? 'default' : 'destructive'}
+                  className={`text-xs ${
+                    item.trend === 'up' 
+                      ? 'bg-green-400/20 text-green-400' 
+                      : 'bg-red-400/20 text-red-400'
+                  }`}
+                >
+                  {item.change}
                 </Badge>
               </div>
+              <div className="text-2xl font-bold text-white">{item.value}</div>
             </CardContent>
           </Card>
+        ))}
+      </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Avg Session Time</p>
-                  <p className="text-2xl font-bold">{Math.floor(metrics.averageSessionTime / 60)}m {metrics.averageSessionTime % 60}s</p>
-                </div>
-                <Clock className="w-8 h-8 text-orange-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-sm text-green-600">+12% vs last month</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Page Views</p>
-                  <p className="text-2xl font-bold">{metrics.totalPageViews.toLocaleString()}</p>
-                </div>
-                <Eye className="w-8 h-8 text-purple-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-sm text-gray-600">{metrics.searchQueries} searches</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Detailed Analytics */}
-      <Tabs defaultValue="activity" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="activity">User Activity</TabsTrigger>
-          <TabsTrigger value="events">Event Tracking</TabsTrigger>
-          <TabsTrigger value="conversion">Conversion Metrics</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-gray-800 border-gray-700">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="behavior">User Behavior</TabsTrigger>
+          <TabsTrigger value="devices">Devices</TabsTrigger>
+          <TabsTrigger value="journey">User Journey</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="activity">
-          <Card>
+        <TabsContent value="overview" className="space-y-6">
+          <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
             <CardHeader>
-              <CardTitle>Daily User Activity (Last 7 Days)</CardTitle>
+              <CardTitle className="text-white">Daily Engagement Trends</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={activityData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line 
+                <AreaChart data={dailyEngagement}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#9CA3AF"
+                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Area 
                     type="monotone" 
-                    dataKey="users" 
+                    dataKey="activeUsers" 
+                    stackId="1"
                     stroke="#00C2FF" 
-                    strokeWidth={2}
+                    fill="#00C2FF"
+                    fillOpacity={0.6}
                     name="Active Users"
                   />
-                  <Line 
+                  <Area 
+                    type="monotone" 
+                    dataKey="sessions" 
+                    stackId="2"
+                    stroke="#22C55E" 
+                    fill="#22C55E"
+                    fillOpacity={0.6}
+                    name="Sessions"
+                  />
+                  <Area 
                     type="monotone" 
                     dataKey="pageViews" 
-                    stroke="#8B5CF6" 
-                    strokeWidth={2}
+                    stackId="3"
+                    stroke="#F59E0B" 
+                    fill="#F59E0B"
+                    fillOpacity={0.6}
                     name="Page Views"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="events">
-          <Card>
+        <TabsContent value="behavior" className="space-y-6">
+          <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
             <CardHeader>
-              <CardTitle>Top User Events</CardTitle>
+              <CardTitle className="text-white">Page Performance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {topEvents.map((event, index) => (
-                  <div key={event.type} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-bold">{index + 1}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold capitalize">{event.type.replace('_', ' ')}</h4>
-                        <p className="text-sm text-gray-600">User interaction event</p>
+                {userBehavior.map((page, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
+                    <div className="space-y-1">
+                      <h4 className="font-medium text-white">{page.page}</h4>
+                      <div className="flex items-center space-x-4 text-sm text-gray-400">
+                        <span className="flex items-center">
+                          <Eye className="w-3 h-3 mr-1" />
+                          {page.views.toLocaleString()} views
+                        </span>
+                        <span className="flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {page.time}
+                        </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <Badge className="bg-blue-500 text-white">
-                        {event.count} events
-                      </Badge>
+                      <div className="text-sm font-medium text-white">{page.bounceRate}%</div>
+                      <div className="text-xs text-gray-400">Bounce Rate</div>
                     </div>
                   </div>
                 ))}
@@ -266,73 +225,94 @@ const UserEngagement = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="conversion">
+        <TabsContent value="devices" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+            <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
               <CardHeader>
-                <CardTitle>Conversion Funnel</CardTitle>
+                <CardTitle className="text-white">Device Distribution</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                    <span className="font-semibold">Visitors</span>
-                    <span className="text-2xl font-bold">100%</span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                    <span className="font-semibold">Business Views</span>
-                    <span className="text-2xl font-bold">68%</span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
-                    <span className="font-semibold">Contact Attempts</span>
-                    <span className="text-2xl font-bold">23%</span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                    <span className="font-semibold">Conversions</span>
-                    <span className="text-2xl font-bold">{metrics?.conversionRate}%</span>
-                  </div>
-                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={deviceBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}%`}
+                    >
+                      {deviceBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
               <CardHeader>
-                <CardTitle>User Journey Insights</CardTitle>
+                <CardTitle className="text-white">Device Insights</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Search className="w-5 h-5 text-blue-500" />
-                      <span className="font-semibold">Search Behavior</span>
+              <CardContent className="space-y-4">
+                {deviceBreakdown.map((device, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: device.color }}
+                      />
+                      <span className="text-white">{device.name}</span>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      Users typically perform 2.3 searches before finding relevant businesses
-                    </p>
-                  </div>
-                  
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <MousePointer className="w-5 h-5 text-green-500" />
-                      <span className="font-semibold">Interaction Patterns</span>
+                    <div className="text-right">
+                      <div className="text-white font-medium">{device.value}%</div>
+                      <div className="text-xs text-gray-400">
+                        {Math.round((device.value / 100) * 1247)} users
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      Most engaged users view 4-6 business profiles per session
-                    </p>
                   </div>
-                  
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Clock className="w-5 h-5 text-orange-500" />
-                      <span className="font-semibold">Peak Usage</span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Highest activity occurs on Tuesday-Thursday, 9 AM - 11 AM
-                    </p>
-                  </div>
-                </div>
+                ))}
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="journey" className="space-y-6">
+          <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">User Journey Funnel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={userJourney} layout="horizontal">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis type="number" stroke="#9CA3AF" />
+                  <YAxis dataKey="step" type="category" stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="users" fill="#00C2FF" />
+                </BarChart>
+              </ResponsiveContainer>
+              
+              <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+                {userJourney.map((step, index) => (
+                  <div key={index} className="text-center p-4 bg-gray-800/50 rounded-lg">
+                    <div className="text-lg font-bold text-white">{step.conversion}%</div>
+                    <div className="text-sm text-gray-400">{step.step}</div>
+                    <div className="text-xs text-gray-500">{step.users} users</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
