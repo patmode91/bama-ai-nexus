@@ -1,260 +1,157 @@
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Users, Calendar, Star, Heart, ExternalLink, Mail, Shield, ClipboardList } from 'lucide-react';
-import { Business } from '@/hooks/useBusinesses';
-import { useSavedBusinesses } from '@/hooks/useSavedBusinesses';
+import { Button } from '@/components/ui/button';
+import { MapPin, Phone, Globe, Star, Heart, Share2, Eye } from 'lucide-react';
+import { Business } from '@/types/business';
 import { useTrackEvent } from '@/hooks/useAnalytics';
-import { supabase } from '@/integrations/supabase/client';
-import VerificationBadge from '@/components/verification/VerificationBadge';
-import ClaimBusinessForm from './ClaimBusinessForm';
 
 interface BusinessCardProps {
   business: Business;
-  onViewProfile: (businessId: number) => void;
-  onCompareToggle: (businessId: number) => void;
-  isCompared: boolean;
-  isCompareDisabled: boolean;
+  onSave?: (businessId: number) => void;
+  onShare?: (business: Business) => void;
+  onView?: (business: Business) => void;
+  isSaved?: boolean;
 }
 
-const BusinessCard = ({ business, onViewProfile, onCompareToggle, isCompared, isCompareDisabled }: BusinessCardProps) => {
-  const [user, setUser] = useState<any>(null);
-  const [showClaimForm, setShowClaimForm] = useState(false);
-  const { isBusinessSaved, saveBusiness, unsaveBusiness, isSaving, isUnsaving } = useSavedBusinesses();
+const BusinessCard = ({ business, onSave, onShare, onView, isSaved }: BusinessCardProps) => {
   const trackEvent = useTrackEvent();
 
-  // Check if user is logged in
-  useState(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
-  });
-
-  const handleSaveToggle = () => {
-    if (!user) {
-      // Could redirect to auth or show a message
-      return;
-    }
-
-    if (isBusinessSaved(business.id)) {
-      unsaveBusiness(business.id);
-    } else {
-      saveBusiness(business.id);
+  const handleSave = () => {
+    if (onSave) {
+      onSave(business.id);
+      trackEvent('business_saved', { businessId: business.id, businessName: business.businessname });
     }
   };
 
-  const handleViewProfile = () => {
-    trackEvent.mutate({
-      event_type: 'business_click',
-      business_id: business.id,
-      metadata: { business_name: business.businessname }
-    });
-    onViewProfile(business.id);
-  };
-
-  const handleWebsiteClick = () => {
-    trackEvent.mutate({
-      event_type: 'website_click',
-      business_id: business.id,
-      metadata: { website: business.website }
-    });
-    window.open(business.website, '_blank');
-  };
-
-  const handleEmailClick = () => {
-    trackEvent.mutate({
-      event_type: 'email_click',
-      business_id: business.id,
-      metadata: { email: business.contactemail }
-    });
-    window.open(`mailto:${business.contactemail}`, '_blank');
-  };
-
-  const handleClaimBusiness = () => {
-    if (!user) {
-      // Redirect to auth
-      window.location.href = '/auth';
-      return;
+  const handleShare = () => {
+    if (onShare) {
+      onShare(business);
+      trackEvent('business_shared', { businessId: business.id, businessName: business.businessname });
     }
-    setShowClaimForm(true);
   };
 
-  const isProcessing = isSaving || isUnsaving;
-  const isSaved = isBusinessSaved(business.id);
-  const isOwned = business.owner_id === user?.id;
+  const handleView = () => {
+    if (onView) {
+      onView(business);
+      trackEvent('business_viewed', { businessId: business.id, businessName: business.businessname });
+    }
+  };
 
-  if (showClaimForm) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <ClaimBusinessForm
-          businessId={business.id}
-          businessName={business.businessname || 'Unknown Business'}
-          onCancel={() => setShowClaimForm(false)}
-        />
-      </div>
-    );
-  }
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${
+          i < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+        }`}
+      />
+    ));
+  };
 
   return (
-    <Card className="bg-gray-800 border-gray-700 hover:border-[#00C2FF] transition-all duration-300 h-full flex flex-col">
-      <CardContent className="p-6 flex-grow">
-        <div className="flex items-start justify-between mb-4">
+    <Card className="h-full hover:shadow-lg transition-shadow duration-300">
+      <CardHeader>
+        <div className="flex justify-between items-start">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              {business.logo_url ? (
-                <img 
-                  src={business.logo_url} 
-                  alt={`${business.businessname} logo`}
-                  className="w-8 h-8 rounded"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-[#00C2FF] rounded flex items-center justify-center">
-                  <Building2 className="w-4 h-4" />
-                </div>
-              )}
-              <h3 className="text-xl font-semibold text-white line-clamp-1">
-                {business.businessname}
-              </h3>
-            </div>
-            
-            <div className="mb-3">
-              <VerificationBadge 
-                businessId={business.id}
-                isVerified={business.verified || false}
-              />
-              {isOwned && (
-                <Badge className="ml-2 bg-blue-400/20 text-blue-400 border-blue-400/30">
-                  Owned
-                </Badge>
-              )}
-            </div>
-            
-            <p className="text-gray-300 text-sm mb-4 line-clamp-3">
-              {business.description}
-            </p>
-          </div>
-          
-          {user && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSaveToggle}
-              disabled={isProcessing}
-              className={`ml-2 ${isSaved ? 'text-red-400 hover:text-red-300' : 'text-gray-400 hover:text-[#00C2FF]'}`}
-            >
-              <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
-            </Button>
-          )}
-        </div>
-
-        <div className="space-y-3 mb-4">
-          {business.category && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Building2 className="w-4 h-4" />
-              <span>{business.category}</span>
-            </div>
-          )}
-          
-          {business.location && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <MapPin className="w-4 h-4" />
-              <span>{business.location}</span>
-            </div>
-          )}
-          
-          {business.employees_count && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Users className="w-4 h-4" />
-              <span>{business.employees_count} employees</span>
-            </div>
-          )}
-          
-          {business.founded_year && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Calendar className="w-4 h-4" />
-              <span>Founded {business.founded_year}</span>
-            </div>
-          )}
-          
-          {business.rating && business.rating > 0 && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Star className="w-4 h-4" />
-              <span>{business.rating}/5.0</span>
-            </div>
-          )}
-        </div>
-
-        {business.tags && business.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {business.tags.slice(0, 3).map((tag, index) => (
-              <Badge key={index} variant="outline" className="text-xs border-gray-600 text-gray-300">
-                {tag}
-              </Badge>
-            ))}
-            {business.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
-                +{business.tags.length - 3} more
+            <CardTitle className="text-lg mb-2">{business.businessname}</CardTitle>
+            {business.category && (
+              <Badge variant="secondary" className="mb-2">
+                {business.category}
               </Badge>
             )}
           </div>
+          {business.verified && (
+            <Badge className="bg-green-500 text-white">
+              Verified
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Rating */}
+        {business.rating && (
+          <div className="flex items-center space-x-1">
+            {renderStars(business.rating)}
+            <span className="text-sm text-gray-600 ml-2">({business.rating})</span>
+          </div>
         )}
-      </CardContent>
-      <div className="p-6 pt-0 mt-auto">
-        <div className="flex gap-2 pt-4 border-t border-gray-700">
-          <Button 
-            onClick={handleViewProfile}
-            className="flex-1 bg-[#00C2FF] hover:bg-[#00A8D8]"
-            size="sm"
-          >
-            View Profile
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onCompareToggle(business.id)}
-            disabled={isCompareDisabled}
-            className={`border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed ${isCompared ? 'bg-blue-500/20 text-blue-400 border-blue-400/30' : ''}`}
-            aria-label="Add to comparison"
-          >
-            <ClipboardList className="w-4 h-4" />
-          </Button>
 
-          {!isOwned && user && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClaimBusiness}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <Shield className="w-4 h-4" />
-            </Button>
+        {/* Description */}
+        {business.description && (
+          <p className="text-gray-600 text-sm line-clamp-2">
+            {business.description}
+          </p>
+        )}
+
+        {/* Contact Info */}
+        <div className="space-y-2">
+          {business.location && (
+            <div className="flex items-center text-sm text-gray-600">
+              <MapPin className="w-4 h-4 mr-2" />
+              {business.location}
+            </div>
+          )}
+          
+          {business.phone && (
+            <div className="flex items-center text-sm text-gray-600">
+              <Phone className="w-4 h-4 mr-2" />
+              {business.phone}
+            </div>
           )}
           
           {business.website && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleWebsiteClick}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          )}
-          
-          {business.contactemail && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEmailClick}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <Mail className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center text-sm text-gray-600">
+              <Globe className="w-4 h-4 mr-2" />
+              <a 
+                href={business.website} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-blue-600 transition-colors"
+              >
+                Website
+              </a>
+            </div>
           )}
         </div>
-      </div>
+
+        {/* Actions */}
+        <div className="flex justify-between items-center pt-4 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleView}
+            className="flex items-center"
+          >
+            <Eye className="w-4 h-4 mr-1" />
+            View
+          </Button>
+          
+          <div className="flex space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSave}
+              className={`flex items-center ${isSaved ? 'text-red-500' : ''}`}
+            >
+              <Heart className={`w-4 h-4 mr-1 ${isSaved ? 'fill-current' : ''}`} />
+              {isSaved ? 'Saved' : 'Save'}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              className="flex items-center"
+            >
+              <Share2 className="w-4 h-4 mr-1" />
+              Share
+            </Button>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 };
