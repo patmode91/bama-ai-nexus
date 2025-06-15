@@ -7,9 +7,10 @@ interface SEOProps {
   name?: string;
   type?: string;
   image?: string;
+  keywords?: string;
 }
 
-const SEO = ({ title, description, name, type, image }: SEOProps) => {
+const SEO = ({ title, description, name, type, image, keywords }: SEOProps) => {
   const siteName = name || 'BamaAI Connect';
   const siteType = type || 'website';
   const siteImage = image || 'https://lovable.dev/opengraph-image-p98pqg.png';
@@ -19,6 +20,7 @@ const SEO = ({ title, description, name, type, image }: SEOProps) => {
       {/* Standard metadata tags */}
       <title>{`${title} | ${siteName}`}</title>
       <meta name='description' content={description} />
+      {keywords && <meta name='keywords' content={keywords} />}
       {/* End standard metadata tags */}
       {/* Facebook tags */}
       <meta property="og:type" content={siteType} />
