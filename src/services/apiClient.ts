@@ -1,6 +1,6 @@
 
 import { logger } from './loggerService';
-import { advancedCacheService } from './advancedCacheService';
+import { advancedCacheService } from './cache/advancedCacheService';
 
 interface RequestConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';

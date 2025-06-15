@@ -82,7 +82,7 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 // Re-export the advanced cache service components
-export { advancedCacheService, businessCache, searchCache, aiCache } from './advancedCacheService';
+export { advancedCacheService, businessCache, searchCache, aiCache } from './cache/advancedCacheService';
 
 // Re-export semantic search and matchmaking services for caching integration
 export { semanticSearchService } from './semanticSearchService';

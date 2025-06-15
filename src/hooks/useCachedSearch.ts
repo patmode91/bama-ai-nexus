@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { searchCache } from '@/services/advancedCacheService';
+import { searchCache } from '@/services/cache/advancedCacheService';
 import { useBusinesses } from './useBusinesses';
 
 interface SearchParams {

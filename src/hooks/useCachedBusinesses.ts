@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useBusinesses } from './useBusinesses';
-import { businessCache, advancedCacheService } from '@/services/advancedCacheService';
+import { businessCache } from '@/services/cache/advancedCacheService';
 
 export const useCachedBusinesses = (options?: {
   useStaleWhileRevalidate?: boolean;

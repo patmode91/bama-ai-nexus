@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { advancedCacheService, businessCache, searchCache, aiCache } from '@/services/advancedCacheService';
+import { advancedCacheService, businessCache, searchCache, aiCache } from '@/services/cache/advancedCacheService';
 import { Zap, Database, Clock, TrendingUp } from 'lucide-react';
 
 interface CacheIndicatorProps {
