@@ -70,7 +70,7 @@ class AdvancedCacheService {
 
     // Compress large data if enabled
     if (compress && this.shouldCompress(data)) {
-      processedData = await this.compress(data);
+      processedData = await this.compress(data) as T;
       isCompressed = true;
     }
 
@@ -112,7 +112,7 @@ class AdvancedCacheService {
 
     // Decompress if needed
     if (entry.compressed) {
-      data = await this.decompress(data);
+      data = await this.decompress(data as string) as T;
     }
 
     return data;
@@ -157,12 +157,12 @@ class AdvancedCacheService {
       entry.accessCount++;
       entry.lastAccessed = now;
       this.stats.hits++;
-      return entry.compressed ? await this.decompress(entry.data) : entry.data;
+      return entry.compressed ? await this.decompress(entry.data as string) : entry.data;
     }
 
     if (age < options.freshTTL) {
       // Data is stale but not expired, return stale data and revalidate in background
-      const staleData = entry.compressed ? await this.decompress(entry.data) : entry.data;
+      const staleData = entry.compressed ? await this.decompress(entry.data as string) : entry.data;
       
       // Revalidate in background
       factory().then(newData => {
