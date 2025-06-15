@@ -1,20 +1,22 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Bot, User, Minimize2, Zap, Brain } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Minimize2, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMCP } from '@/hooks/useMCP';
-import { useGeminiChat } from '@/hooks/useGeminiChat';
 
 interface Message {
   id: string;
   text: string;
   isBot: boolean;
   timestamp: Date;
-  type?: 'text' | 'matches' | 'analysis' | 'context';
-  data?: any;
+  agentResponses?: {
+    connector?: any;
+    analyst?: any;
+    curator?: any;
+  };
 }
 
 const EnhancedBamaBot = () => {
@@ -23,27 +25,16 @@ const EnhancedBamaBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi! I'm BamaBot, now powered by our new Model Context Protocol (MCP). I can understand your business needs and work with our specialized agents to find you the perfect AI solutions in Alabama. What can I help you with today?",
+      text: "Hi! I'm BamaBot, powered by advanced AI agents. I can help you find AI companies, analyze market trends, and get enriched business insights. What can I help you with today?",
       isBot: true,
-      timestamp: new Date(),
-      type: 'text'
+      timestamp: new Date()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // MCP hooks
-  const { 
-    currentSessionId, 
-    contexts, 
-    processMessage, 
-    findBusinessMatches, 
-    isLoading 
-  } = useMCP();
-
-  // Gemini chat for enhanced responses
-  const { sendMessage: sendGeminiMessage } = useGeminiChat();
+  
+  const { processMessage, runFullAnalysis, isLoading, agentResponses } = useMCP();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -53,30 +44,98 @@ const EnhancedBamaBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const generateEnhancedResponse = async (userMessage: string, mcpContext?: any): Promise<string> => {
+  const generateBotResponse = async (userMessage: string): Promise<{ text: string; agentResponses?: any }> => {
     const lowerMessage = userMessage.toLowerCase();
     
-    // Use MCP context to provide more intelligent responses
-    if (mcpContext) {
-      if (mcpContext.industry) {
-        return `I understand you're looking for AI solutions in the ${mcpContext.industry} industry. Let me work with our specialized agents to find the best matches for you. I'm now connecting with The Connector to search our database and The Analyst to provide market insights...`;
-      }
-      
-      if (mcpContext.services && mcpContext.services.length > 0) {
-        return `Perfect! You're interested in ${mcpContext.services.join(', ')} services. Our MCP system is now coordinating between our agents to find companies that specialize in these exact capabilities. This will include market pricing and availability data...`;
+    // Check if the message warrants AI agent analysis
+    const needsAIAnalysis = 
+      lowerMessage.includes('find') || 
+      lowerMessage.includes('company') || 
+      lowerMessage.includes('business') ||
+      lowerMessage.includes('market') ||
+      lowerMessage.includes('trend') ||
+      lowerMessage.includes('analysis') ||
+      lowerMessage.includes('recommend');
+
+    if (needsAIAnalysis) {
+      try {
+        // Use MCP agents for comprehensive analysis
+        const context = await processMessage(userMessage);
+        const fullResults = await runFullAnalysis('find_business_solution', {
+          originalQuery: userMessage,
+          source: 'bamabot'
+        });
+
+        let response = "Based on my AI analysis:\n\n";
+
+        if (fullResults.connector && fullResults.connector.matches.length > 0) {
+          const topMatch = fullResults.connector.matches[0];
+          response += `🔍 **Top Business Match**: ${topMatch.business.businessname} (${topMatch.score}% compatibility)\n`;
+          response += `📍 Location: ${topMatch.business.location || 'Not specified'}\n`;
+          response += `💡 Why it's a good fit: ${topMatch.reasoning}\n\n`;
+        }
+
+        if (fullResults.analyst && fullResults.analyst.insights) {
+          const insights = fullResults.analyst.insights;
+          response += `📈 **Market Insights**:\n`;
+          response += `• Sector: ${insights.sector}\n`;
+          response += `• Market trend: ${insights.marketTrend}\n`;
+          response += `• Demand level: ${insights.demandLevel}\n`;
+          response += `• Average project cost: $${insights.averageProjectCost.min.toLocaleString()} - $${insights.averageProjectCost.max.toLocaleString()}\n\n`;
+        }
+
+        if (fullResults.curator && fullResults.curator.suggestions.length > 0) {
+          response += `💎 **Data Insights**:\n`;
+          fullResults.curator.suggestions.slice(0, 2).forEach(suggestion => {
+            response += `• ${suggestion}\n`;
+          });
+        }
+
+        response += "\nWould you like me to provide more details about any of these results?";
+
+        return { 
+          text: response,
+          agentResponses: fullResults
+        };
+
+      } catch (error) {
+        console.error('MCP Analysis error:', error);
+        return {
+          text: "I encountered an issue with my AI analysis, but I can still help! " + 
+                getSimpleResponse(lowerMessage)
+        };
       }
     }
-    
-    // Fallback responses with MCP context awareness
+
+    return { text: getSimpleResponse(lowerMessage) };
+  };
+
+  const getSimpleResponse = (lowerMessage: string): string => {
     if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return "Hello! With our new MCP system, I can provide much more intelligent assistance. I work seamlessly with our Connector agent (for business matching), Curator agent (for data insights), and Analyst agent (for market intelligence). What business challenge can we solve together?";
+      return "Hello! I'm here to help you navigate Alabama's AI landscape. Are you looking for AI companies, job opportunities, or market insights?";
     }
     
-    if (lowerMessage.includes('how') && lowerMessage.includes('work')) {
-      return "Here's how our MCP-powered system works: When you describe your needs, I extract the context and share it with our specialized agents. The Connector finds matching businesses, the Curator provides enriched data, and the Analyst adds market intelligence. All this happens seamlessly to give you comprehensive, contextual recommendations!";
+    if (lowerMessage.includes('company') || lowerMessage.includes('business')) {
+      return "I can help you find AI companies in Alabama! Try asking something like 'Find AI companies in Birmingham for healthcare' for a detailed analysis.";
     }
     
-    return "That's interesting! I'm analyzing your request using our Model Context Protocol. This allows me to understand your needs more deeply and coordinate with our other AI agents to provide you with the most relevant and comprehensive response.";
+    if (lowerMessage.includes('job') || lowerMessage.includes('career')) {
+      return "Great! Alabama has a growing AI job market. I can help you find opportunities in machine learning, data science, AI research, and more. What's your background and what type of role interests you?";
+    }
+    
+    if (lowerMessage.includes('huntsville')) {
+      return "Huntsville is a major AI hub in Alabama, especially for aerospace and defense applications! The city has strong connections to NASA and defense contractors, making it perfect for AI in robotics and space technology.";
+    }
+    
+    if (lowerMessage.includes('birmingham')) {
+      return "Birmingham has a thriving AI scene focused on healthcare, manufacturing, and fintech! The city's medical district and industrial base provide great opportunities for AI applications.";
+    }
+    
+    if (lowerMessage.includes('funding') || lowerMessage.includes('investment')) {
+      return "Alabama's AI ecosystem has seen over $45M in total funding! The state offers various incentives for tech companies, and there are active investor networks in Birmingham and Huntsville.";
+    }
+    
+    return "That's a great question! I can provide detailed AI-powered analysis for your business needs. Try asking me to find specific companies or analyze market trends, and I'll use my advanced AI agents to give you comprehensive insights!";
   };
 
   const handleSendMessage = async () => {
@@ -86,98 +145,35 @@ const EnhancedBamaBot = () => {
       id: Date.now().toString(),
       text: inputValue,
       isBot: false,
-      timestamp: new Date(),
-      type: 'text'
+      timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
+    // Generate AI-powered response
     try {
-      // Process message through MCP to extract context
-      const mcpContext = await processMessage(inputValue);
-      
-      // Generate initial response
-      const initialResponse = await generateEnhancedResponse(inputValue, mcpContext.entities);
+      const { text, agentResponses } = await generateBotResponse(inputValue);
       
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: initialResponse,
+        text,
         isBot: true,
         timestamp: new Date(),
-        type: 'context',
-        data: { context: mcpContext }
+        agentResponses
       };
       
       setMessages(prev => [...prev, botResponse]);
-      
-      // If we have enough context, trigger business matching
-      if (mcpContext.industry || (mcpContext.entities.services && mcpContext.entities.services.length > 0)) {
-        setTimeout(async () => {
-          try {
-            const matches = await findBusinessMatches();
-            
-            if (matches.matches.length > 0) {
-              const matchesMessage: Message = {
-                id: (Date.now() + 2).toString(),
-                text: `Great news! I found ${matches.matches.length} businesses that match your requirements. Here are the top matches with their compatibility scores and reasoning:`,
-                isBot: true,
-                timestamp: new Date(),
-                type: 'matches',
-                data: matches
-              };
-              
-              setMessages(prev => [...prev, matchesMessage]);
-              
-              // Add detailed match information
-              const detailsMessage: Message = {
-                id: (Date.now() + 3).toString(),
-                text: matches.recommendations.join(' ') + (matches.marketInsights ? ` Based on market data, ${matches.marketInsights.averageProjectCost} is typical for similar projects in Alabama.` : ''),
-                isBot: true,
-                timestamp: new Date(),
-                type: 'analysis',
-                data: { insights: matches.marketInsights }
-              };
-              
-              setMessages(prev => [...prev, detailsMessage]);
-            } else {
-              const noMatchesMessage: Message = {
-                id: (Date.now() + 2).toString(),
-                text: "I didn't find exact matches for your specific requirements, but I can help you refine your search or explore related services. Would you like to broaden the criteria or get suggestions for alternative approaches?",
-                isBot: true,
-                timestamp: new Date(),
-                type: 'text'
-              };
-              
-              setMessages(prev => [...prev, noMatchesMessage]);
-            }
-          } catch (error) {
-            console.error('Error finding matches:', error);
-            const errorMessage: Message = {
-              id: (Date.now() + 2).toString(),
-              text: "I encountered an issue while searching for matches. Let me try a different approach to help you find what you're looking for.",
-              isBot: true,
-              timestamp: new Date(),
-              type: 'text'
-            };
-            
-            setMessages(prev => [...prev, errorMessage]);
-          }
-        }, 2000);
-      }
-      
     } catch (error) {
-      console.error('Error processing message:', error);
-      const errorMessage: Message = {
+      console.error('Error generating response:', error);
+      const errorResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'I apologize, but I encountered an error processing your request. Please try again.',
+        text: "I'm experiencing some technical difficulties. Please try again in a moment!",
         isBot: true,
-        timestamp: new Date(),
-        type: 'text'
+        timestamp: new Date()
       };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorResponse]);
     } finally {
       setIsTyping(false);
     }
@@ -186,70 +182,6 @@ const EnhancedBamaBot = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSendMessage();
-    }
-  };
-
-  const renderMessage = (message: Message) => {
-    switch (message.type) {
-      case 'matches':
-        return (
-          <div className="space-y-3">
-            <p className="text-sm">{message.text}</p>
-            {message.data?.matches?.slice(0, 3).map((match: any, index: number) => (
-              <div key={index} className="bg-blue-900/20 rounded-lg p-3 border border-blue-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-blue-300">{match.business.businessname}</h4>
-                  <Badge variant="outline" className="text-green-400 border-green-400">
-                    {match.score}% match
-                  </Badge>
-                </div>
-                <p className="text-xs text-gray-300 mb-2">{match.business.description}</p>
-                <p className="text-xs text-blue-200">{match.reasoning}</p>
-              </div>
-            ))}
-          </div>
-        );
-        
-      case 'context':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm">{message.text}</p>
-            {message.data?.context && (
-              <div className="bg-purple-900/20 rounded p-2 border border-purple-700">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Brain className="w-3 h-3 text-purple-400" />
-                  <span className="text-xs text-purple-300">MCP Context Extracted</span>
-                </div>
-                <div className="text-xs text-gray-300">
-                  {message.data.context.industry && <span>Industry: {message.data.context.industry} • </span>}
-                  {message.data.context.entities.services && <span>Services: {message.data.context.entities.services.join(', ')}</span>}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-        
-      case 'analysis':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm">{message.text}</p>
-            {message.data?.insights && (
-              <div className="bg-green-900/20 rounded p-2 border border-green-700">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Zap className="w-3 h-3 text-green-400" />
-                  <span className="text-xs text-green-300">Market Intelligence</span>
-                </div>
-                <div className="text-xs text-gray-300">
-                  Timeline: {message.data.insights.typicalTimeline} • 
-                  Trend: {message.data.insights.marketTrend}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-        
-      default:
-        return <p className="text-sm">{message.text}</p>;
     }
   };
 
@@ -262,12 +194,12 @@ const EnhancedBamaBot = () => {
         >
           <MessageCircle className="w-6 h-6" />
         </Button>
-        <div className="absolute -top-2 -left-2 w-4 h-4 bg-purple-500 rounded-full animate-pulse"></div>
-        {currentSessionId && (
-          <Badge className="absolute -top-8 right-0 bg-purple-600 text-xs">
-            MCP Active
+        <div className="absolute -top-2 -left-2">
+          <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse"></div>
+          <Badge className="absolute -top-1 -right-1 bg-[#00C2FF] text-white text-xs">
+            AI
           </Badge>
-        )}
+        </div>
       </div>
     );
   }
@@ -280,7 +212,10 @@ const EnhancedBamaBot = () => {
             <div className="flex items-center space-x-2">
               <Bot className="w-5 h-5" />
               <span className="font-semibold">BamaBot</span>
-              <Badge className="bg-purple-600 text-xs">MCP</Badge>
+              <Badge className="bg-white/20 text-white text-xs">
+                <Brain className="w-3 h-3 mr-1" />
+                AI
+              </Badge>
               <div className="w-2 h-2 bg-green-400 rounded-full"></div>
             </div>
             <div className="flex space-x-1">
@@ -317,7 +252,28 @@ const EnhancedBamaBot = () => {
                       {message.isBot ? <Bot className="w-3 h-3 text-white" /> : <User className="w-3 h-3 text-white" />}
                     </div>
                     <div className={`rounded-lg p-2 ${message.isBot ? 'bg-gray-100 text-gray-800' : 'bg-[#00C2FF] text-white'}`}>
-                      {renderMessage(message)}
+                      <p className="text-sm whitespace-pre-line">{message.text}</p>
+                      {message.agentResponses && (
+                        <div className="mt-2 pt-2 border-t border-gray-300">
+                          <div className="flex gap-1">
+                            {message.agentResponses.connector && (
+                              <Badge variant="secondary" className="text-xs bg-blue-500/20 text-blue-600">
+                                Connector
+                              </Badge>
+                            )}
+                            {message.agentResponses.analyst && (
+                              <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-600">
+                                Analyst
+                              </Badge>
+                            )}
+                            {message.agentResponses.curator && (
+                              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
+                                Curator
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -335,6 +291,9 @@ const EnhancedBamaBot = () => {
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
+                      {isLoading && (
+                        <p className="text-xs text-gray-500 mt-1">AI agents analyzing...</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -348,9 +307,9 @@ const EnhancedBamaBot = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Describe your AI needs..."
+                  placeholder="Ask about Alabama's AI scene..."
                   className="flex-1"
-                  disabled={isTyping || isLoading}
+                  disabled={isLoading}
                 />
                 <Button
                   onClick={handleSendMessage}
@@ -360,11 +319,6 @@ const EnhancedBamaBot = () => {
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
-              {currentSessionId && (
-                <div className="text-xs text-gray-500 mt-1">
-                  MCP Session: {contexts.length} contexts captured
-                </div>
-              )}
             </div>
           </CardContent>
         )}
