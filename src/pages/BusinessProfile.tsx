@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -101,7 +102,7 @@ const BusinessProfile = () => {
           i < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
         }`}
       />
-    );
+    ));
   };
 
   return (
