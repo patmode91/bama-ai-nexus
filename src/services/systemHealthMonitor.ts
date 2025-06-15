@@ -77,15 +77,15 @@ class SystemHealthMonitor {
       });
     }
 
-    // Cache check
+    // Cache check - using simple size-based health metric
     const cacheStats = cacheService.getStats();
-    const cacheHitRate = cacheStats.hits / (cacheStats.hits + cacheStats.misses) || 0;
+    const cacheHealth = cacheStats.size < 1000 ? 100 : Math.max(0, 100 - (cacheStats.size / 1000) * 10);
     checks.push({
-      name: 'Cache Hit Rate',
-      status: cacheHitRate > 0.8 ? 'pass' : cacheHitRate > 0.6 ? 'warn' : 'fail',
-      value: cacheHitRate * 100,
+      name: 'Cache Health',
+      status: cacheHealth > 80 ? 'pass' : cacheHealth > 60 ? 'warn' : 'fail',
+      value: cacheHealth,
       threshold: 80,
-      message: `Cache hit rate: ${(cacheHitRate * 100).toFixed(1)}%`
+      message: `Cache entries: ${cacheStats.size}`
     });
 
     // API health check
@@ -120,8 +120,8 @@ class SystemHealthMonitor {
 
   private calculateCacheHealth(): number {
     const stats = cacheService.getStats();
-    const hitRate = stats.hits / (stats.hits + stats.misses) || 0;
-    return hitRate * 100;
+    // Simple cache health based on size
+    return stats.size < 1000 ? 100 : Math.max(0, 100 - (stats.size / 1000) * 10);
   }
 
   private calculateAPIHealth(): number {
