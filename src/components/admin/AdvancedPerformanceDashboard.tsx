@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ import {
   Clock,
   BarChart3,
   Cpu,
-  Memory,
+  HardDrive,
   Network
 } from 'lucide-react';
 import { performanceMonitor } from '@/services/performanceMonitor';
@@ -141,7 +140,7 @@ const AdvancedPerformanceDashboard = () => {
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-300">Memory Usage</CardTitle>
-            <Memory className="h-4 w-4 text-orange-400" />
+            <HardDrive className="h-4 w-4 text-orange-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white mb-2">
