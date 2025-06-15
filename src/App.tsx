@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +23,7 @@ import Profile from "./pages/Profile";
 import Analytics from "./pages/Analytics";
 import Admin from "./pages/Admin";
 import SystemDashboard from "./pages/SystemDashboard";
+import SystemMonitoring from "./pages/SystemMonitoring";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import BusinessProfile from "./pages/BusinessProfile";
 import AdvancedSearch from "./pages/AdvancedSearch";
