@@ -1,3 +1,4 @@
+
 interface ErrorEvent {
   id: string;
   message: string;
@@ -60,7 +61,9 @@ class ErrorTracker {
       // Monitor Core Web Vitals
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          this.recordMetric(entry.name, entry.value || 0, {
+          // Fix: Check if entry has value property, otherwise use startTime
+          const value = 'value' in entry ? (entry as any).value : entry.startTime;
+          this.recordMetric(entry.name, value || 0, {
             entryType: entry.entryType,
             startTime: entry.startTime
           });

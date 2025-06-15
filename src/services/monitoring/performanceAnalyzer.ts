@@ -36,13 +36,13 @@ class PerformanceAnalyzer {
 
     // Track First Input Delay (FID)
     this.observePerformanceEntry('first-input', (entry) => {
-      this.recordVital('FID', entry.processingStart - entry.startTime);
+      this.recordVital('FID', (entry as any).processingStart - entry.startTime);
     });
 
     // Track Cumulative Layout Shift (CLS)
     this.observePerformanceEntry('layout-shift', (entry) => {
-      if (!entry.hadRecentInput) {
-        this.recordVital('CLS', entry.value);
+      if (!(entry as any).hadRecentInput) {
+        this.recordVital('CLS', (entry as any).value);
       }
     });
 
@@ -98,10 +98,20 @@ class PerformanceAnalyzer {
 
     this.vitals.push(vital);
     
-    // Keep only latest vital for each metric
-    this.vitals = this.vitals.filter((v, index, arr) => 
-      arr.findLastIndex(vital => vital.name === v.name) === index
-    );
+    // Keep only latest vital for each metric - fix for findLastIndex
+    const latestVitals: WebVital[] = [];
+    const seenMetrics = new Set<string>();
+    
+    // Iterate backwards to get the latest of each metric
+    for (let i = this.vitals.length - 1; i >= 0; i--) {
+      const vital = this.vitals[i];
+      if (!seenMetrics.has(vital.name)) {
+        latestVitals.unshift(vital);
+        seenMetrics.add(vital.name);
+      }
+    }
+    
+    this.vitals = latestVitals;
   }
 
   getPerformanceScore(): number {
