@@ -1,4 +1,3 @@
-
 interface CacheItem<T> {
   data: T;
   timestamp: number;
@@ -23,20 +22,30 @@ interface CacheStats {
   size: number;
   memoryUsage: number;
   hitRate: number;
+  totalRequests: number;
+  evictions: number;
 }
 
 class AdvancedCacheService {
   private cache = new Map<string, CacheItem<any>>();
   private maxSize = 1000;
   private maxMemoryMB = 50;
-  private stats: CacheStats = { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRate: 0 };
+  private stats: CacheStats = { 
+    hits: 0, 
+    misses: 0, 
+    size: 0, 
+    memoryUsage: 0, 
+    hitRate: 0, 
+    totalRequests: 0, 
+    evictions: 0 
+  };
   private compressionEnabled = true;
 
   async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
     const now = Date.now();
     const ttl = options.ttl || 5 * 60 * 1000; // 5 minutes default
     
-    let processedData = data;
+    let processedData: any = data;
     let compressed = false;
 
     // Compress large objects if enabled
@@ -52,7 +61,7 @@ class AdvancedCacheService {
       }
     }
 
-    const item: CacheItem<T> = {
+    const item: CacheItem<any> = {
       data: processedData,
       timestamp: now,
       expiresAt: now + ttl,
@@ -75,6 +84,7 @@ class AdvancedCacheService {
     
     if (!item) {
       this.stats.misses++;
+      this.stats.totalRequests++;
       this.updateStats();
       return null;
     }
@@ -83,6 +93,7 @@ class AdvancedCacheService {
     if (now > item.expiresAt) {
       this.cache.delete(key);
       this.stats.misses++;
+      this.stats.totalRequests++;
       this.updateStats();
       return null;
     }
@@ -91,6 +102,7 @@ class AdvancedCacheService {
     item.accessCount++;
     item.lastAccessed = now;
     this.stats.hits++;
+    this.stats.totalRequests++;
     this.updateStats();
 
     // Decompress if needed
@@ -184,7 +196,15 @@ class AdvancedCacheService {
 
   clear(): void {
     this.cache.clear();
-    this.stats = { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRate: 0 };
+    this.stats = { 
+      hits: 0, 
+      misses: 0, 
+      size: 0, 
+      memoryUsage: 0, 
+      hitRate: 0, 
+      totalRequests: 0, 
+      evictions: 0 
+    };
   }
 
   private async refreshInBackground<T>(key: string, fn: () => Promise<T>, options: CacheOptions): Promise<void> {
@@ -218,6 +238,7 @@ class AdvancedCacheService {
     for (let i = 0; i < toRemove; i++) {
       if (entries[i]) {
         this.cache.delete(entries[i][0]);
+        this.stats.evictions++;
       }
     }
   }
