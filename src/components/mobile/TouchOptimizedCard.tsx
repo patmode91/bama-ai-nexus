@@ -1,135 +1,118 @@
 
-import { useState } from 'react';
+import { ReactNode } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Star, Users, Calendar, ExternalLink, Heart, Share2 } from 'lucide-react';
-import { Business } from '@/hooks/useBusinesses';
+import { MapPin, Star, Phone, Globe, Clock } from 'lucide-react';
 
 interface TouchOptimizedCardProps {
-  business: Business;
-  onViewProfile: (id: number) => void;
-  onToggleFavorite: (id: number) => void;
-  onShare: (business: Business) => void;
-  isFavorite: boolean;
+  business: {
+    id: number;
+    name: string;
+    description?: string;
+    category: string;
+    location: string;
+    rating?: number;
+    phone?: string;
+    website?: string;
+    hours?: string;
+  };
+  onTap: (businessId: number) => void;
+  onCall?: (phone: string) => void;
+  onWebsite?: (website: string) => void;
 }
 
-const TouchOptimizedCard = ({ 
-  business, 
-  onViewProfile, 
-  onToggleFavorite, 
-  onShare, 
-  isFavorite 
-}: TouchOptimizedCardProps) => {
-  const [isPressed, setIsPressed] = useState(false);
+const TouchOptimizedCard = ({ business, onTap, onCall, onWebsite }: TouchOptimizedCardProps) => {
+  const handleMainTap = () => {
+    onTap(business.id);
+  };
 
-  const handleTouchStart = () => setIsPressed(true);
-  const handleTouchEnd = () => setIsPressed(false);
+  const handleCallTap = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (business.phone && onCall) {
+      onCall(business.phone);
+    }
+  };
+
+  const handleWebsiteTap = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (business.website && onWebsite) {
+      onWebsite(business.website);
+    }
+  };
 
   return (
     <Card 
-      className={`bg-gray-900/80 backdrop-blur-sm border-gray-700 transition-all duration-200 ${
-        isPressed ? 'scale-95 bg-gray-800' : 'hover:border-[#00C2FF]/50'
-      }`}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleTouchStart}
-      onMouseUp={handleTouchEnd}
-      onMouseLeave={handleTouchEnd}
+      className="bg-gray-900/80 backdrop-blur-sm border-gray-700 hover:border-[#00C2FF]/50 transition-all duration-200 cursor-pointer touch-manipulation active:scale-95"
+      onClick={handleMainTap}
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg font-semibold text-white mb-1">
-              {business.businessname}
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-white text-lg leading-tight mb-1">
+              {business.name}
             </CardTitle>
-            <CardDescription className="text-gray-400 text-sm">
-              {business.category}
-            </CardDescription>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(business.id);
-              }}
-              className={`p-2 ${isFavorite ? 'text-red-500' : 'text-gray-400'}`}
-            >
-              <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onShare(business);
-              }}
-              className="p-2 text-gray-400"
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center space-x-2 mb-2">
+              <Badge variant="secondary" className="text-xs">
+                {business.category}
+              </Badge>
+              {business.rating && (
+                <div className="flex items-center space-x-1">
+                  <Star className="w-4 h-4 fill-current text-yellow-500" />
+                  <span className="text-sm text-gray-300">{business.rating}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        
+        {business.description && (
+          <CardDescription className="text-gray-300 line-clamp-2">
+            {business.description}
+          </CardDescription>
+        )}
       </CardHeader>
       
-      <CardContent>
-        <p className="text-gray-300 text-sm mb-4 line-clamp-2">
-          {business.description}
-        </p>
-        
-        <div className="flex flex-wrap gap-2 mb-4">
-          {business.tags?.slice(0, 3).map((tag, index) => (
-            <Badge 
-              key={index} 
-              variant="secondary" 
-              className="text-xs bg-gray-800 text-gray-300"
-            >
-              {tag}
-            </Badge>
-          ))}
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          <div className="flex items-center text-sm text-gray-400">
+            <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="truncate">{business.location}</span>
+          </div>
+          
+          {business.hours && (
+            <div className="flex items-center text-sm text-gray-400">
+              <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{business.hours}</span>
+            </div>
+          )}
+          
+          <div className="flex space-x-2 pt-2">
+            {business.phone && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCallTap}
+                className="flex-1 border-gray-600 text-gray-300 hover:bg-green-600 hover:border-green-600 touch-manipulation min-h-[44px]"
+              >
+                <Phone className="w-4 h-4 mr-1" />
+                Call
+              </Button>
+            )}
+            
+            {business.website && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleWebsiteTap}
+                className="flex-1 border-gray-600 text-gray-300 hover:bg-blue-600 hover:border-blue-600 touch-manipulation min-h-[44px]"
+              >
+                <Globe className="w-4 h-4 mr-1" />
+                Visit
+              </Button>
+            )}
+          </div>
         </div>
-        
-        <div className="grid grid-cols-2 gap-4 mb-4 text-xs text-gray-400">
-          {business.location && (
-            <div className="flex items-center">
-              <MapPin className="w-3 h-3 mr-1" />
-              <span className="truncate">{business.location}</span>
-            </div>
-          )}
-          
-          {business.rating && (
-            <div className="flex items-center">
-              <Star className="w-3 h-3 mr-1 text-yellow-500" />
-              <span>{business.rating}/5</span>
-            </div>
-          )}
-          
-          {business.employees_count && (
-            <div className="flex items-center">
-              <Users className="w-3 h-3 mr-1" />
-              <span>{business.employees_count} employees</span>
-            </div>
-          )}
-          
-          {business.founded_year && (
-            <div className="flex items-center">
-              <Calendar className="w-3 h-3 mr-1" />
-              <span>Since {business.founded_year}</span>
-            </div>
-          )}
-        </div>
-        
-        <Button
-          onClick={() => onViewProfile(business.id)}
-          className="w-full bg-[#00C2FF] hover:bg-[#0099CC] text-white py-3 text-sm font-medium"
-        >
-          <ExternalLink className="w-4 h-4 mr-2" />
-          View Profile
-        </Button>
       </CardContent>
     </Card>
   );

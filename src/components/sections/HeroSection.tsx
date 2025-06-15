@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import SearchFilters from '@/components/search/SearchFilters';
 import DataDashboard from '@/components/dashboard/DataDashboard';
+import PWAInstallBanner from '@/components/mobile/PWAInstallBanner';
+import OfflineBanner from '@/components/mobile/OfflineBanner';
 import { useBusinessImport } from '@/hooks/useBusinessImport';
 
 interface HeroSectionProps {
@@ -27,7 +29,11 @@ const HeroSection = ({ onStartQuiz, onSearch, onClearSearch }: HeroSectionProps)
   };
 
   return (
-    <section className="py-20 px-6">
+    <section className="py-20 px-6 relative">
+      {/* Mobile PWA Components */}
+      <PWAInstallBanner />
+      <OfflineBanner />
+      
       <div className="container mx-auto text-center max-w-4xl">
         <div className="inline-flex items-center px-4 py-2 bg-[#00C2FF]/20 rounded-full text-[#00C2FF] text-sm font-medium mb-6">
           <Zap className="w-4 h-4 mr-2" />
