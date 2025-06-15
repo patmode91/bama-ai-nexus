@@ -25,4 +25,16 @@ export interface CacheStats {
   hitRate: number;
   totalRequests: number;
   evictions: number;
+  maxSize: number;
+  expiredEntries: number;
+  entriesByPriority: {
+    high: number;
+    normal: number;
+    low: number;
+  };
+}
+
+export interface StaleWhileRevalidateOptions {
+  staleTTL: number;
+  freshTTL: number;
 }

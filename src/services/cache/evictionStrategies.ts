@@ -3,22 +3,22 @@ import { CacheItem } from './types';
 
 export const lruEviction = (cache: Map<string, CacheItem<any>>, evictionCount: number): void => {
   const entries = Array.from(cache.entries());
-  entries.sort((a, b) => {
+  
+  // Sort by priority (low first) then by last accessed time
+  entries.sort(([, a], [, b]) => {
     const priorityWeight = { low: 1, medium: 2, high: 3 };
-    const aPriority = priorityWeight[a[1].priority];
-    const bPriority = priorityWeight[b[1].priority];
+    const priorityDiff = priorityWeight[a.priority] - priorityWeight[b.priority];
     
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority; // Lower priority first
+    if (priorityDiff !== 0) {
+      return priorityDiff;
     }
     
-    return a[1].lastAccessed - b[1].lastAccessed; // Then by LRU
+    return a.lastAccessed - b.lastAccessed;
   });
 
-  for (let i = 0; i < evictionCount; i++) {
-    if (entries[i]) {
-      cache.delete(entries[i][0]);
-    }
+  // Remove the least important entries
+  for (let i = 0; i < evictionCount && i < entries.length; i++) {
+    cache.delete(entries[i][0]);
   }
 };
 
@@ -34,4 +34,8 @@ export const cleanupExpired = (cache: Map<string, CacheItem<any>>): number => {
   }
   
   return cleaned;
+};
+
+export const isExpired = (entry: CacheItem<any>): boolean => {
+  return Date.now() > entry.expiresAt;
 };
