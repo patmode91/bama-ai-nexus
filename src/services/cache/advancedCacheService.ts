@@ -79,6 +79,40 @@ class AdvancedCacheService {
     return true;
   }
 
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, item] of this.cache.entries()) {
+      if (now > item.expiresAt) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  invalidateByTag(tag: string): void {
+    for (const [key, item] of this.cache.entries()) {
+      if (item.tags.includes(tag)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  async memoize<T>(
+    key: string,
+    factory: () => Promise<T>,
+    options: CacheOptions = {}
+  ): Promise<T> {
+    const cached = this.get<T>(key);
+    
+    if (cached !== null) {
+      return cached;
+    }
+
+    const result = await factory();
+    this.set(key, result, options);
+    
+    return result;
+  }
+
   private evictLRU(): void {
     let oldestKey = '';
     let oldestTime = Date.now();
@@ -119,4 +153,10 @@ class AdvancedCacheService {
 }
 
 export const advancedCacheService = new AdvancedCacheService();
+
+// Create specialized cache instances
+export const businessCache = new AdvancedCacheService();
+export const searchCache = new AdvancedCacheService();
+export const aiCache = new AdvancedCacheService();
+
 export default advancedCacheService;

@@ -16,7 +16,7 @@ export const useCachedSearch = () => {
     try {
       const defaultOptions: CacheOptions = {
         ttl: 300000, // 5 minutes
-        priority: 'medium', // Changed from 'normal' to 'medium'
+        priority: 'medium',
         tags: ['search'],
         ...options
       };

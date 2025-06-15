@@ -24,7 +24,7 @@ class BusinessCacheWarmup {
       'finance', 'education', 'construction', 'food-service'
     ];
 
-    await businessCache.set('popular-categories', popularCategories, {
+    businessCache.set('popular-categories', popularCategories, {
       ttl: 24 * 60 * 60 * 1000, // 24 hours
       priority: 'high'
     });
@@ -38,7 +38,7 @@ class BusinessCacheWarmup {
       { id: 3, name: 'Retail Excellence', category: 'retail' }
     ];
 
-    await businessCache.set('featured-businesses', featuredBusinesses, {
+    businessCache.set('featured-businesses', featuredBusinesses, {
       ttl: 12 * 60 * 60 * 1000, // 12 hours
       priority: 'high'
     });

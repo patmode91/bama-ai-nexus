@@ -40,12 +40,12 @@ class SearchCacheWarmup {
     }));
 
     for (const result of mockResults) {
-      await searchCache.set(
+      searchCache.set(
         `search_${result.term}`,
         result,
         {
           ttl: 600000, // 10 minutes
-          priority: 'medium', // Changed from 'normal' to 'medium'
+          priority: 'medium',
           tags: ['search', 'popular']
         }
       );

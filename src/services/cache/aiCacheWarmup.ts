@@ -32,12 +32,12 @@ class AICacheWarmup {
     }));
 
     for (const response of mockResponses) {
-      await aiCache.set(
+      aiCache.set(
         `ai_response_${response.query}`,
         response,
         {
           ttl: 1800000, // 30 minutes
-          priority: 'medium', // Changed from 'normal' to 'medium'
+          priority: 'medium',
           tags: ['ai', 'responses']
         }
       );
@@ -46,7 +46,7 @@ class AICacheWarmup {
 
   async warmupUserSpecific(userId: string): Promise<void> {
     // Warmup user-specific AI responses
-    await aiCache.set(
+    aiCache.set(
       `user_ai_context_${userId}`,
       { userId, preferences: [], history: [] },
       {

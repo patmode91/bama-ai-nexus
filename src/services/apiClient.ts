@@ -1,4 +1,3 @@
-
 import { logger } from './loggerService';
 import { advancedCacheService } from './cache/advancedCacheService';
 
@@ -234,3 +233,7 @@ apiClient.addErrorInterceptor((error) => {
 });
 
 export default apiClient;
+
+export const invalidateCacheByTag = (tag: string) => {
+  advancedCacheService.invalidateByTag(tag);
+};
