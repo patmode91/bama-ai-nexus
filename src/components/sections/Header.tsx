@@ -27,9 +27,14 @@ const Header = () => {
       label: 'Enterprise', 
       href: '#',
       submenu: [
+        { label: 'Dashboard', href: '/enterprise' },
         { label: 'Analytics', href: '/enterprise-analytics' },
         { label: 'Integrations', href: '/enterprise-integrations' }
       ]
+    },
+    { 
+      label: 'AI Hub', 
+      href: '/intelligence-hub'
     }
   ];
 

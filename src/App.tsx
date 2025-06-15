@@ -37,6 +37,7 @@ import NotFound from "./pages/NotFound";
 import Enterprise from "./pages/Enterprise";
 import EnterpriseAnalytics from "./pages/EnterpriseAnalytics";
 import EnterpriseIntegrations from "./pages/EnterpriseIntegrations";
+import IntelligenceHub from "./pages/IntelligenceHub";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/enterprise" element={<Enterprise />} />
             <Route path="/enterprise-analytics" element={<EnterpriseAnalytics />} />
             <Route path="/enterprise-integrations" element={<EnterpriseIntegrations />} />
+            <Route path="/intelligence-hub" element={<IntelligenceHub />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <MobileNavigation />

@@ -1,90 +1,113 @@
-
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Wand2, Tags, Target } from 'lucide-react';
-import PersonalizedRecommendationEngine from './PersonalizedRecommendationEngine';
-import ContentGenerator from './ContentGenerator';
-import BusinessCategorizer from './BusinessCategorizer';
+import { Button } from '@/components/ui/button';
+import { Brain, Search, Zap, Network, Sparkles } from 'lucide-react';
 
-interface AIFeaturesHubProps {
-  userId?: string;
-  userPreferences?: any;
-  selectedBusiness?: any;
-}
-
-const AIFeaturesHub = ({ userId, userPreferences, selectedBusiness }: AIFeaturesHubProps) => {
-  const [activeTab, setActiveTab] = useState('recommendations');
-
-  const mockBusinessData = selectedBusiness || {
-    name: 'TechFlow Solutions',
-    category: 'Technology',
-    location: 'Birmingham',
-    description: 'Innovative software development company specializing in AI and machine learning solutions',
-    services: ['Software Development', 'AI Consulting', 'Data Analytics', 'Cloud Solutions']
-  };
+const AIFeaturesHub = () => {
+  const navigate = useNavigate();
 
   return (
-    <Card className="bg-gray-900 border-gray-700">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-purple-400" />
-          Advanced AI Features
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-800">
-            <TabsTrigger 
-              value="recommendations" 
-              className="flex items-center gap-2 data-[state=active]:bg-purple-600"
-            >
-              <Target className="w-4 h-4" />
-              Recommendations
-            </TabsTrigger>
-            <TabsTrigger 
-              value="content" 
-              className="flex items-center gap-2 data-[state=active]:bg-blue-600"
-            >
-              <Wand2 className="w-4 h-4" />
-              Content Gen
-            </TabsTrigger>
-            <TabsTrigger 
-              value="categorizer" 
-              className="flex items-center gap-2 data-[state=active]:bg-green-600"
-            >
-              <Tags className="w-4 h-4" />
-              Categorizer
-            </TabsTrigger>
-          </TabsList>
+    <section className="py-12">
+      <div className="container mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-white mb-4 flex items-center justify-center gap-3">
+            <Brain className="w-8 h-8 text-[#00C2FF]" />
+            Explore AI Features
+          </h2>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            Discover the power of AI with our advanced features and intelligent agents
+          </p>
+        </div>
 
-          <TabsContent value="recommendations" className="mt-6">
-            <PersonalizedRecommendationEngine 
-              userId={userId}
-              userPreferences={userPreferences}
-            />
-          </TabsContent>
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-gray-800 border-gray-700 hover:border-[#00C2FF]/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Search className="w-5 h-5 text-[#00C2FF]" />
+                Semantic Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-300 mb-4">
+                Ask natural language questions and get intelligent, context-aware results.
+              </p>
+              <Button
+                onClick={() => navigate('/ai-search')}
+                className="w-full bg-[#00C2FF] hover:bg-[#00A8D8]"
+              >
+                Try Semantic Search
+              </Button>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="content" className="mt-6">
-            <ContentGenerator 
-              businessData={mockBusinessData}
-              onContentGenerated={(content) => {
-                console.log('Generated content:', content);
-              }}
-            />
-          </TabsContent>
+          <Card className="bg-gray-800 border-gray-700 hover:border-purple-500/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Zap className="w-5 h-5 text-purple-400" />
+                AI Matchmaking
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-300 mb-4">
+                Get personalized recommendations with confidence scores and explanations.
+              </p>
+              <Button
+                onClick={() => navigate('/ai-search?tab=matchmaking')}
+                className="w-full bg-purple-600 hover:bg-purple-500"
+              >
+                Find Matches
+              </Button>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="categorizer" className="mt-6">
-            <BusinessCategorizer 
-              businessData={mockBusinessData}
-              onCategoriesUpdated={(categories, tags) => {
-                console.log('Updated categories:', categories, 'tags:', tags);
-              }}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          <Card className="bg-gray-800 border-gray-700 hover:border-green-500/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-green-400" />
+                BamaBot 2.0
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-300 mb-4">
+                Chat with our enhanced AI assistant for instant business intelligence.
+              </p>
+              <Button
+                onClick={() => {
+                  // BamaBot will automatically appear as it's already on the page
+                  const bamaBotButton = document.querySelector('[data-bamabot-trigger]');
+                  if (bamaBotButton) {
+                    (bamaBotButton as HTMLElement).click();
+                  }
+                }}
+                className="w-full bg-green-600 hover:bg-green-500"
+              >
+                Chat with BamaBot
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-800 border-gray-700 hover:border-purple-500/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Brain className="w-5 h-5 text-purple-400" />
+                Intelligence Hub
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-300 mb-4">
+                Advanced AI intelligence center with predictive analytics and automated insights.
+              </p>
+              <Button
+                onClick={() => navigate('/intelligence-hub')}
+                className="w-full bg-purple-600 hover:bg-purple-500"
+              >
+                Open Intelligence Hub
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </section>
   );
 };
 
