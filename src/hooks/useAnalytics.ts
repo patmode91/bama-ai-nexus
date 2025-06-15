@@ -91,3 +91,16 @@ export const useAnalytics = () => {
     refetchMetrics
   };
 };
+
+// Export the trackEvent function separately for convenience
+export const useTrackEvent = () => {
+  const trackEvent = async (eventType: string, metadata?: any, businessId?: number) => {
+    try {
+      await analyticsService.trackEvent(eventType, metadata, businessId);
+    } catch (error) {
+      console.error('Event tracking failed:', error);
+    }
+  };
+  
+  return trackEvent;
+};
