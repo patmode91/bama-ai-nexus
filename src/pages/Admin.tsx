@@ -1,32 +1,33 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 const Admin = () => {
-  const { profile, isLoading } = useProfile();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     // For now, allow any authenticated user to access admin
     // In production, you'd check for specific admin roles
-    if (!isLoading && !profile) {
+    if (!loading && !user) {
       navigate('/auth');
     }
-  }, [profile, isLoading, navigate]);
+  }, [user, loading, navigate]);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+        <LoadingSpinner size="lg" text="Loading admin dashboard..." />
       </div>
     );
   }
 
-  if (!profile) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
         <Card className="bg-gray-800 border-gray-700 max-w-md">

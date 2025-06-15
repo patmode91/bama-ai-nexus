@@ -11,10 +11,12 @@ import EventCard from '@/components/events/EventCard';
 import CreateEventForm from '@/components/events/CreateEventForm';
 import EventsCalendar from '@/components/events/EventsCalendar';
 import { useEvents } from '@/hooks/useEvents';
+import { PageSkeleton, EventCardSkeleton } from '@/components/common/LoadingSkeleton';
+import ErrorFallback from '@/components/common/ErrorFallback';
 
 const Events = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const { events, eventsLoading } = useEvents();
+  const { events, eventsLoading, error } = useEvents();
 
   const upcomingEvents = events.filter(event => 
     new Date(event.event_date) > new Date()
@@ -29,23 +31,18 @@ const Events = () => {
     // Could be used to filter events or create new event on selected date
   };
 
-  if (eventsLoading) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800">
-        <Header />
-        <div className="container mx-auto px-6 py-16">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-700 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-700 rounded w-2/3"></div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-64 bg-gray-700 rounded-lg"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ErrorFallback 
+        error={error as Error}
+        title="Failed to load events"
+        description="We couldn't load the events. Please try again."
+      />
     );
+  }
+
+  if (eventsLoading) {
+    return <PageSkeleton />;
   }
 
   return (
@@ -83,7 +80,7 @@ const Events = () => {
             <CardContent className="p-6 text-center">
               <Users className="w-8 h-8 text-green-400 mx-auto mb-2" />
               <div className="text-2xl font-bold text-white">
-                {events.reduce((sum, event) => sum + ((event as any).attendee_count || 0), 0)}
+                {events.reduce((sum, event) => sum + (event.attendee_count || 0), 0)}
               </div>
               <div className="text-gray-400">Total RSVPs</div>
             </CardContent>
@@ -120,7 +117,7 @@ const Events = () => {
               {upcomingEvents.length > 0 ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {upcomingEvents.map((event) => (
-                    <EventCard key={event.id} event={event as any} />
+                    <EventCard key={event.id} event={event} />
                   ))}
                 </div>
               ) : (
@@ -143,7 +140,7 @@ const Events = () => {
                 <h2 className="text-2xl font-bold text-white mb-6">Past Events</h2>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {pastEvents.slice(0, 6).map((event) => (
-                    <EventCard key={event.id} event={event as any} isPast />
+                    <EventCard key={event.id} event={event} isPast />
                   ))}
                 </div>
               </section>

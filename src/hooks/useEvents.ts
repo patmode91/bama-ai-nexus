@@ -2,38 +2,56 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Define proper event types
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  event_date: string;
+  end_date: string;
+  location: string;
+  venue_name: string;
+  event_type: 'meetup' | 'workshop' | 'conference' | 'networking';
+  status: 'active' | 'cancelled' | 'completed';
+  is_virtual: boolean;
+  meeting_url: string;
+  max_attendees: number;
+  featured_image: string;
+  tags: string[];
+  business_id: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface EventWithAttendees extends Event {
+  attendee_count: number;
+}
 
 export const useEvents = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['events'],
     queryFn: async () => {
+      // Use a single JOIN query instead of multiple requests
       const { data, error } = await supabase
         .from('events')
         .select(`
           *,
-          event_rsvps!inner(count)
+          attendee_count:event_rsvps!inner(count)
         `)
         .eq('status', 'active')
+        .eq('event_rsvps.status', 'going')
         .order('event_date', { ascending: true });
       
       if (error) throw error;
       
-      // Add attendee count for each event
-      const eventsWithAttendees = await Promise.all(
-        (data || []).map(async (event) => {
-          const { count } = await supabase
-            .from('event_rsvps')
-            .select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id)
-            .eq('status', 'going');
-          
-          return {
-            ...event,
-            attendee_count: count || 0
-          };
-        })
-      );
+      // Transform the data to include attendee_count
+      const eventsWithAttendees = (data || []).map(event => ({
+        ...event,
+        attendee_count: event.attendee_count?.[0]?.count || 0
+      })) as EventWithAttendees[];
       
       return eventsWithAttendees;
     }
@@ -104,7 +122,14 @@ export const useCreateEvent = () => {
   return {
     createEventAsync: mutation.mutateAsync,
     isCreatingEvent: mutation.isPending,
-    ...mutation
+    mutate: mutation.mutate,
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+    isSuccess: mutation.isSuccess,
+    data: mutation.data,
+    reset: mutation.reset
   };
 };
 
@@ -129,7 +154,14 @@ export const useDeleteEvent = () => {
   return {
     deleteEvent: mutation.mutate,
     isDeletingEvent: mutation.isPending,
-    ...mutation
+    mutate: mutation.mutate,
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+    isSuccess: mutation.isSuccess,
+    data: mutation.data,
+    reset: mutation.reset
   };
 };
 
@@ -162,6 +194,13 @@ export const useUpdateRSVP = () => {
   return {
     updateRSVP: mutation.mutate,
     isUpdatingRSVP: mutation.isPending,
-    ...mutation
+    mutate: mutation.mutate,
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+    isSuccess: mutation.isSuccess,
+    data: mutation.data,
+    reset: mutation.reset
   };
 };

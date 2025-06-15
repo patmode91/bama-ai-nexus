@@ -7,45 +7,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Zap, ArrowLeft, Mail, Lock, User } from 'lucide-react';
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { useAuth } from '@/contexts/AuthContext';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        navigate('/');
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (event === 'SIGNED_IN') {
-        navigate('/');
-        toast({
-          title: "Welcome!",
-          description: "You've been signed in successfully.",
-        });
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, toast]);
+    if (user && !authLoading) {
+      navigate('/');
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +83,16 @@ const Auth = () => {
     }
   };
 
-  // If user is already signed in, redirect
+  // Show loading spinner while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-800 flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading..." />
+      </div>
+    );
+  }
+
+  // If user is already signed in, redirect (handled by useEffect)
   if (user) {
     return null;
   }
@@ -192,7 +180,11 @@ const Auth = () => {
               disabled={loading}
               className="w-full bg-gradient-to-r from-[#00C2FF] to-blue-600 hover:from-[#00A8D8] hover:to-blue-500"
             >
-              {loading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
+              {loading ? (
+                <LoadingSpinner size="sm" text="" />
+              ) : (
+                isSignUp ? 'Create Account' : 'Sign In'
+              )}
             </Button>
           </form>
           
