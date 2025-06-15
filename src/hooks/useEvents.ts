@@ -1,162 +1,114 @@
 
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { EventWithAttendees, CreateEventData, RSVPData } from '@/types/events';
+import { useAuth } from '@/hooks/useAuth';
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  organizer_id: string;
+  max_attendees?: number;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export const useEvents = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const {
-    data: events = [],
-    isLoading: eventsLoading,
-  } = useQuery({
+  const { data: events, isLoading, error } = useQuery({
     queryKey: ['events'],
-    queryFn: async (): Promise<EventWithAttendees[]> => {
-      console.log('Fetching events...');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
-        .select(`
-          *,
-          businesses (
-            businessname,
-            logo_url
-          )
-        `)
-        .eq('status', 'active')
-        .order('event_date', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching events:', error);
-        throw error;
-      }
-
-      // Get attendee counts and user RSVPs for each event
-      const eventsWithDetails = await Promise.all(
-        data.map(async (event) => {
-          const { count: attendeeCount } = await supabase
-            .from('event_rsvps')
-            .select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id)
-            .eq('status', 'going');
-
-          let userRsvp = null;
-          if (user) {
-            const { data: rsvp } = await supabase
-              .from('event_rsvps')
-              .select('*')
-              .eq('event_id', event.id)
-              .eq('user_id', user.id)
-              .single();
-            userRsvp = rsvp;
-          }
-
-          return {
-            ...event,
-            attendee_count: attendeeCount || 0,
-            user_rsvp: userRsvp,
-            status: event.status as 'active' | 'cancelled' | 'completed',
-          };
-        })
-      );
-
-      return eventsWithDetails;
-    },
-  });
-
-  const createEventMutation = useMutation({
-    mutationFn: async (eventData: CreateEventData) => {
-      console.log('Creating event:', eventData);
+        .select('*')
+        .eq('is_public', true)
+        .order('date', { ascending: true });
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
-
-      const { data, error } = await supabase
-        .from('events')
-        .insert({
-          ...eventData,
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
       if (error) throw error;
       return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({
-        title: "Event created",
-        description: "Your event has been created successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateRSVPMutation = useMutation({
-    mutationFn: async ({ eventId, status }: RSVPData) => {
-      console.log('Updating RSVP:', { eventId, status });
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
-
-      const { data, error } = await supabase
-        .from('event_rsvps')
-        .upsert({
-          event_id: eventId,
-          user_id: user.id,
-          status,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({
-        title: "RSVP updated",
-        description: "Your RSVP has been updated successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    }
   });
 
   return {
-    events,
-    eventsLoading,
-    createEvent: createEventMutation.mutate,
-    createEventAsync: createEventMutation.mutateAsync,
-    isCreatingEvent: createEventMutation.isPending,
-    updateRSVP: updateRSVPMutation.mutate,
-    isUpdatingRSVP: updateRSVPMutation.isPending,
+    data: events,
+    isLoading,
+    error
   };
 };
 
-// Export individual functions for backward compatibility
-export const useCreateEvent = () => {
-  const { createEvent, createEventAsync, isCreatingEvent } = useEvents();
-  return { createEvent, createEventAsync, isCreatingEvent };
+export const useMyEvents = () => {
+  const { user } = useAuth();
+  
+  const { data: myEvents, isLoading, error } = useQuery({
+    queryKey: ['my-events', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('organizer_id', user.id)
+        .order('date', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id
+  });
+
+  return {
+    data: myEvents || [],
+    isLoading,
+    error
+  };
 };
 
-export const useUpdateRSVP = () => {
-  const { updateRSVP, isUpdatingRSVP } = useEvents();
-  return { updateRSVP, isUpdatingRSVP };
+export const useCreateEvent = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at' | 'organizer_id'>) => {
+      if (!user?.id) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('events')
+        .insert([{
+          ...eventData,
+          organizer_id: user.id
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['my-events'] });
+    }
+  });
+};
+
+export const useDeleteEvent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['my-events'] });
+    }
+  });
 };
