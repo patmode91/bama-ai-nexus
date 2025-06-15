@@ -1,141 +1,149 @@
 
 import { useState, useCallback, useMemo } from 'react';
-import { logger } from '@/services/loggerService';
 
-interface CompositionConfig<T> {
-  components: Array<{
-    id: string;
-    component: React.ComponentType<any>;
-    props?: any;
-    condition?: (data: T) => boolean;
-    priority?: number;
-  }>;
-  layout?: 'stack' | 'grid' | 'flex';
-  maxComponents?: number;
+export interface ComposableComponent {
+  id: string;
+  type: string;
+  props: Record<string, any>;
+  children?: ComposableComponent[];
 }
 
-export const useComposition = <T>(data: T, config: CompositionConfig<T>) => {
-  const [activeComponents, setActiveComponents] = useState<string[]>([]);
+export interface CompositionState {
+  components: ComposableComponent[];
+  selectedComponent: string | null;
+  isDirty: boolean;
+}
 
-  const visibleComponents = useMemo(() => {
-    const filtered = config.components
-      .filter(comp => !comp.condition || comp.condition(data))
-      .sort((a, b) => (b.priority || 0) - (a.priority || 0))
-      .slice(0, config.maxComponents || 10);
+export const useComposition = (initialComponents: ComposableComponent[] = []) => {
+  const [state, setState] = useState<CompositionState>({
+    components: initialComponents,
+    selectedComponent: null,
+    isDirty: false
+  });
 
-    return filtered;
-  }, [data, config]);
-
-  const toggleComponent = useCallback((componentId: string) => {
-    setActiveComponents(prev => {
-      const newActive = prev.includes(componentId)
-        ? prev.filter(id => id !== componentId)
-        : [...prev, componentId];
+  const addComponent = useCallback((component: ComposableComponent, parentId?: string) => {
+    setState(prev => {
+      const newComponents = [...prev.components];
       
-      logger.debug('Component toggled', { 
-        componentId, 
-        active: !prev.includes(componentId) 
-      }, 'useComposition');
+      if (parentId) {
+        const findAndAddChild = (components: ComposableComponent[]): boolean => {
+          for (const comp of components) {
+            if (comp.id === parentId) {
+              if (!comp.children) comp.children = [];
+              comp.children.push(component);
+              return true;
+            }
+            if (comp.children && findAndAddChild(comp.children)) {
+              return true;
+            }
+          }
+          return false;
+        };
+        
+        findAndAddChild(newComponents);
+      } else {
+        newComponents.push(component);
+      }
       
-      return newActive;
+      return {
+        ...prev,
+        components: newComponents,
+        isDirty: true
+      };
     });
   }, []);
 
-  const renderComponents = useCallback(() => {
-    return visibleComponents.map(({ id, component: Component, props = {} }) => {
-      const isActive = activeComponents.length === 0 || activeComponents.includes(id);
+  const removeComponent = useCallback((id: string) => {
+    setState(prev => {
+      const filterComponents = (components: ComposableComponent[]): ComposableComponent[] => {
+        return components
+          .filter(comp => comp.id !== id)
+          .map(comp => ({
+            ...comp,
+            children: comp.children ? filterComponents(comp.children) : undefined
+          }));
+      };
       
-      if (!isActive) return null;
+      return {
+        ...prev,
+        components: filterComponents(prev.components),
+        selectedComponent: prev.selectedComponent === id ? null : prev.selectedComponent,
+        isDirty: true
+      };
+    });
+  }, []);
 
-      return (
-        <Component
-          key={id}
-          {...props}
-          data={data}
-          compositionId={id}
-        />
-      );
-    }).filter(Boolean);
-  }, [visibleComponents, activeComponents, data]);
+  const updateComponent = useCallback((id: string, updates: Partial<ComposableComponent>) => {
+    setState(prev => {
+      const updateInComponents = (components: ComposableComponent[]): ComposableComponent[] => {
+        return components.map(comp => {
+          if (comp.id === id) {
+            return { ...comp, ...updates };
+          }
+          if (comp.children) {
+            return {
+              ...comp,
+              children: updateInComponents(comp.children)
+            };
+          }
+          return comp;
+        });
+      };
+      
+      return {
+        ...prev,
+        components: updateInComponents(prev.components),
+        isDirty: true
+      };
+    });
+  }, []);
 
-  const getLayoutClasses = useCallback(() => {
-    switch (config.layout) {
-      case 'grid':
-        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
-      case 'flex':
-        return 'flex flex-wrap gap-4';
-      case 'stack':
-      default:
-        return 'space-y-4';
-    }
-  }, [config.layout]);
+  const selectComponent = useCallback((id: string | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedComponent: id
+    }));
+  }, []);
+
+  const getComponent = useCallback((id: string): ComposableComponent | null => {
+    const findComponent = (components: ComposableComponent[]): ComposableComponent | null => {
+      for (const comp of components) {
+        if (comp.id === id) return comp;
+        if (comp.children) {
+          const found = findComponent(comp.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    
+    return findComponent(state.components);
+  }, [state.components]);
+
+  const reset = useCallback(() => {
+    setState({
+      components: initialComponents,
+      selectedComponent: null,
+      isDirty: false
+    });
+  }, [initialComponents]);
+
+  const selectedComponentData = useMemo(() => {
+    return state.selectedComponent ? getComponent(state.selectedComponent) : null;
+  }, [state.selectedComponent, getComponent]);
 
   return {
-    visibleComponents,
-    activeComponents,
-    toggleComponent,
-    renderComponents,
-    getLayoutClasses,
-    totalComponents: config.components.length,
-    visibleCount: visibleComponents.length
+    components: state.components,
+    selectedComponent: state.selectedComponent,
+    selectedComponentData,
+    isDirty: state.isDirty,
+    addComponent,
+    removeComponent,
+    updateComponent,
+    selectComponent,
+    getComponent,
+    reset
   };
 };
 
-// Composition presets for common patterns
-export const createBusinessCardComposition = (businessData: any) => ({
-  components: [
-    {
-      id: 'basic-info',
-      component: ({ data }: any) => <div>Basic Info Component</div>,
-      priority: 10
-    },
-    {
-      id: 'contact-info',
-      component: ({ data }: any) => <div>Contact Component</div>,
-      priority: 8,
-      condition: (data: any) => data.contactemail || data.website
-    },
-    {
-      id: 'ratings',
-      component: ({ data }: any) => <div>Ratings Component</div>,
-      priority: 7,
-      condition: (data: any) => data.rating > 0
-    },
-    {
-      id: 'certifications',
-      component: ({ data }: any) => <div>Certifications Component</div>,
-      priority: 5,
-      condition: (data: any) => data.certifications?.length > 0
-    }
-  ],
-  layout: 'stack' as const,
-  maxComponents: 6
-});
-
-export const createDashboardComposition = (userData: any) => ({
-  components: [
-    {
-      id: 'overview',
-      component: ({ data }: any) => <div>Overview Widget</div>,
-      priority: 10
-    },
-    {
-      id: 'analytics',
-      component: ({ data }: any) => <div>Analytics Widget</div>,
-      priority: 8,
-      condition: (data: any) => data.hasAnalyticsAccess
-    },
-    {
-      id: 'recent-activity',
-      component: ({ data }: any) => <div>Recent Activity Widget</div>,
-      priority: 7
-    },
-    {
-      id: 'recommendations',
-      component: ({ data }: any) => <div>Recommendations Widget</div>,
-      priority: 6
-    }
-  ],
-  layout: 'grid' as const,
-  maxComponents: 8
-});
+export default useComposition;
