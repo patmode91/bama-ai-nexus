@@ -123,6 +123,15 @@ const SemanticSearch = () => {
     }
   };
 
+  const handleViewProfile = (businessId: number) => {
+    window.open(`/business/${businessId}`, '_blank');
+  };
+
+  const handleCompareToggle = (businessId: number) => {
+    // Basic compare functionality - could be enhanced
+    console.log('Compare toggled for business:', businessId);
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
       {/* Search Input */}
@@ -197,7 +206,13 @@ const SemanticSearch = () => {
                   {searchResults.map((result, index) => (
                     <div key={index} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-start justify-between">
-                        <BusinessCard business={result.business} />
+                        <BusinessCard 
+                          business={result.business}
+                          onViewProfile={handleViewProfile}
+                          onCompareToggle={handleCompareToggle}
+                          isCompared={false}
+                          isCompareDisabled={false}
+                        />
                         <div className="text-right space-y-1">
                           <Badge className="bg-blue-500 text-white">
                             {result.relevanceScore}% Match
@@ -227,7 +242,13 @@ const SemanticSearch = () => {
                   {matchResults.map((match, index) => (
                     <div key={index} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-start justify-between">
-                        <BusinessCard business={match.business} />
+                        <BusinessCard 
+                          business={match.business}
+                          onViewProfile={handleViewProfile}
+                          onCompareToggle={handleCompareToggle}
+                          isCompared={false}
+                          isCompareDisabled={false}
+                        />
                         <div className="text-right space-y-1">
                           <Badge className="bg-purple-500 text-white">
                             {match.matchScore}% Match
