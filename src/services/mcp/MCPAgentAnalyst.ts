@@ -1,4 +1,3 @@
-
 import { mcpContextManager, MCPContext } from './MCPContextManager';
 import { mcpEventBus } from './MCPEventBus';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,7 +132,7 @@ class MCPAgentAnalyst {
   }
 
   private calculateProjectCosts(context: MCPContext, businesses: any[]): { min: number; max: number } {
-    if (context.budget) {
+    if (context.budget && typeof context.budget.min === 'number' && typeof context.budget.max === 'number') {
       return context.budget;
     }
 
