@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +14,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  TreeMap,
+  Treemap,
   Cell
 } from 'recharts';
 import { 
@@ -313,7 +312,7 @@ const CategoryInsights = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <TreeMap
+                <Treemap
                   data={treeMapData}
                   dataKey="size"
                   aspectRatio={4/3}
@@ -323,7 +322,7 @@ const CategoryInsights = () => {
                   {treeMapData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
-                </TreeMap>
+                </Treemap>
               </ResponsiveContainer>
             </CardContent>
           </Card>
