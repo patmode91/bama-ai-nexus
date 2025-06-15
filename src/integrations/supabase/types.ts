@@ -88,6 +88,44 @@ export type Database = {
           },
         ]
       }
+      business_updates: {
+        Row: {
+          business_id: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          title: string
+          update_type: string
+        }
+        Insert: {
+          business_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          title: string
+          update_type: string
+        }
+        Update: {
+          business_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          title?: string
+          update_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_updates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           businessname: string | null
@@ -107,6 +145,7 @@ export type Database = {
           project_budget_max: number | null
           project_budget_min: number | null
           rating: number | null
+          search_vector: unknown | null
           tags: string[] | null
           updated_at: string | null
           verified: boolean | null
@@ -130,6 +169,7 @@ export type Database = {
           project_budget_max?: number | null
           project_budget_min?: number | null
           rating?: number | null
+          search_vector?: unknown | null
           tags?: string[] | null
           updated_at?: string | null
           verified?: boolean | null
@@ -153,10 +193,85 @@ export type Database = {
           project_budget_max?: number | null
           project_budget_min?: number | null
           rating?: number | null
+          search_vector?: unknown | null
           tags?: string[] | null
           updated_at?: string | null
           verified?: boolean | null
           website?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          message_type: string | null
+          metadata: Json | null
+          room_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          message_type?: string | null
+          metadata?: Json | null
+          room_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_type?: string | null
+          metadata?: Json | null
+          room_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_private: boolean | null
+          max_members: number | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          max_members?: number | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          max_members?: number | null
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -420,6 +535,48 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string | null
+          from_user_id: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          target_id: string | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string | null
+          from_user_id?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          target_id?: string | null
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string | null
+          from_user_id?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          target_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
@@ -523,6 +680,83 @@ export type Database = {
           },
         ]
       }
+      search_analytics: {
+        Row: {
+          clicked_business_id: number | null
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          results_count: number | null
+          search_duration_ms: number | null
+          search_filters: Json | null
+          search_query: string
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          clicked_business_id?: number | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          results_count?: number | null
+          search_duration_ms?: number | null
+          search_filters?: Json | null
+          search_query: string
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          clicked_business_id?: number | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          results_count?: number | null
+          search_duration_ms?: number | null
+          search_filters?: Json | null
+          search_query?: string
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_analytics_clicked_business_id_fkey"
+            columns: ["clicked_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_suggestions: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          popularity_score: number | null
+          suggestion: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          popularity_score?: number | null
+          suggestion: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          popularity_score?: number | null
+          suggestion?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       verification_requests: {
         Row: {
           admin_notes: string | null
@@ -572,6 +806,12 @@ export type Database = {
       approve_business_claim: {
         Args: { claim_id: string }
         Returns: undefined
+      }
+      generate_business_search_vector: {
+        Args: {
+          business_row: Database["public"]["Tables"]["businesses"]["Row"]
+        }
+        Returns: unknown
       }
       get_event_attendee_count: {
         Args: { event_uuid: string }
