@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from '@/contexts/AuthContext';
+import MobileNavigation from '@/components/mobile/MobileNavigation';
 import Index from "./pages/Index";
 import Directory from "./pages/Directory";
 import BusinessDetail from "./pages/BusinessDetail";
@@ -75,6 +76,7 @@ const App = () => (
             <Route path="/mobile-settings" element={<MobileSettings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <MobileNavigation />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

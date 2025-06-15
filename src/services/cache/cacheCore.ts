@@ -1,150 +1,109 @@
 
 import { CacheItem, CacheOptions, CacheStats } from './types';
-import { compressData, decompressData, estimateMemoryUsage, shouldCompress } from './cacheUtils';
-import { lruEviction, cleanupExpired, isExpired } from './evictionStrategies';
 
 export class CacheCore {
-  private cache = new Map<string, CacheItem<any>>();
-  private maxSize = 100;
-  private compressionThreshold = 1024;
+  private cache = new Map<string, CacheItem>();
+  private maxSize = 1000;
   private stats = {
     hits: 0,
     misses: 0,
-    evictions: 0
+    evictions: 0,
+    totalHits: 0,
+    totalMisses: 0
   };
 
-  async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
-    const {
-      ttl = 300000, // 5 minutes default
-      priority = 'medium',
-      tags = [],
-      compress = false
-    } = options;
-
-    // Clean up expired entries before adding new ones
-    this.cleanup();
-
-    // If cache is full, evict based on priority and access patterns
-    if (this.cache.size >= this.maxSize) {
-      this.evict();
-    }
-
-    let processedData = data;
-    let isCompressed = false;
-
-    // Compress large data if enabled
-    if (compress && shouldCompress(data, this.compressionThreshold)) {
-      try {
-        processedData = await compressData(data) as T;
-        isCompressed = true;
-      } catch (error) {
-        console.warn('Compression failed, storing uncompressed:', error);
-      }
-    }
-
+  set<T>(key: string, data: T, options: CacheOptions = {}): void {
+    const ttl = options.ttl || 300000;
     const now = Date.now();
-    const entry: CacheItem<T> = {
-      data: processedData,
+    
+    const item: CacheItem<T> = {
+      data,
       timestamp: now,
       expiresAt: now + ttl,
       accessCount: 0,
       lastAccessed: now,
-      priority,
-      tags,
-      compressed: isCompressed
+      priority: options.priority || 'medium',
+      tags: options.tags || [],
+      compressed: options.compress || false,
+      ttl
     };
 
-    this.cache.set(key, entry);
+    if (this.cache.size >= this.maxSize) {
+      this.evictLRU();
+    }
+
+    this.cache.set(key, item);
   }
 
-  async get<T>(key: string): Promise<T | null> {
-    const entry = this.cache.get(key);
+  get<T>(key: string): T | null {
+    const item = this.cache.get(key) as CacheItem<T> | undefined;
     
-    if (!entry) {
+    if (!item) {
       this.stats.misses++;
+      this.stats.totalMisses++;
       return null;
     }
 
-    // Check if entry has expired
-    if (isExpired(entry)) {
+    if (Date.now() > item.expiresAt) {
       this.cache.delete(key);
       this.stats.misses++;
+      this.stats.totalMisses++;
       return null;
     }
 
-    // Update access statistics
-    entry.accessCount++;
-    entry.lastAccessed = Date.now();
+    item.lastAccessed = Date.now();
+    item.accessCount++;
     this.stats.hits++;
-
-    let data = entry.data;
-
-    // Decompress if needed
-    if (entry.compressed) {
-      try {
-        data = await decompressData(data as string) as T;
-      } catch (error) {
-        console.error('Decompression failed:', error);
-        this.cache.delete(key);
-        return null;
-      }
-    }
-
-    return data;
-  }
-
-  invalidate(key: string): boolean {
-    return this.cache.delete(key);
-  }
-
-  invalidateByTag(tag: string): number {
-    let count = 0;
+    this.stats.totalHits++;
     
-    for (const [key, entry] of this.cache.entries()) {
-      if (entry.tags.includes(tag)) {
-        this.cache.delete(key);
-        count++;
+    return item.data;
+  }
+
+  private evictLRU(): void {
+    let oldestKey = '';
+    let oldestTime = Date.now();
+    
+    for (const [key, item] of this.cache.entries()) {
+      if (item.lastAccessed < oldestTime) {
+        oldestTime = item.lastAccessed;
+        oldestKey = key;
       }
     }
     
-    return count;
+    if (oldestKey) {
+      this.cache.delete(oldestKey);
+      this.stats.evictions++;
+    }
+  }
+
+  getStats(): CacheStats {
+    const totalRequests = this.stats.totalHits + this.stats.totalMisses;
+    const expiredCount = Array.from(this.cache.values()).filter(
+      item => Date.now() > item.expiresAt
+    ).length;
+
+    return {
+      hitRate: totalRequests > 0 ? this.stats.totalHits / totalRequests : 0,
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      totalHits: this.stats.totalHits,
+      totalMisses: this.stats.totalMisses,
+      totalRequests,
+      hits: this.stats.hits,
+      misses: this.stats.misses,
+      evictions: this.stats.evictions,
+      memoryUsage: this.cache.size * 1024,
+      expiredEntries: expiredCount
+    };
   }
 
   clear(): void {
     this.cache.clear();
-    this.stats = { hits: 0, misses: 0, evictions: 0 };
   }
 
-  cleanup(): void {
-    cleanupExpired(this.cache);
-  }
-
-  getStats(): CacheStats {
-    const entries = Array.from(this.cache.values());
-    const totalRequests = this.stats.hits + this.stats.misses;
-    
-    return {
-      size: this.cache.size,
-      maxSize: this.maxSize,
-      hitRate: totalRequests > 0 ? this.stats.hits / totalRequests : 0,
-      memoryUsage: estimateMemoryUsage(this.cache),
-      expiredEntries: entries.filter(entry => isExpired(entry)).length,
-      entriesByPriority: {
-        high: entries.filter(e => e.priority === 'high').length,
-        normal: entries.filter(e => e.priority === 'medium').length,
-        low: entries.filter(e => e.priority === 'low').length
-      },
-      hits: this.stats.hits,
-      misses: this.stats.misses,
-      totalRequests,
-      evictions: this.stats.evictions
-    };
-  }
-
-  private evict(): void {
-    // Simple LRU eviction with priority consideration
-    const evictionCount = Math.max(1, Math.floor(this.maxSize * 0.1)); // Remove 10% of cache
-    lruEviction(this.cache, evictionCount);
-    this.stats.evictions += evictionCount;
+  delete(key: string): boolean {
+    return this.cache.delete(key);
   }
 }
+
+export const cacheCore = new CacheCore();
