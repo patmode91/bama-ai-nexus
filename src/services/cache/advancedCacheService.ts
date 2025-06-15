@@ -1,80 +1,267 @@
 
-import { AdvancedCacheCore } from './advancedCacheCore';
-import { CacheOptions } from './types';
+interface CacheOptions {
+  ttl?: number;
+  priority?: 'low' | 'normal' | 'high';
+  tags?: string[];
+  compress?: boolean;
+}
 
-class AdvancedCacheService extends AdvancedCacheCore {
-  async memoize<T>(key: string, fn: () => Promise<T>, options: CacheOptions = {}): Promise<T> {
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+  priority: 'low' | 'normal' | 'high';
+  tags: string[];
+  accessCount: number;
+  lastAccessed: number;
+  compressed?: boolean;
+}
+
+interface StaleWhileRevalidateOptions {
+  staleTTL: number;
+  freshTTL: number;
+}
+
+class AdvancedCacheService {
+  private cache = new Map<string, CacheEntry<any>>();
+  private maxSize = 100; // Maximum number of entries
+  private compressionThreshold = 1024; // Compress data larger than 1KB
+
+  async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
+    const {
+      ttl = 300000, // 5 minutes default
+      priority = 'normal',
+      tags = [],
+      compress = false
+    } = options;
+
+    // Clean up expired entries before adding new ones
+    this.cleanup();
+
+    // If cache is full, evict based on priority and access patterns
+    if (this.cache.size >= this.maxSize) {
+      this.evict();
+    }
+
+    let processedData = data;
+    let isCompressed = false;
+
+    // Compress large data if enabled
+    if (compress && this.shouldCompress(data)) {
+      processedData = await this.compress(data);
+      isCompressed = true;
+    }
+
+    const entry: CacheEntry<T> = {
+      data: processedData,
+      timestamp: Date.now(),
+      ttl,
+      priority,
+      tags,
+      accessCount: 0,
+      lastAccessed: Date.now(),
+      compressed: isCompressed
+    };
+
+    this.cache.set(key, entry);
+  }
+
+  async get<T>(key: string): Promise<T | null> {
+    const entry = this.cache.get(key);
+    
+    if (!entry) {
+      return null;
+    }
+
+    // Check if entry has expired
+    if (this.isExpired(entry)) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    // Update access statistics
+    entry.accessCount++;
+    entry.lastAccessed = Date.now();
+
+    let data = entry.data;
+
+    // Decompress if needed
+    if (entry.compressed) {
+      data = await this.decompress(data);
+    }
+
+    return data;
+  }
+
+  async memoize<T>(
+    key: string,
+    factory: () => Promise<T>,
+    options: CacheOptions = {}
+  ): Promise<T> {
     const cached = await this.get<T>(key);
+    
     if (cached !== null) {
       return cached;
     }
 
-    const result = await fn();
+    const result = await factory();
     await this.set(key, result, options);
+    
     return result;
   }
 
   async staleWhileRevalidate<T>(
-    key: string, 
-    fn: () => Promise<T>, 
-    options: { staleTTL?: number; freshTTL?: number } = {}
+    key: string,
+    factory: () => Promise<T>,
+    options: StaleWhileRevalidateOptions
   ): Promise<T> {
-    const cached = await this.get<T>(key);
-    const staleTTL = options.staleTTL || 5 * 60 * 1000; // 5 minutes
-    const freshTTL = options.freshTTL || 15 * 60 * 1000; // 15 minutes
+    const entry = this.cache.get(key);
+    const now = Date.now();
 
-    if (cached !== null) {
-      const item = this.getStats();
-      const now = Date.now();
-      
-      // Check if data is stale (simplified check)
-      if (item.size > 0) {
-        // Return stale data immediately, refresh in background
-        this.refreshInBackground(key, fn, { ttl: freshTTL });
-      }
-
-      return cached;
+    if (!entry) {
+      // No cached data, fetch fresh
+      const result = await factory();
+      await this.set(key, result, { ttl: options.freshTTL });
+      return result;
     }
 
-    // No cached data, fetch fresh
-    const result = await fn();
-    await this.set(key, result, { ttl: freshTTL });
+    const age = now - entry.timestamp;
+
+    if (age < options.staleTTL) {
+      // Data is fresh, return immediately
+      entry.accessCount++;
+      entry.lastAccessed = now;
+      return entry.compressed ? await this.decompress(entry.data) : entry.data;
+    }
+
+    if (age < options.freshTTL) {
+      // Data is stale but not expired, return stale data and revalidate in background
+      const staleData = entry.compressed ? await this.decompress(entry.data) : entry.data;
+      
+      // Revalidate in background
+      factory().then(newData => {
+        this.set(key, newData, { ttl: options.freshTTL });
+      }).catch(console.error);
+      
+      return staleData;
+    }
+
+    // Data is expired, fetch fresh
+    const result = await factory();
+    await this.set(key, result, { ttl: options.freshTTL });
     return result;
   }
 
-  async warmup(keys: string[], dataFetcher: (key: string) => Promise<any>): Promise<void> {
-    const promises = keys.map(async (key) => {
-      try {
-        const data = await dataFetcher(key);
-        await this.set(key, data, { priority: 'high', ttl: 30 * 60 * 1000 });
-      } catch (error) {
-        console.warn(`Failed to warmup cache for key ${key}:`, error);
-      }
-    });
-
-    await Promise.allSettled(promises);
+  invalidate(key: string): boolean {
+    return this.cache.delete(key);
   }
 
-  private async refreshInBackground<T>(key: string, fn: () => Promise<T>, options: CacheOptions): Promise<void> {
-    try {
-      const result = await fn();
-      await this.set(key, result, options);
-    } catch (error) {
-      console.warn(`Background refresh failed for key ${key}:`, error);
+  invalidateByTag(tag: string): number {
+    let count = 0;
+    
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.tags.includes(tag)) {
+        this.cache.delete(key);
+        count++;
+      }
     }
+    
+    return count;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  getStats() {
+    const entries = Array.from(this.cache.values());
+    const now = Date.now();
+    
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      hitRate: this.calculateHitRate(),
+      memoryUsage: this.estimateMemoryUsage(),
+      expiredEntries: entries.filter(entry => this.isExpired(entry)).length,
+      entriesByPriority: {
+        high: entries.filter(e => e.priority === 'high').length,
+        normal: entries.filter(e => e.priority === 'normal').length,
+        low: entries.filter(e => e.priority === 'low').length
+      }
+    };
+  }
+
+  private cleanup(): void {
+    for (const [key, entry] of this.cache.entries()) {
+      if (this.isExpired(entry)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  private evict(): void {
+    // Simple LRU eviction with priority consideration
+    const entries = Array.from(this.cache.entries());
+    
+    // Sort by priority (low first) then by last accessed time
+    entries.sort(([, a], [, b]) => {
+      const priorityWeight = { low: 0, normal: 1, high: 2 };
+      const priorityDiff = priorityWeight[a.priority] - priorityWeight[b.priority];
+      
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+      
+      return a.lastAccessed - b.lastAccessed;
+    });
+
+    // Remove the least important entry
+    const [keyToEvict] = entries[0];
+    this.cache.delete(keyToEvict);
+  }
+
+  private isExpired(entry: CacheEntry<any>): boolean {
+    return Date.now() - entry.timestamp > entry.ttl;
+  }
+
+  private shouldCompress(data: any): boolean {
+    const size = new Blob([JSON.stringify(data)]).size;
+    return size > this.compressionThreshold;
+  }
+
+  private async compress(data: any): Promise<string> {
+    // Simple base64 compression simulation
+    // In a real implementation, you might use actual compression algorithms
+    return btoa(JSON.stringify(data));
+  }
+
+  private async decompress(compressedData: string): Promise<any> {
+    try {
+      return JSON.parse(atob(compressedData));
+    } catch (error) {
+      console.error('Failed to decompress data:', error);
+      return null;
+    }
+  }
+
+  private calculateHitRate(): number {
+    const entries = Array.from(this.cache.values());
+    const totalAccesses = entries.reduce((sum, entry) => sum + entry.accessCount, 0);
+    const totalEntries = entries.length;
+    
+    return totalEntries > 0 ? totalAccesses / totalEntries : 0;
+  }
+
+  private estimateMemoryUsage(): number {
+    // Rough estimation of memory usage in bytes
+    let totalSize = 0;
+    
+    for (const entry of this.cache.values()) {
+      totalSize += new Blob([JSON.stringify(entry)]).size;
+    }
+    
+    return totalSize;
   }
 }
 
-// Create specialized cache instances
-export const advancedCacheService = new AdvancedCacheService();
 export const businessCache = new AdvancedCacheService();
-export const searchCache = new AdvancedCacheService();
-export const aiCache = new AdvancedCacheService();
-
-// Auto cleanup every 5 minutes
-setInterval(() => {
-  advancedCacheService.cleanup();
-  businessCache.cleanup();
-  searchCache.cleanup();
-  aiCache.cleanup();
-}, 5 * 60 * 1000);

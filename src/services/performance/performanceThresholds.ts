@@ -1,14 +1,44 @@
 
 export interface PerformanceThresholds {
-  pageLoadTime: number;
-  apiResponseTime: number;
-  memoryUsage: number;
-  bundleSize: number;
+  webVitals: {
+    LCP: { warning: number; poor: number };
+    FID: { warning: number; poor: number };
+    CLS: { warning: number; poor: number };
+    TTFB: { warning: number; poor: number };
+    FCP: { warning: number; poor: number };
+  };
+  apiCall: {
+    warning: number;
+    poor: number;
+  };
+  databaseQuery: {
+    warning: number;
+    poor: number;
+  };
+  memoryUsage: {
+    warning: number;
+    critical: number;
+  };
 }
 
 export const defaultThresholds: PerformanceThresholds = {
-  pageLoadTime: 3000, // 3 seconds
-  apiResponseTime: 1000, // 1 second
-  memoryUsage: 100, // 100MB
-  bundleSize: 2000 // 2MB
+  webVitals: {
+    LCP: { warning: 2500, poor: 4000 },
+    FID: { warning: 100, poor: 300 },
+    CLS: { warning: 0.1, poor: 0.25 },
+    TTFB: { warning: 800, poor: 1800 },
+    FCP: { warning: 1800, poor: 3000 }
+  },
+  apiCall: {
+    warning: 1000,
+    poor: 3000
+  },
+  databaseQuery: {
+    warning: 500,
+    poor: 2000
+  },
+  memoryUsage: {
+    warning: 75,
+    critical: 90
+  }
 };
