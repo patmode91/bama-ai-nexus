@@ -4,6 +4,7 @@ export interface SearchQuery {
   filters?: SearchFilters;
   limit?: number;
   offset?: number;
+  includeAnalysis?: boolean;
 }
 
 export interface SearchFilters {
