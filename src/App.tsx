@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,6 +34,9 @@ import Realtime from "./pages/Realtime";
 import Collaboration from "./pages/Collaboration";
 import MobileSettings from "./pages/MobileSettings";
 import NotFound from "./pages/NotFound";
+import Enterprise from "./pages/Enterprise";
+import EnterpriseAnalytics from "./pages/EnterpriseAnalytics";
+import EnterpriseIntegrations from "./pages/EnterpriseIntegrations";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +76,9 @@ const App = () => (
             <Route path="/realtime" element={<Realtime />} />
             <Route path="/collaboration" element={<Collaboration />} />
             <Route path="/mobile-settings" element={<MobileSettings />} />
+            <Route path="/enterprise" element={<Enterprise />} />
+            <Route path="/enterprise-analytics" element={<EnterpriseAnalytics />} />
+            <Route path="/enterprise-integrations" element={<EnterpriseIntegrations />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <MobileNavigation />
