@@ -13,6 +13,7 @@ export interface SearchFilters {
   tags?: string[];
   employeeRange?: string;
   foundedAfter?: number;
+  [key: string]: any; // Add index signature for JSON compatibility
 }
 
 export interface SearchResult {
@@ -270,7 +271,7 @@ class EnhancedSearchService {
     try {
       const analytics: SearchAnalytics = {
         search_query: query,
-        search_filters: filters,
+        search_filters: filters as any, // Cast to satisfy JSON type
         results_count: resultsCount,
         search_duration_ms: Math.round(searchTime),
         session_id: this.getSessionId(),
