@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,89 +106,29 @@ const NotificationSettings = () => {
           )}
         </div>
 
-        {/* Email Notifications */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-white flex items-center">
-              <Mail className="w-4 h-4 mr-2" />
-              Email Notifications
-            </Label>
-            <p className="text-xs text-gray-400 mt-1">Receive updates via email</p>
+        {/* Other notification settings */}
+        {[
+          { key: 'emailNotifications', label: 'Email Notifications', icon: Mail, description: 'Receive updates via email' },
+          { key: 'businessUpdates', label: 'Business Updates', icon: TrendingUp, description: 'New businesses, reviews, and changes' },
+          { key: 'eventReminders', label: 'Event Reminders', icon: Calendar, description: 'Upcoming events and deadlines' },
+          { key: 'marketingEmails', label: 'Marketing Communications', icon: MessageSquare, description: 'Promotional content and newsletters' },
+          { key: 'weeklyDigest', label: 'Weekly Digest', icon: Mail, description: 'Summary of weekly activity' },
+          { key: 'realTimeAlerts', label: 'Real-time Alerts', icon: Bell, description: 'Instant alerts for important updates' }
+        ].map(({ key, label, icon: Icon, description }) => (
+          <div key={key} className="flex items-center justify-between">
+            <div>
+              <Label className="text-white flex items-center">
+                <Icon className="w-4 h-4 mr-2" />
+                {label}
+              </Label>
+              <p className="text-xs text-gray-400 mt-1">{description}</p>
+            </div>
+            <Switch
+              checked={settings[key as keyof typeof settings]}
+              onCheckedChange={(checked) => updateSetting(key as keyof typeof settings, checked)}
+            />
           </div>
-          <Switch
-            checked={settings.emailNotifications}
-            onCheckedChange={(checked) => updateSetting('emailNotifications', checked)}
-          />
-        </div>
-
-        {/* Business Updates */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-white flex items-center">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Business Updates
-            </Label>
-            <p className="text-xs text-gray-400 mt-1">New businesses, reviews, and changes</p>
-          </div>
-          <Switch
-            checked={settings.businessUpdates}
-            onCheckedChange={(checked) => updateSetting('businessUpdates', checked)}
-          />
-        </div>
-
-        {/* Event Reminders */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-white flex items-center">
-              <Calendar className="w-4 h-4 mr-2" />
-              Event Reminders
-            </Label>
-            <p className="text-xs text-gray-400 mt-1">Upcoming events and deadlines</p>
-          </div>
-          <Switch
-            checked={settings.eventReminders}
-            onCheckedChange={(checked) => updateSetting('eventReminders', checked)}
-          />
-        </div>
-
-        {/* Marketing Emails */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-white flex items-center">
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Marketing Communications
-            </Label>
-            <p className="text-xs text-gray-400 mt-1">Promotional content and newsletters</p>
-          </div>
-          <Switch
-            checked={settings.marketingEmails}
-            onCheckedChange={(checked) => updateSetting('marketingEmails', checked)}
-          />
-        </div>
-
-        {/* Weekly Digest */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-white">Weekly Digest</Label>
-            <p className="text-xs text-gray-400 mt-1">Summary of weekly activity</p>
-          </div>
-          <Switch
-            checked={settings.weeklyDigest}
-            onCheckedChange={(checked) => updateSetting('weeklyDigest', checked)}
-          />
-        </div>
-
-        {/* Real-time Alerts */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-white">Real-time Alerts</Label>
-            <p className="text-xs text-gray-400 mt-1">Instant alerts for important updates</p>
-          </div>
-          <Switch
-            checked={settings.realTimeAlerts}
-            onCheckedChange={(checked) => updateSetting('realTimeAlerts', checked)}
-          />
-        </div>
+        ))}
 
         {permission === 'denied' && (
           <div className="mt-4 p-3 bg-orange-900/50 border border-orange-700 rounded-md">

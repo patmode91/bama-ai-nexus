@@ -13,6 +13,9 @@ export interface CacheItem<T = any> {
   ttl: number;
   priority: 'low' | 'medium' | 'high';
   tags: string[];
+  accessCount: number;
+  compressed: boolean;
+  expiresAt: number;
 }
 
 export interface CacheStats {
@@ -26,11 +29,14 @@ export interface CacheStats {
   misses: number;
   evictions: number;
   memoryUsage: number;
+  expiredEntries: number;
 }
 
 export interface StaleWhileRevalidateOptions {
   staleTime: number;
   maxAge: number;
+  freshTTL: number;
+  staleTTL: number;
   revalidateOnFocus?: boolean;
   revalidateOnReconnect?: boolean;
 }

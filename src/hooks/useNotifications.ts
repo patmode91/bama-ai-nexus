@@ -1,56 +1,34 @@
 
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
 
   useEffect(() => {
-    // Check if notifications are supported
-    if ('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
+    if ('Notification' in window) {
       setIsSupported(true);
       setPermission(Notification.permission);
     }
   }, []);
 
-  const requestPermission = async () => {
-    if (!isSupported) {
-      toast.error('Notifications are not supported in this browser');
-      return false;
-    }
+  const requestPermission = async (): Promise<boolean> => {
+    if (!isSupported) return false;
 
-    try {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      
-      if (result === 'granted') {
-        toast.success('Notifications enabled!');
-        return true;
-      } else {
-        toast.error('Notification permission denied');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      toast.error('Failed to request notification permission');
-      return false;
-    }
+    const result = await Notification.requestPermission();
+    setPermission(result);
+    return result === 'granted';
   };
 
   const sendNotification = (title: string, options?: NotificationOptions) => {
     if (permission === 'granted') {
-      return new Notification(title, {
-        icon: '/placeholder.svg',
-        badge: '/placeholder.svg',
-        ...options
-      });
+      new Notification(title, options);
     }
   };
 
   const subscribeToPushNotifications = async () => {
-    if (!isSupported || permission !== 'granted') {
-      return null;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return false;
     }
 
     try {
@@ -59,13 +37,12 @@ export const useNotifications = () => {
         userVisibleOnly: true,
         applicationServerKey: 'your-vapid-public-key' // Replace with actual VAPID key
       });
-
-      // Send subscription to your server
-      console.log('Push subscription:', subscription);
-      return subscription;
+      
+      console.log('Push subscription successful:', subscription);
+      return true;
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
-      return null;
+      console.error('Push subscription failed:', error);
+      return false;
     }
   };
 
