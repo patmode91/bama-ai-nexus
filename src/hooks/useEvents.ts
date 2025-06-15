@@ -10,12 +10,32 @@ export const useEvents = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select(`
+          *,
+          event_rsvps!inner(count)
+        `)
         .eq('status', 'active')
         .order('event_date', { ascending: true });
       
       if (error) throw error;
-      return data || [];
+      
+      // Add attendee count for each event
+      const eventsWithAttendees = await Promise.all(
+        (data || []).map(async (event) => {
+          const { count } = await supabase
+            .from('event_rsvps')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'going');
+          
+          return {
+            ...event,
+            attendee_count: count || 0
+          };
+        })
+      );
+      
+      return eventsWithAttendees;
     }
   });
 
@@ -59,7 +79,7 @@ export const useCreateEvent = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (eventData: any) => {
       if (!user?.id) throw new Error('User not authenticated');
       
@@ -80,12 +100,18 @@ export const useCreateEvent = () => {
       queryClient.invalidateQueries({ queryKey: ['my-events'] });
     }
   });
+
+  return {
+    createEventAsync: mutation.mutateAsync,
+    isCreatingEvent: mutation.isPending,
+    ...mutation
+  };
 };
 
 export const useDeleteEvent = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (eventId: string) => {
       const { error } = await supabase
         .from('events')
@@ -99,13 +125,19 @@ export const useDeleteEvent = () => {
       queryClient.invalidateQueries({ queryKey: ['my-events'] });
     }
   });
+
+  return {
+    deleteEvent: mutation.mutate,
+    isDeletingEvent: mutation.isPending,
+    ...mutation
+  };
 };
 
 export const useUpdateRSVP = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: string; status: string }) => {
       if (!user?.id) throw new Error('User not authenticated');
       
@@ -126,4 +158,10 @@ export const useUpdateRSVP = () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
     }
   });
+
+  return {
+    updateRSVP: mutation.mutate,
+    isUpdatingRSVP: mutation.isPending,
+    ...mutation
+  };
 };
