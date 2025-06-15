@@ -121,7 +121,15 @@ Welcome to the Alabama Business Directory! We're building a vibrant ecosystem of
         
         Object.entries(state).forEach(([key, presence]) => {
           if (Array.isArray(presence) && presence.length > 0) {
-            collaboratorList.push(presence[0] as CollaboratorPresence);
+            const presenceData = presence[0] as any;
+            // Properly map the presence data to our interface
+            collaboratorList.push({
+              user_id: presenceData.user_id || key,
+              user_name: presenceData.user_name || 'Anonymous',
+              user_avatar: presenceData.user_avatar,
+              last_seen: presenceData.last_seen || new Date().toISOString(),
+              is_typing: presenceData.is_typing || false
+            });
           }
         });
         

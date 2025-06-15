@@ -104,7 +104,7 @@ const LiveChat = () => {
     setMessages(mockMessages);
   };
 
-  const subscribeToRoom = (roomId: string) => {
+  const subscribeToRoom = async (roomId: string) => {
     const channel = supabase
       .channel(`chat_room_${roomId}`)
       .on('broadcast', { event: 'new_message' }, (payload) => {
@@ -121,7 +121,7 @@ const LiveChat = () => {
     // Track user presence
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      channel.track({
+      await channel.track({
         user_id: user.id,
         online_at: new Date().toISOString(),
       });
