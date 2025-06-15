@@ -3,9 +3,9 @@ import { mcpContextManager, MCPContext } from './MCPContextManager';
 import { mcpEventBus } from './MCPEventBus';
 import { MarketAnalyzer } from './analyst/marketAnalyzer';
 import { RecommendationGenerator } from './analyst/recommendationGenerator';
-import { MarketInsight, AnalystResponse } from './analyst/types';
+import type { MarketInsight, AnalystResponse } from './analyst/types';
 
-export { MarketInsight, AnalystResponse };
+export type { MarketInsight, AnalystResponse };
 
 class MCPAgentAnalyst {
   private static instance: MCPAgentAnalyst;
