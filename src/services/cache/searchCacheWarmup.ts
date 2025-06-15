@@ -1,15 +1,16 @@
 
 import { searchCache } from './advancedCacheService';
-import { supabase } from '@/integrations/supabase/client';
-import { warmupConfig } from './warmupConfig';
 
-export class SearchCacheWarmup {
+class SearchCacheWarmup {
   async warmup(): Promise<void> {
+    console.log('Starting search cache warmup...');
+    
     try {
-      await Promise.all([
-        this.warmupPopularSearches(),
-        this.warmupLocationSearches()
-      ]);
+      // Warmup popular search queries
+      await this.warmupPopularQueries();
+      
+      // Warmup search suggestions
+      await this.warmupSearchSuggestions();
       
       console.log('Search cache warmup completed');
     } catch (error) {
@@ -17,35 +18,33 @@ export class SearchCacheWarmup {
     }
   }
 
-  private async warmupPopularSearches(): Promise<void> {
-    await searchCache.warmup(
-      warmupConfig.searches.popular.map(term => `search-${term}`),
-      async (key) => {
-        const searchTerm = key.replace('search-', '');
-        const { data } = await supabase
-          .from('businesses')
-          .select('*')
-          .or(`businessname.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
-          .limit(50);
-        return data || [];
-      }
-    );
+  private async warmupPopularQueries(): Promise<void> {
+    const popularQueries = [
+      'technology companies',
+      'healthcare providers',
+      'restaurants',
+      'manufacturing',
+      'construction companies'
+    ];
+
+    for (const query of popularQueries) {
+      await searchCache.set(`search:${query}`, [], {
+        ttl: 30 * 60 * 1000, // 30 minutes
+        priority: 'normal'
+      });
+    }
   }
 
-  private async warmupLocationSearches(): Promise<void> {
-    const popularLocations = ['Birmingham', 'Huntsville', 'Mobile', 'Montgomery'];
-    await searchCache.warmup(
-      popularLocations.map(loc => `search-location-${loc}`),
-      async (key) => {
-        const location = key.replace('search-location-', '');
-        const { data } = await supabase
-          .from('businesses')
-          .select('*')
-          .ilike('location', `%${location}%`)
-          .limit(50);
-        return data || [];
-      }
-    );
+  private async warmupSearchSuggestions(): Promise<void> {
+    const suggestions = [
+      'technology', 'healthcare', 'retail', 'manufacturing',
+      'finance', 'education', 'construction', 'food-service'
+    ];
+
+    await searchCache.set('search-suggestions', suggestions, {
+      ttl: 60 * 60 * 1000, // 1 hour
+      priority: 'high'
+    });
   }
 }
 

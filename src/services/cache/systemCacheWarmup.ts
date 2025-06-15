@@ -1,40 +1,17 @@
 
 import { advancedCacheService } from './advancedCacheService';
-import { supabase } from '@/integrations/supabase/client';
 
-export class SystemCacheWarmup {
+class SystemCacheWarmup {
   async warmup(): Promise<void> {
+    console.log('Starting system cache warmup...');
+    
     try {
-      await advancedCacheService.warmup(
-        ['system-stats', 'system-config', 'user-preferences'],
-        async (key) => {
-          switch (key) {
-            case 'system-stats':
-              const { count } = await supabase
-                .from('businesses')
-                .select('*', { count: 'exact', head: true });
-              return {
-                totalBusinesses: count || 0,
-                lastUpdated: Date.now()
-              };
-            case 'system-config':
-              return {
-                cacheEnabled: true,
-                compressionEnabled: true,
-                analyticsEnabled: true
-              };
-            case 'user-preferences':
-              return {
-                theme: 'dark',
-                notifications: true,
-                autoRefresh: true
-              };
-            default:
-              return {};
-          }
-        }
-      );
-
+      // Warmup system configuration
+      await this.warmupSystemConfig();
+      
+      // Warmup user preferences
+      await this.warmupUserPreferences();
+      
       console.log('System cache warmup completed');
     } catch (error) {
       console.warn('System cache warmup failed:', error);
@@ -42,31 +19,47 @@ export class SystemCacheWarmup {
   }
 
   async warmupUserSpecific(userId: string): Promise<void> {
+    console.log(`Warming up cache for user: ${userId}`);
+    
     try {
-      await advancedCacheService.warmup(
-        [`user-${userId}-preferences`, `user-${userId}-saved-businesses`],
-        async (key) => {
-          if (key.includes('preferences')) {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', userId)
-              .single();
-            return data;
-          } else {
-            const { data } = await supabase
-              .from('saved_businesses')
-              .select('*, businesses(*)')
-              .eq('user_id', userId);
-            return data || [];
-          }
-        }
-      );
-
-      console.log(`User-specific cache warmup completed for user: ${userId}`);
+      await advancedCacheService.set(`user:${userId}:preferences`, {
+        theme: 'light',
+        notifications: true,
+        language: 'en'
+      }, {
+        ttl: 24 * 60 * 60 * 1000, // 24 hours
+        priority: 'normal'
+      });
     } catch (error) {
-      console.warn(`User-specific cache warmup failed for user ${userId}:`, error);
+      console.warn('User-specific cache warmup failed:', error);
     }
+  }
+
+  private async warmupSystemConfig(): Promise<void> {
+    const systemConfig = {
+      version: '1.0.0',
+      features: ['ai-search', 'business-matching', 'analytics'],
+      maintenance: false
+    };
+
+    await advancedCacheService.set('system-config', systemConfig, {
+      ttl: 60 * 60 * 1000, // 1 hour
+      priority: 'high'
+    });
+  }
+
+  private async warmupUserPreferences(): Promise<void> {
+    const defaultPreferences = {
+      theme: 'light',
+      notifications: true,
+      language: 'en',
+      searchFilters: []
+    };
+
+    await advancedCacheService.set('default-user-preferences', defaultPreferences, {
+      ttl: 24 * 60 * 60 * 1000, // 24 hours
+      priority: 'normal'
+    });
   }
 }
 

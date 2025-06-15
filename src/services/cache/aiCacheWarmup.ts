@@ -1,15 +1,16 @@
 
 import { aiCache } from './advancedCacheService';
-import { supabase } from '@/integrations/supabase/client';
-import { warmupConfig } from './warmupConfig';
 
-export class AICacheWarmup {
+class AICacheWarmup {
   async warmup(): Promise<void> {
+    console.log('Starting AI cache warmup...');
+    
     try {
-      await Promise.all([
-        this.warmupCommonQueries(),
-        this.warmupRecommendations()
-      ]);
+      // Warmup AI model responses
+      await this.warmupModelResponses();
+      
+      // Warmup AI suggestions
+      await this.warmupAISuggestions();
       
       console.log('AI cache warmup completed');
     } catch (error) {
@@ -17,42 +18,37 @@ export class AICacheWarmup {
     }
   }
 
-  private async warmupCommonQueries(): Promise<void> {
-    await aiCache.warmup(
-      warmupConfig.ai.commonQueries.map(query => `ai-response-${query}`),
-      async (key) => {
-        const query = key.replace('ai-response-', '');
-        return {
-          query,
-          response: `Cached AI response for: ${query}`,
-          confidence: 0.85,
-          timestamp: Date.now()
-        };
-      }
-    );
+  private async warmupModelResponses(): Promise<void> {
+    const commonQueries = [
+      'best tech companies',
+      'healthcare recommendations',
+      'business partnerships',
+      'investment opportunities'
+    ];
+
+    for (const query of commonQueries) {
+      await aiCache.set(`ai:response:${query}`, {
+        response: `Cached response for: ${query}`,
+        timestamp: Date.now()
+      }, {
+        ttl: 15 * 60 * 1000, // 15 minutes
+        priority: 'normal'
+      });
+    }
   }
 
-  private async warmupRecommendations(): Promise<void> {
-    await aiCache.warmup(
-      ['ai-recommendations-business', 'ai-recommendations-trending'],
-      async (key) => {
-        if (key === 'ai-recommendations-business') {
-          const { data } = await supabase
-            .from('businesses')
-            .select('*')
-            .eq('verified', true)
-            .order('rating', { ascending: false })
-            .limit(10);
-          return data || [];
-        } else {
-          return [
-            { type: 'trending', category: 'AI/ML', growth: '+25%' },
-            { type: 'trending', category: 'Fintech', growth: '+18%' },
-            { type: 'trending', category: 'Healthcare Tech', growth: '+22%' }
-          ];
-        }
-      }
-    );
+  private async warmupAISuggestions(): Promise<void> {
+    const suggestions = [
+      'Consider partnerships with tech companies',
+      'Explore healthcare innovation opportunities',
+      'Look into sustainable business practices',
+      'Investigate market expansion possibilities'
+    ];
+
+    await aiCache.set('ai-suggestions', suggestions, {
+      ttl: 60 * 60 * 1000, // 1 hour
+      priority: 'high'
+    });
   }
 }
 

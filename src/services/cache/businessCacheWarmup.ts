@@ -1,15 +1,16 @@
 
 import { businessCache } from './advancedCacheService';
-import { supabase } from '@/integrations/supabase/client';
-import { warmupConfig } from './warmupConfig';
 
-export class BusinessCacheWarmup {
+class BusinessCacheWarmup {
   async warmup(): Promise<void> {
+    console.log('Starting business cache warmup...');
+    
     try {
-      await Promise.all([
-        this.warmupPopularCategories(),
-        this.warmupFeaturedBusinesses()
-      ]);
+      // Warmup popular business categories
+      await this.warmupCategories();
+      
+      // Warmup featured businesses
+      await this.warmupFeaturedBusinesses();
       
       console.log('Business cache warmup completed');
     } catch (error) {
@@ -17,43 +18,30 @@ export class BusinessCacheWarmup {
     }
   }
 
-  private async warmupPopularCategories(): Promise<void> {
-    await businessCache.warmup(
-      warmupConfig.businesses.popular.map(cat => `businesses-category-${cat}`),
-      async (key) => {
-        const category = key.replace('businesses-category-', '');
-        const { data } = await supabase
-          .from('businesses')
-          .select('*')
-          .eq('category', category)
-          .limit(50);
-        return data || [];
-      }
-    );
+  private async warmupCategories(): Promise<void> {
+    const popularCategories = [
+      'technology', 'healthcare', 'retail', 'manufacturing', 
+      'finance', 'education', 'construction', 'food-service'
+    ];
+
+    await businessCache.set('popular-categories', popularCategories, {
+      ttl: 24 * 60 * 60 * 1000, // 24 hours
+      priority: 'high'
+    });
   }
 
   private async warmupFeaturedBusinesses(): Promise<void> {
-    await businessCache.warmup(
-      ['businesses-featured', 'businesses-verified'],
-      async (key) => {
-        if (key === 'businesses-featured') {
-          const { data } = await supabase
-            .from('businesses')
-            .select('*')
-            .eq('verified', true)
-            .order('rating', { ascending: false })
-            .limit(20);
-          return data || [];
-        } else {
-          const { data } = await supabase
-            .from('businesses')
-            .select('*')
-            .eq('verified', true)
-            .limit(100);
-          return data || [];
-        }
-      }
-    );
+    // Mock featured businesses data
+    const featuredBusinesses = [
+      { id: 1, name: 'Tech Innovators', category: 'technology' },
+      { id: 2, name: 'Healthcare Plus', category: 'healthcare' },
+      { id: 3, name: 'Retail Excellence', category: 'retail' }
+    ];
+
+    await businessCache.set('featured-businesses', featuredBusinesses, {
+      ttl: 12 * 60 * 60 * 1000, // 12 hours
+      priority: 'high'
+    });
   }
 }
 

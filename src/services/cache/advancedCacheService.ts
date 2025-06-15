@@ -22,10 +22,32 @@ interface StaleWhileRevalidateOptions {
   freshTTL: number;
 }
 
+export interface CacheStats {
+  size: number;
+  maxSize: number;
+  hitRate: number;
+  memoryUsage: number;
+  expiredEntries: number;
+  entriesByPriority: {
+    high: number;
+    normal: number;
+    low: number;
+  };
+  hits: number;
+  misses: number;
+  totalRequests: number;
+  evictions: number;
+}
+
 class AdvancedCacheService {
   private cache = new Map<string, CacheEntry<any>>();
   private maxSize = 100; // Maximum number of entries
   private compressionThreshold = 1024; // Compress data larger than 1KB
+  private stats = {
+    hits: 0,
+    misses: 0,
+    evictions: 0
+  };
 
   async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
     const {
@@ -70,18 +92,21 @@ class AdvancedCacheService {
     const entry = this.cache.get(key);
     
     if (!entry) {
+      this.stats.misses++;
       return null;
     }
 
     // Check if entry has expired
     if (this.isExpired(entry)) {
       this.cache.delete(key);
+      this.stats.misses++;
       return null;
     }
 
     // Update access statistics
     entry.accessCount++;
     entry.lastAccessed = Date.now();
+    this.stats.hits++;
 
     let data = entry.data;
 
@@ -131,6 +156,7 @@ class AdvancedCacheService {
       // Data is fresh, return immediately
       entry.accessCount++;
       entry.lastAccessed = now;
+      this.stats.hits++;
       return entry.compressed ? await this.decompress(entry.data) : entry.data;
     }
 
@@ -143,6 +169,7 @@ class AdvancedCacheService {
         this.set(key, newData, { ttl: options.freshTTL });
       }).catch(console.error);
       
+      this.stats.hits++;
       return staleData;
     }
 
@@ -171,32 +198,38 @@ class AdvancedCacheService {
 
   clear(): void {
     this.cache.clear();
+    this.stats = { hits: 0, misses: 0, evictions: 0 };
   }
 
-  getStats() {
+  // Make cleanup method public
+  cleanup(): void {
+    for (const [key, entry] of this.cache.entries()) {
+      if (this.isExpired(entry)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  getStats(): CacheStats {
     const entries = Array.from(this.cache.values());
-    const now = Date.now();
+    const totalRequests = this.stats.hits + this.stats.misses;
     
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
-      hitRate: this.calculateHitRate(),
+      hitRate: totalRequests > 0 ? this.stats.hits / totalRequests : 0,
       memoryUsage: this.estimateMemoryUsage(),
       expiredEntries: entries.filter(entry => this.isExpired(entry)).length,
       entriesByPriority: {
         high: entries.filter(e => e.priority === 'high').length,
         normal: entries.filter(e => e.priority === 'normal').length,
         low: entries.filter(e => e.priority === 'low').length
-      }
+      },
+      hits: this.stats.hits,
+      misses: this.stats.misses,
+      totalRequests,
+      evictions: this.stats.evictions
     };
-  }
-
-  private cleanup(): void {
-    for (const [key, entry] of this.cache.entries()) {
-      if (this.isExpired(entry)) {
-        this.cache.delete(key);
-      }
-    }
   }
 
   private evict(): void {
@@ -218,6 +251,7 @@ class AdvancedCacheService {
     // Remove the least important entry
     const [keyToEvict] = entries[0];
     this.cache.delete(keyToEvict);
+    this.stats.evictions++;
   }
 
   private isExpired(entry: CacheEntry<any>): boolean {
@@ -264,4 +298,8 @@ class AdvancedCacheService {
   }
 }
 
+// Create and export cache instances
+export const advancedCacheService = new AdvancedCacheService();
 export const businessCache = new AdvancedCacheService();
+export const searchCache = new AdvancedCacheService();
+export const aiCache = new AdvancedCacheService();
