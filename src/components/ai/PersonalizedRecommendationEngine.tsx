@@ -1,246 +1,253 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  TrendingUp, 
-  Target, 
-  Sparkles, 
-  ArrowRight, 
-  Brain,
-  Users,
-  Star,
-  Zap
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sparkles, TrendingUp, Target, Brain } from 'lucide-react';
+import { useMCP } from '@/hooks/useMCP';
 import { useBusinesses } from '@/hooks/useBusinesses';
-import { PersonalizedRecommendation } from '@/types/recommendations';
 
-const PersonalizedRecommendationEngine = () => {
+interface PersonalizedRecommendation {
+  business: any;
+  score: number;
+  reasoning: string;
+  category: 'trending' | 'perfect_match' | 'emerging' | 'strategic';
+  insights: string[];
+}
+
+interface PersonalizedRecommendationEngineProps {
+  userId?: string;
+  userPreferences?: {
+    industry?: string;
+    budget?: { min: number; max: number };
+    location?: string;
+    services?: string[];
+  };
+}
+
+const PersonalizedRecommendationEngine = ({ 
+  userId, 
+  userPreferences 
+}: PersonalizedRecommendationEngineProps) => {
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendation[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { runFullAnalysis, isLoading } = useMCP(userId);
   const { data: businesses } = useBusinesses();
 
-  useEffect(() => {
-    generatePersonalizedRecommendations();
-  }, [businesses]);
+  const generateRecommendations = async () => {
+    if (!businesses || businesses.length === 0) return;
 
-  const generatePersonalizedRecommendations = async () => {
-    if (!businesses?.length) return;
-
-    setIsLoading(true);
+    setIsGenerating(true);
     try {
-      // Simulate AI-powered personalized recommendation generation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Create a personalized query based on user preferences
+      const query = buildPersonalizedQuery(userPreferences);
+      
+      // Run MCP analysis with personalized context
+      const results = await runFullAnalysis('personalized_recommendations', {
+        userPreferences,
+        query,
+        source: 'recommendation_engine'
+      });
 
-      const mockRecommendations: PersonalizedRecommendation[] = businesses
-        .slice(0, 12)
-        .map((business, index) => ({
-          business,
-          relevanceScore: Math.floor(Math.random() * 30) + 70,
-          personalizedReasons: [
-            'Matches your industry focus',
-            'Similar technology stack',
-            'Complementary services',
-            'Geographic proximity',
-            'Growth trajectory alignment'
-          ].slice(0, Math.floor(Math.random() * 3) + 2),
-          recommendationType: (['perfect_match', 'growth_opportunity', 'trending', 'similar_interests'] as const)[index % 4],
-          confidenceLevel: Math.floor(Math.random() * 30) + 70,
-        }));
-
-      setRecommendations(mockRecommendations);
+      // Process results into personalized recommendations
+      const personalizedRecs = processIntoRecommendations(results, businesses);
+      setRecommendations(personalizedRecs);
     } catch (error) {
-      console.error('Error generating recommendations:', error);
+      console.error('Error generating personalized recommendations:', error);
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const filteredRecommendations = activeCategory === 'all' 
-    ? recommendations 
-    : recommendations.filter(rec => rec.recommendationType === activeCategory);
+  const buildPersonalizedQuery = (preferences: any) => {
+    if (!preferences) return 'Find innovative Alabama businesses';
+    
+    let query = 'Find';
+    if (preferences.industry) query += ` ${preferences.industry}`;
+    query += ' businesses in Alabama';
+    if (preferences.location) query += ` near ${preferences.location}`;
+    if (preferences.services?.length > 0) {
+      query += ` offering ${preferences.services.join(', ')}`;
+    }
+    if (preferences.budget) {
+      query += ` with budget range $${preferences.budget.min.toLocaleString()} - $${preferences.budget.max.toLocaleString()}`;
+    }
+    
+    return query;
+  };
 
-  const getRecommendationIcon = (type: string) => {
-    switch (type) {
+  const processIntoRecommendations = (results: any, allBusinesses: any[]): PersonalizedRecommendation[] => {
+    const recs: PersonalizedRecommendation[] = [];
+
+    // Process Connector matches for perfect matches
+    if (results.connector?.matches) {
+      results.connector.matches.slice(0, 3).forEach((match: any) => {
+        recs.push({
+          business: match.business,
+          score: match.score,
+          reasoning: match.reasoning,
+          category: match.score > 85 ? 'perfect_match' : 'strategic',
+          insights: [`${match.score}% compatibility match`]
+        });
+      });
+    }
+
+    // Process Analyst insights for trending businesses
+    if (results.analyst?.insights) {
+      const trending = allBusinesses
+        .filter(b => b.category === results.analyst.insights.sector)
+        .slice(0, 2)
+        .map(business => ({
+          business,
+          score: 75 + Math.random() * 20,
+          reasoning: `Trending in ${results.analyst.insights.sector} sector`,
+          category: 'trending' as const,
+          insights: [
+            `Market trend: ${results.analyst.insights.marketTrend}`,
+            `Demand level: ${results.analyst.insights.demandLevel}`
+          ]
+        }));
+      
+      recs.push(...trending);
+    }
+
+    // Process Curator suggestions for emerging opportunities
+    if (results.curator?.suggestions) {
+      const emerging = allBusinesses
+        .filter(b => !recs.find(r => r.business.id === b.id))
+        .slice(0, 2)
+        .map(business => ({
+          business,
+          score: 60 + Math.random() * 25,
+          reasoning: 'Emerging opportunity with high growth potential',
+          category: 'emerging' as const,
+          insights: results.curator.suggestions.slice(0, 2)
+        }));
+      
+      recs.push(...emerging);
+    }
+
+    return recs.sort((a, b) => b.score - a.score).slice(0, 6);
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
       case 'perfect_match': return <Target className="w-4 h-4" />;
-      case 'growth_opportunity': return <TrendingUp className="w-4 h-4" />;
-      case 'trending': return <Sparkles className="w-4 h-4" />;
-      case 'similar_interests': return <Users className="w-4 h-4" />;
-      default: return <Star className="w-4 h-4" />;
+      case 'trending': return <TrendingUp className="w-4 h-4" />;
+      case 'emerging': return <Sparkles className="w-4 h-4" />;
+      case 'strategic': return <Brain className="w-4 h-4" />;
+      default: return <Sparkles className="w-4 h-4" />;
     }
   };
 
-  const getRecommendationColor = (type: string) => {
-    switch (type) {
-      case 'perfect_match': return 'bg-green-500';
-      case 'growth_opportunity': return 'bg-blue-500';
-      case 'trending': return 'bg-purple-500';
-      case 'similar_interests': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'perfect_match': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'trending': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'emerging': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'strategic': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
-  if (isLoading) {
-    return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-8 text-center">
-          <Brain className="w-12 h-12 mx-auto text-[#00C2FF] animate-pulse mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">Generating Personalized Recommendations...</h3>
-          <p className="text-gray-300">AI is analyzing your preferences and behavior patterns</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  useEffect(() => {
+    if (businesses && businesses.length > 0) {
+      generateRecommendations();
+    }
+  }, [businesses, userPreferences]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card className="bg-gradient-to-r from-gray-800 to-gray-700 border-gray-600">
-        <CardHeader>
-          <CardTitle className="flex items-center text-white">
-            <TrendingUp className="w-5 h-5 mr-2 text-[#00C2FF]" />
-            Personalized AI Recommendations
-            <Badge className="ml-3 bg-gradient-to-r from-green-500 to-blue-500 text-white">
-              ML-Powered
-            </Badge>
-          </CardTitle>
-          <p className="text-gray-300">
-            Smart recommendations tailored to your interests, behavior, and business goals
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Personalized Recommendations
+          </h2>
+          <p className="text-gray-400">
+            AI-powered business recommendations tailored to your preferences
           </p>
-        </CardHeader>
-      </Card>
-
-      {/* Recommendation Categories */}
-      <Tabs value={activeCategory} onValueChange={setActiveCategory}>
-        <TabsList className="bg-gray-800 w-full">
-          <TabsTrigger value="all" className="flex-1">All Recommendations</TabsTrigger>
-          <TabsTrigger value="perfect_match" className="flex-1">Perfect Matches</TabsTrigger>
-          <TabsTrigger value="growth_opportunity" className="flex-1">Growth Opportunities</TabsTrigger>
-          <TabsTrigger value="trending" className="flex-1">Trending</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeCategory} className="space-y-4">
-          {filteredRecommendations.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredRecommendations.map((recommendation, index) => (
-                <Card key={recommendation.business.id} className="bg-gray-800 border-gray-700 hover:border-[#00C2FF] transition-colors">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h4 className="text-lg font-semibold text-white">
-                            {recommendation.business.businessname}
-                          </h4>
-                          {recommendation.business.verified && (
-                            <Badge className="bg-green-500 text-white text-xs">Verified</Badge>
-                          )}
-                        </div>
-                        <p className="text-gray-300 text-sm mb-3 line-clamp-2">
-                          {recommendation.business.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Recommendation Type Badge */}
-                    <div className="flex items-center justify-between mb-4">
-                      <Badge className={`${getRecommendationColor(recommendation.recommendationType)} text-white flex items-center space-x-1`}>
-                        {getRecommendationIcon(recommendation.recommendationType)}
-                        <span className="text-xs capitalize">
-                          {recommendation.recommendationType.replace('_', ' ')}
-                        </span>
-                      </Badge>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-[#00C2FF]">
-                          {recommendation.relevanceScore}%
-                        </div>
-                        <div className="text-xs text-gray-400">Relevance</div>
-                      </div>
-                    </div>
-
-                    {/* Personalized Reasons */}
-                    <div className="mb-4">
-                      <div className="text-sm text-gray-300 mb-2">Why this matches you:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {recommendation.personalizedReasons.slice(0, 3).map((reason, reasonIndex) => (
-                          <Badge
-                            key={reasonIndex}
-                            variant="outline"
-                            className="text-xs border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10"
-                          >
-                            {reason}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Confidence Level */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Confidence</span>
-                        <span className="text-white font-medium">{recommendation.confidenceLevel}%</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
-                        <div 
-                          className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${recommendation.confidenceLevel}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-gray-400">
-                        {recommendation.business.location} • {recommendation.business.category}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[#00C2FF] hover:text-[#00A8D8] hover:bg-gray-700"
-                      >
-                        Connect
-                        <ArrowRight className="w-3 h-3 ml-1" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-8 text-center">
-                <Brain className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No Recommendations Yet</h3>
-                <p className="text-gray-400 mb-4">
-                  Interact with more businesses to get personalized recommendations
-                </p>
-                <Button 
-                  onClick={generatePersonalizedRecommendations}
-                  className="bg-[#00C2FF] hover:bg-[#00A8D8]"
-                >
-                  <Zap className="w-4 h-4 mr-2" />
-                  Generate Recommendations
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Refresh Button */}
-      <div className="text-center">
+        </div>
         <Button 
-          onClick={generatePersonalizedRecommendations}
-          disabled={isLoading}
-          variant="outline"
-          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          onClick={generateRecommendations}
+          disabled={isGenerating || isLoading}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
         >
-          <TrendingUp className="w-4 h-4 mr-2" />
-          Refresh Recommendations
+          {isGenerating || isLoading ? (
+            <>
+              <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Brain className="w-4 h-4 mr-2" />
+              Refresh
+            </>
+          )}
         </Button>
       </div>
+
+      {recommendations.length > 0 && (
+        <div className="grid gap-4">
+          {recommendations.map((rec, index) => (
+            <Card key={`${rec.business.id}-${index}`} className="bg-gray-800 border-gray-700">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-white text-lg">
+                      {rec.business.businessname}
+                    </CardTitle>
+                    <Badge className={`${getCategoryColor(rec.category)} border`}>
+                      {getCategoryIcon(rec.category)}
+                      <span className="ml-1 capitalize">{rec.category.replace('_', ' ')}</span>
+                    </Badge>
+                  </div>
+                  <Badge variant="outline" className="text-white border-gray-600">
+                    {Math.round(rec.score)}% Match
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-300 mb-3">{rec.reasoning}</p>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-gray-300">AI Insights:</h4>
+                  <ul className="text-sm text-gray-400 space-y-1">
+                    {rec.insights.map((insight, idx) => (
+                      <li key={idx} className="flex items-start">
+                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                        {insight}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700">
+                  <div className="text-sm text-gray-400">
+                    {rec.business.category} • {rec.business.location}
+                  </div>
+                  <Button variant="outline" size="sm" className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10">
+                    View Details
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {recommendations.length === 0 && !isGenerating && !isLoading && (
+        <Card className="bg-gray-800 border-gray-700 text-center p-8">
+          <CardContent>
+            <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-400 mb-4">
+              No personalized recommendations available yet.
+            </p>
+            <Button onClick={generateRecommendations} className="bg-blue-600 hover:bg-blue-700">
+              Generate Recommendations
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

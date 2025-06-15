@@ -2,254 +2,282 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Sparkles, 
-  Wand2, 
-  Copy, 
-  RefreshCw, 
-  Download, 
-  CheckCircle,
-  FileText,
-  Tag
-} from 'lucide-react';
-import { aiService, ContentSuggestion } from '@/services/aiService';
+import { Wand2, Copy, RefreshCw, CheckCircle } from 'lucide-react';
+import { useMCP } from '@/hooks/useMCP';
 import { toast } from 'sonner';
 
-interface BusinessData {
-  businessname: string;
-  category: string;
-  location: string;
-  employees_count?: number;
-  founded_year?: number;
-  website?: string;
-  description?: string;
-}
-
 interface ContentGeneratorProps {
-  businessData?: BusinessData;
-  onContentGenerated?: (content: ContentSuggestion) => void;
+  businessData?: {
+    name: string;
+    category: string;
+    location: string;
+    services?: string[];
+    targetAudience?: string;
+  };
+  onContentGenerated?: (content: string) => void;
 }
 
 const ContentGenerator = ({ businessData, onContentGenerated }: ContentGeneratorProps) => {
-  const [formData, setFormData] = useState<BusinessData>({
-    businessname: businessData?.businessname || '',
-    category: businessData?.category || '',
-    location: businessData?.location || '',
-    employees_count: businessData?.employees_count || undefined,
-    founded_year: businessData?.founded_year || undefined,
-    website: businessData?.website || '',
-    description: businessData?.description || ''
-  });
-  
-  const [generatedContent, setGeneratedContent] = useState<ContentSuggestion | null>(null);
+  const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [contentType, setContentType] = useState<'description' | 'marketing' | 'complete'>('complete');
-  const [tone, setTone] = useState<'professional' | 'friendly' | 'innovative' | 'authoritative'>('professional');
+  const [selectedTemplate, setSelectedTemplate] = useState<'description' | 'marketing' | 'professional'>('description');
+  const { processMessage, runFullAnalysis } = useMCP();
 
-  const handleInputChange = (field: keyof BusinessData, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const templates = [
+    {
+      id: 'description' as const,
+      name: 'Business Description',
+      description: 'Professional business description for directories'
+    },
+    {
+      id: 'marketing' as const,
+      name: 'Marketing Copy',
+      description: 'Engaging marketing content for promotions'
+    },
+    {
+      id: 'professional' as const,
+      name: 'Professional Summary',
+      description: 'Formal business summary for proposals'
+    }
+  ];
 
   const generateContent = async () => {
-    if (!formData.businessname || !formData.category) {
-      toast.error('Please provide at least business name and category');
+    if (!businessData) {
+      toast.error('Business data is required to generate content');
       return;
     }
 
     setIsGenerating(true);
-    
     try {
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create a detailed prompt based on business data and template
+      const prompt = buildPrompt(businessData, selectedTemplate);
       
-      const content = aiService.generateBusinessContent({
-        ...formData,
-        tone,
-        contentType
+      // Process the prompt with MCP context
+      await processMessage(prompt);
+      
+      // Run analysis to get enhanced content suggestions
+      const results = await runFullAnalysis('content_generation', {
+        businessData,
+        template: selectedTemplate,
+        prompt
       });
+
+      // Generate content based on MCP insights
+      const content = await generateEnhancedContent(businessData, selectedTemplate, results);
       
       setGeneratedContent(content);
-      onContentGenerated?.(content);
+      if (onContentGenerated) {
+        onContentGenerated(content);
+      }
+      
       toast.success('Content generated successfully!');
     } catch (error) {
-      toast.error('Failed to generate content');
-      console.error('Content generation error:', error);
+      console.error('Error generating content:', error);
+      toast.error('Failed to generate content. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const regenerateContent = () => {
-    setGeneratedContent(null);
-    generateContent();
+  const buildPrompt = (data: any, template: string) => {
+    let basePrompt = `Generate ${template} content for ${data.name}`;
+    
+    if (data.category) basePrompt += `, a ${data.category} business`;
+    if (data.location) basePrompt += ` located in ${data.location}`;
+    if (data.services?.length > 0) basePrompt += ` offering ${data.services.join(', ')}`;
+    if (data.targetAudience) basePrompt += ` targeting ${data.targetAudience}`;
+    
+    return basePrompt;
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
+  const generateEnhancedContent = async (data: any, template: string, mcpResults: any) => {
+    // Base content generation logic
+    let content = '';
+    
+    switch (template) {
+      case 'description':
+        content = generateBusinessDescription(data, mcpResults);
+        break;
+      case 'marketing':
+        content = generateMarketingCopy(data, mcpResults);
+        break;
+      case 'professional':
+        content = generateProfessionalSummary(data, mcpResults);
+        break;
+    }
+    
+    return content;
   };
 
-  const exportContent = () => {
-    if (!generatedContent) return;
+  const generateBusinessDescription = (data: any, mcpResults: any) => {
+    const marketInsights = mcpResults.analyst?.insights;
+    const connectorData = mcpResults.connector?.matches?.[0];
     
-    const content = `
-Business Title: ${generatedContent.title}
-
-Description:
-${generatedContent.description}
-
-Tags: ${generatedContent.tags.join(', ')}
-
-Marketing Points:
-${generatedContent.marketingPoints.map(point => `• ${point}`).join('\n')}
-    `.trim();
+    let description = `${data.name} is a leading ${data.category} company`;
     
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${formData.businessname || 'business'}-content.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (data.location) {
+      description += ` based in ${data.location}, Alabama`;
+    }
     
-    toast.success('Content exported successfully!');
+    if (data.services?.length > 0) {
+      description += `. We specialize in ${data.services.slice(0, 3).join(', ')}`;
+    }
+    
+    if (marketInsights) {
+      description += `. Operating in ${marketInsights.sector === 'growing' ? 'a rapidly expanding' : 'a stable'} market`;
+      if (marketInsights.demandLevel === 'high') {
+        description += ' with high demand for our services';
+      }
+    }
+    
+    description += '. Our team is committed to delivering exceptional results and building lasting partnerships with our clients.';
+    
+    if (connectorData?.reasoning) {
+      description += ` ${connectorData.reasoning}`;
+    }
+    
+    return description;
+  };
+
+  const generateMarketingCopy = (data: any, mcpResults: any) => {
+    const marketInsights = mcpResults.analyst?.insights;
+    
+    let copy = `🚀 Transform Your Business with ${data.name}!\n\n`;
+    copy += `Looking for exceptional ${data.category} services in ${data.location || 'Alabama'}? `;
+    copy += `You've found the right partner!\n\n`;
+    
+    if (data.services?.length > 0) {
+      copy += `✨ What We Do:\n`;
+      data.services.slice(0, 4).forEach((service: string) => {
+        copy += `• ${service}\n`;
+      });
+      copy += '\n';
+    }
+    
+    if (marketInsights?.demandLevel === 'high') {
+      copy += `📈 Join the ${marketInsights.competitorCount}+ satisfied clients who trust us!\n\n`;
+    }
+    
+    copy += `Ready to elevate your business? Contact ${data.name} today and discover why we're Alabama's preferred choice for ${data.category} solutions.`;
+    
+    return copy;
+  };
+
+  const generateProfessionalSummary = (data: any, mcpResults: any) => {
+    const marketInsights = mcpResults.analyst?.insights;
+    
+    let summary = `${data.name} - Professional ${data.category} Services\n\n`;
+    summary += `COMPANY OVERVIEW\n`;
+    summary += `${data.name} is a professional ${data.category} organization`;
+    
+    if (data.location) {
+      summary += ` headquartered in ${data.location}, Alabama`;
+    }
+    
+    summary += `. We provide comprehensive solutions designed to meet the evolving needs of our clients.\n\n`;
+    
+    if (data.services?.length > 0) {
+      summary += `CORE SERVICES\n`;
+      data.services.forEach((service: string, index: number) => {
+        summary += `${index + 1}. ${service}\n`;
+      });
+      summary += '\n';
+    }
+    
+    if (marketInsights) {
+      summary += `MARKET POSITION\n`;
+      summary += `Operating in the ${marketInsights.sector} sector with ${marketInsights.marketTrend} market conditions. `;
+      summary += `Current market analysis indicates ${marketInsights.demandLevel} demand levels`;
+      if (marketInsights.averageProjectCost) {
+        summary += ` with typical project investments ranging from $${marketInsights.averageProjectCost.min.toLocaleString()} to $${marketInsights.averageProjectCost.max.toLocaleString()}`;
+      }
+      summary += '.\n\n';
+    }
+    
+    summary += `COMMITMENT\n`;
+    summary += `${data.name} is dedicated to delivering superior results through innovative solutions, professional excellence, and client-focused service delivery.`;
+    
+    return summary;
+  };
+
+  const copyToClipboard = async () => {
+    if (generatedContent) {
+      await navigator.clipboard.writeText(generatedContent);
+      toast.success('Content copied to clipboard!');
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Input Form */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center text-white">
-            <Wand2 className="w-5 h-5 mr-2 text-[#00C2FF]" />
+          <CardTitle className="text-white flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-purple-400" />
             AI Content Generator
-            <Badge className="ml-2 bg-purple-500 text-white">Beta</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessname" className="text-white">Business Name *</Label>
-              <Input
-                id="businessname"
-                value={formData.businessname}
-                onChange={(e) => handleInputChange('businessname', e.target.value)}
-                placeholder="Enter business name"
-                className="bg-gray-700 border-gray-600 text-white"
-              />
+          {/* Template Selection */}
+          <div>
+            <label className="text-sm font-medium text-gray-300 mb-2 block">
+              Content Type
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {templates.map((template) => (
+                <Button
+                  key={template.id}
+                  variant={selectedTemplate === template.id ? "default" : "outline"}
+                  onClick={() => setSelectedTemplate(template.id)}
+                  className={selectedTemplate === template.id 
+                    ? "bg-purple-600 hover:bg-purple-700" 
+                    : "border-gray-600 text-gray-300 hover:bg-gray-700"
+                  }
+                >
+                  {template.name}
+                </Button>
+              ))}
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="category" className="text-white">Category *</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(value) => handleInputChange('category', value)}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Technology">Technology</SelectItem>
-                  <SelectItem value="Healthcare">Healthcare</SelectItem>
-                  <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                  <SelectItem value="Consulting">Consulting</SelectItem>
-                  <SelectItem value="Aerospace">Aerospace</SelectItem>
-                  <SelectItem value="Automotive">Automotive</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="Education">Education</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="location" className="text-white">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
-                placeholder="City, State"
-                className="bg-gray-700 border-gray-600 text-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="employees" className="text-white">Employee Count</Label>
-              <Input
-                id="employees"
-                type="number"
-                value={formData.employees_count || ''}
-                onChange={(e) => handleInputChange('employees_count', parseInt(e.target.value) || 0)}
-                placeholder="Number of employees"
-                className="bg-gray-700 border-gray-600 text-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tone" className="text-white">Content Tone</Label>
-              <Select value={tone} onValueChange={(value: any) => setTone(value)}>
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                  <SelectItem value="innovative">Innovative</SelectItem>
-                  <SelectItem value="authoritative">Authoritative</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="contentType" className="text-white">Content Type</Label>
-              <Select value={contentType} onValueChange={(value: any) => setContentType(value)}>
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="complete">Complete Package</SelectItem>
-                  <SelectItem value="description">Description Only</SelectItem>
-                  <SelectItem value="marketing">Marketing Content</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {templates.find(t => t.id === selectedTemplate)?.description}
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-white">Current Description (Optional)</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Existing business description to improve upon..."
-              className="bg-gray-700 border-gray-600 text-white"
-              rows={3}
-            />
-          </div>
+          {/* Business Data Display */}
+          {businessData && (
+            <div className="p-3 bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-300 mb-2">Business Information</h4>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">{businessData.name}</Badge>
+                <Badge variant="secondary">{businessData.category}</Badge>
+                {businessData.location && (
+                  <Badge variant="secondary">{businessData.location}</Badge>
+                )}
+                {businessData.services?.slice(0, 2).map((service, index) => (
+                  <Badge key={index} variant="outline" className="border-gray-500">
+                    {service}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <Button
+          {/* Generate Button */}
+          <Button 
             onClick={generateContent}
-            disabled={isGenerating || !formData.businessname || !formData.category}
-            className="w-full bg-gradient-to-r from-[#00C2FF] to-purple-600 hover:from-[#00A8D8] hover:to-purple-500"
+            disabled={isGenerating || !businessData}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
           >
             {isGenerating ? (
               <>
-                <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 Generating Content...
               </>
             ) : (
               <>
                 <Wand2 className="w-4 h-4 mr-2" />
-                Generate AI Content
+                Generate Content
               </>
             )}
           </Button>
@@ -261,125 +289,28 @@ ${generatedContent.marketingPoints.map(point => `• ${point}`).join('\n')}
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center text-white">
-                <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+              <CardTitle className="text-white flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
                 Generated Content
               </CardTitle>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={regenerateContent}
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Regenerate
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportContent}
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </div>
+              <Button
+                onClick={copyToClipboard}
+                variant="outline"
+                size="sm"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy
+              </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Title */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-white font-semibold">Business Title</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(generatedContent.title)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <p className="text-white text-lg font-medium">{generatedContent.title}</p>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-white font-semibold flex items-center">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Business Description
-                </Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(generatedContent.description)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <p className="text-gray-200 leading-relaxed">{generatedContent.description}</p>
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-white font-semibold flex items-center">
-                  <Tag className="w-4 h-4 mr-2" />
-                  Suggested Tags
-                </Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(generatedContent.tags.join(', '))}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {generatedContent.tags.map((tag, index) => (
-                  <Badge
-                    key={index}
-                    variant="outline"
-                    className="border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10"
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Marketing Points */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-white font-semibold">Key Marketing Points</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(generatedContent.marketingPoints.join('\n• '))}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <ul className="space-y-2">
-                  {generatedContent.marketingPoints.map((point, index) => (
-                    <li key={index} className="text-gray-200 flex items-start">
-                      <span className="text-[#00C2FF] mr-2">•</span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          <CardContent>
+            <Textarea
+              value={generatedContent}
+              onChange={(e) => setGeneratedContent(e.target.value)}
+              className="min-h-[200px] bg-gray-700 border-gray-600 text-white"
+              placeholder="Generated content will appear here..."
+            />
           </CardContent>
         </Card>
       )}
