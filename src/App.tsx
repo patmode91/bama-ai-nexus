@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from '@/contexts/AuthContext';
 import Index from "./pages/Index";
 import Directory from "./pages/Directory";
 import BusinessDetail from "./pages/BusinessDetail";
@@ -14,16 +15,32 @@ import EventDetail from "./pages/EventDetail";
 import CreateEvent from "./pages/CreateEvent";
 import Forum from "./pages/Forum";
 import ForumTopic from "./pages/ForumTopic";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 import Analytics from "./pages/Analytics";
+import Admin from "./pages/Admin";
+import SystemDashboard from "./pages/SystemDashboard";
+import BusinessDashboard from "./pages/BusinessDashboard";
+import BusinessProfile from "./pages/BusinessProfile";
 import AdvancedSearch from "./pages/AdvancedSearch";
-import { AuthProvider } from "@/contexts/AuthContext";
+import AISearch from "./pages/AISearch";
+import Community from "./pages/Community";
+import Integrations from "./pages/Integrations";
+import ComparisonPage from "./pages/ComparisonPage";
+import Blog from "./pages/Blog";
+import Realtime from "./pages/Realtime";
+import Collaboration from "./pages/Collaboration";
+import MobileSettings from "./pages/MobileSettings";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
+    <TooltipProvider>
+      <AuthProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -38,12 +55,29 @@ const App = () => (
             <Route path="/create-event" element={<CreateEvent />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/topic/:id" element={<ForumTopic />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/analytics" element={<Analytics />} />
-            <Route path="/search" element={<AdvancedSearch />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/system" element={<SystemDashboard />} />
+            <Route path="/business-dashboard" element={<BusinessDashboard />} />
+            <Route path="/business-profile" element={<BusinessProfile />} />
+            <Route path="/advanced-search" element={<AdvancedSearch />} />
+            <Route path="/ai-search" element={<AISearch />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/integrations" element={<Integrations />} />
+            <Route path="/compare" element={<ComparisonPage />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/realtime" element={<Realtime />} />
+            <Route path="/collaboration" element={<Collaboration />} />
+            <Route path="/mobile-settings" element={<MobileSettings />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 

@@ -17,7 +17,7 @@ const BusinessDetail = () => {
       const { data, error } = await supabase
         .from('businesses')
         .select('*')
-        .eq('id', id)
+        .eq('id', parseInt(id!))
         .single();
       
       if (error) throw error;

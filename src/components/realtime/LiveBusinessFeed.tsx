@@ -1,121 +1,128 @@
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Star, Plus, Edit } from 'lucide-react';
+import { Building2, Plus, Edit, Star } from 'lucide-react';
 import { useBusinessUpdates } from '@/hooks/useRealtime';
 import { formatDistanceToNow } from 'date-fns';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface BusinessUpdate {
+  id: string;
+  type: 'new_business' | 'business_update' | 'review_added';
+  businessName: string;
+  timestamp: number;
+  details?: string;
+}
 
 const LiveBusinessFeed = () => {
-  const { events, isConnected } = useBusinessUpdates();
+  const [updates, setUpdates] = useState<BusinessUpdate[]>([]);
+  const { events } = useBusinessUpdates();
 
-  const getEventIcon = (type: string) => {
+  useEffect(() => {
+    // Add mock initial updates
+    const mockUpdates: BusinessUpdate[] = [
+      {
+        id: '1',
+        type: 'new_business',
+        businessName: 'Alabama Tech Solutions',
+        timestamp: Date.now() - 300000,
+        details: 'Software development company joined the directory'
+      },
+      {
+        id: '2',
+        type: 'review_added',
+        businessName: 'Birmingham Bakery',
+        timestamp: Date.now() - 600000,
+        details: '5-star review added'
+      },
+      {
+        id: '3',
+        type: 'business_update',
+        businessName: 'Mobile Marketing Co',
+        timestamp: Date.now() - 900000,
+        details: 'Updated contact information and services'
+      }
+    ];
+    setUpdates(mockUpdates);
+  }, []);
+
+  useEffect(() => {
+    // Process new real-time events
+    events.forEach(event => {
+      const update: BusinessUpdate = {
+        id: event.id,
+        type: event.type as BusinessUpdate['type'],
+        businessName: event.data?.businessName || 'Unknown Business',
+        timestamp: event.timestamp,
+        details: event.data?.details
+      };
+      
+      setUpdates(prev => [update, ...prev.slice(0, 19)]); // Keep last 20 updates
+    });
+  }, [events]);
+
+  const getUpdateIcon = (type: BusinessUpdate['type']) => {
     switch (type) {
       case 'new_business':
-        return <Plus className="h-4 w-4 text-green-500" />;
+        return <Plus className="w-4 h-4 text-green-500" />;
       case 'business_update':
-        return <Edit className="h-4 w-4 text-blue-500" />;
+        return <Edit className="w-4 h-4 text-blue-500" />;
+      case 'review_added':
+        return <Star className="w-4 h-4 text-yellow-500" />;
       default:
-        return <Building2 className="h-4 w-4 text-gray-500" />;
+        return <Building2 className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const getEventTitle = (type: string, data: any) => {
+  const getUpdateBadge = (type: BusinessUpdate['type']) => {
     switch (type) {
       case 'new_business':
-        return `New business: ${data?.businessname || 'Unknown'}`;
+        return <Badge className="bg-green-100 text-green-800 border-green-200">New</Badge>;
       case 'business_update':
-        return `Updated: ${data?.businessname || 'Unknown'}`;
+        return <Badge variant="outline">Updated</Badge>;
+      case 'review_added':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Review</Badge>;
       default:
-        return 'Business activity';
-    }
-  };
-
-  const getEventDescription = (type: string, data: any) => {
-    switch (type) {
-      case 'new_business':
-        return `${data?.category || 'Business'} in ${data?.location || 'Unknown location'}`;
-      case 'business_update':
-        return `Business information updated`;
-      default:
-        return 'Business activity occurred';
+        return <Badge variant="secondary">Activity</Badge>;
     }
   };
 
   return (
-    <Card className="h-full">
+    <Card className="h-[500px]">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Live Business Updates
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-xs text-gray-500">
-              {isConnected ? 'Live' : 'Disconnected'}
-            </span>
-          </div>
-        </div>
+        <CardTitle className="flex items-center space-x-2">
+          <Building2 className="w-5 h-5" />
+          <span>Live Business Updates</span>
+        </CardTitle>
       </CardHeader>
-
-      <CardContent>
-        {events.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No recent business updates</p>
-            <p className="text-xs">Updates will appear here in real-time</p>
-          </div>
-        ) : (
-          <ScrollArea className="h-80">
-            <div className="space-y-3">
-              {events.slice().reverse().map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex-shrink-0 mt-0.5">
-                    {getEventIcon(event.type)}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium text-gray-900">
-                          {getEventTitle(event.type, event.data)}
-                        </h4>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {getEventDescription(event.type, event.data)}
-                        </p>
-                        
-                        {event.data?.rating && (
-                          <div className="flex items-center gap-1 mt-2">
-                            <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                            <span className="text-xs text-gray-600">
-                              {event.data.rating} rating
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge 
-                          variant={event.type === 'new_business' ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {event.type === 'new_business' ? 'New' : 'Updated'}
-                        </Badge>
-                        <span className="text-xs text-gray-400">
-                          {formatDistanceToNow(event.timestamp)} ago
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+      <CardContent className="space-y-3 overflow-y-auto max-h-[400px]">
+        {updates.map((update) => (
+          <div key={update.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex-shrink-0 mt-1">
+              {getUpdateIcon(update.type)}
             </div>
-          </ScrollArea>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <span className="font-medium text-gray-900 truncate">
+                  {update.businessName}
+                </span>
+                {getUpdateBadge(update.type)}
+              </div>
+              {update.details && (
+                <p className="text-sm text-gray-600 mb-1">{update.details}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                {formatDistanceToNow(new Date(update.timestamp), { addSuffix: true })}
+              </p>
+            </div>
+          </div>
+        ))}
+        
+        {updates.length === 0 && (
+          <div className="text-center text-gray-500 py-8">
+            <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p>No recent business updates</p>
+          </div>
         )}
       </CardContent>
     </Card>

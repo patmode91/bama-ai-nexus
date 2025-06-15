@@ -1,12 +1,13 @@
 
 export interface CacheOptions {
-  ttl?: number; // Time to live in milliseconds
+  ttl?: number;
   priority?: 'low' | 'medium' | 'high';
   tags?: string[];
+  compress?: boolean;
 }
 
-export interface CacheItem {
-  data: any;
+export interface CacheItem<T = any> {
+  data: T;
   timestamp: number;
   lastAccessed: number;
   ttl: number;
@@ -20,4 +21,16 @@ export interface CacheStats {
   maxSize: number;
   totalHits: number;
   totalMisses: number;
+  totalRequests: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+  memoryUsage: number;
+}
+
+export interface StaleWhileRevalidateOptions {
+  staleTime: number;
+  maxAge: number;
+  revalidateOnFocus?: boolean;
+  revalidateOnReconnect?: boolean;
 }

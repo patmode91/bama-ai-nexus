@@ -1,10 +1,11 @@
 
-import { CacheOptions, CacheItem, CacheStats } from './types';
+import { CacheOptions, CacheItem, CacheStats, StaleWhileRevalidateOptions } from './types';
 
 class AdvancedCacheService {
   private cache: Map<string, CacheItem> = new Map();
   private hitCount = 0;
   private missCount = 0;
+  private evictionCount = 0;
   private maxSize = 1000;
 
   async get<T>(key: string): Promise<T | null> {
@@ -55,6 +56,33 @@ class AdvancedCacheService {
     return result;
   }
 
+  async staleWhileRevalidate<T>(
+    key: string,
+    fn: () => Promise<T>,
+    options: StaleWhileRevalidateOptions
+  ): Promise<T> {
+    const cached = await this.get<T>(key);
+    const now = Date.now();
+    
+    if (cached) {
+      const item = this.cache.get(key);
+      if (item && (now - item.timestamp) < options.staleTime) {
+        return cached;
+      }
+      
+      // Return stale data and revalidate in background
+      if (item && (now - item.timestamp) < options.maxAge) {
+        fn().then(result => this.set(key, result));
+        return cached;
+      }
+    }
+
+    // No cache or expired, fetch fresh data
+    const result = await fn();
+    await this.set(key, result);
+    return result;
+  }
+
   invalidateByTag(tag: string): void {
     for (const [key, item] of this.cache.entries()) {
       if (item.tags.includes(tag)) {
@@ -67,16 +95,24 @@ class AdvancedCacheService {
     this.cache.clear();
     this.hitCount = 0;
     this.missCount = 0;
+    this.evictionCount = 0;
   }
 
   getStats(): CacheStats {
     const totalRequests = this.hitCount + this.missCount;
+    const memoryUsage = this.estimateMemoryUsage();
+    
     return {
       hitRate: totalRequests > 0 ? this.hitCount / totalRequests : 0,
       size: this.cache.size,
       maxSize: this.maxSize,
       totalHits: this.hitCount,
-      totalMisses: this.missCount
+      totalMisses: this.missCount,
+      totalRequests,
+      hits: this.hitCount,
+      misses: this.missCount,
+      evictions: this.evictionCount,
+      memoryUsage
     };
   }
 
@@ -93,11 +129,24 @@ class AdvancedCacheService {
 
     // Remove oldest low-priority items
     const itemsToRemove = entries.slice(0, this.cache.size - this.maxSize);
-    itemsToRemove.forEach(([key]) => this.cache.delete(key));
+    itemsToRemove.forEach(([key]) => {
+      this.cache.delete(key);
+      this.evictionCount++;
+    });
   }
 
   private isExpired(item: CacheItem): boolean {
     return Date.now() - item.timestamp > item.ttl;
+  }
+
+  private estimateMemoryUsage(): number {
+    let totalSize = 0;
+    for (const [key, item] of this.cache.entries()) {
+      totalSize += key.length * 2; // UTF-16 characters
+      totalSize += JSON.stringify(item.data).length * 2;
+      totalSize += 200; // Estimated overhead per item
+    }
+    return totalSize;
   }
 }
 
