@@ -132,8 +132,14 @@ class MCPAgentAnalyst {
   }
 
   private calculateProjectCosts(context: MCPContext, businesses: any[]): { min: number; max: number } {
-    if (context.budget && typeof context.budget.min === 'number' && typeof context.budget.max === 'number') {
-      return context.budget;
+    // Check if context has a properly defined budget with both min and max
+    if (context.budget && 
+        typeof context.budget === 'object' && 
+        'min' in context.budget && 
+        'max' in context.budget &&
+        typeof context.budget.min === 'number' && 
+        typeof context.budget.max === 'number') {
+      return { min: context.budget.min, max: context.budget.max };
     }
 
     // Default ranges based on industry
@@ -239,7 +245,9 @@ class MCPAgentAnalyst {
       risks.push('Limited vendor availability may extend timelines');
     }
     
-    if (!context.budget || context.budget.max < insights.averageProjectCost.min) {
+    if (!context.budget || 
+        !('min' in context.budget) || 
+        context.budget.min < insights.averageProjectCost.min) {
       risks.push('Budget may be insufficient for market rates');
     }
     
