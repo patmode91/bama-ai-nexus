@@ -7,10 +7,13 @@ import LiveChat from '@/components/realtime/LiveChat';
 import LiveNotifications from '@/components/realtime/LiveNotifications';
 import LiveActivityFeed from '@/components/realtime/LiveActivityFeed';
 import CollaborativeEditor from '@/components/realtime/CollaborativeEditor';
+import LiveBusinessUpdates from '@/components/realtime/LiveBusinessUpdates';
+import LiveMarketIntelligence from '@/components/realtime/LiveMarketIntelligence';
+import AgentCommunicationHub from '@/components/realtime/AgentCommunicationHub';
 import SEO from '@/components/seo/SEO';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Zap, MessageSquare, Bell, Activity, Edit3, Users, TrendingUp, Eye } from 'lucide-react';
+import { Zap, MessageSquare, Bell, Activity, Edit3, Users, TrendingUp, Eye, Building2, BarChart3, Brain } from 'lucide-react';
 
 const Realtime = () => {
   const [activeTab, setActiveTab] = useState('chat');
@@ -81,13 +84,13 @@ const Realtime = () => {
 
               <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Collaborations</CardTitle>
-                  <Edit3 className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Agent Actions</CardTitle>
+                  <Brain className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12</div>
+                  <div className="text-2xl font-bold">47</div>
                   <p className="text-xs text-muted-foreground">
-                    Active documents
+                    AI processes active
                   </p>
                 </CardContent>
               </Card>
@@ -95,7 +98,7 @@ const Realtime = () => {
 
             {/* Main Content */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="bg-gray-800 border-gray-700 w-full justify-start">
+              <TabsList className="bg-gray-800 border-gray-700 w-full justify-start grid grid-cols-7">
                 <TabsTrigger value="chat" className="flex items-center space-x-2">
                   <MessageSquare className="w-4 h-4" />
                   <span>Live Chat</span>
@@ -108,9 +111,21 @@ const Realtime = () => {
                   <Activity className="w-4 h-4" />
                   <span>Activity Feed</span>
                 </TabsTrigger>
+                <TabsTrigger value="business" className="flex items-center space-x-2">
+                  <Building2 className="w-4 h-4" />
+                  <span>Business Updates</span>
+                </TabsTrigger>
+                <TabsTrigger value="intelligence" className="flex items-center space-x-2">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Market Intel</span>
+                </TabsTrigger>
+                <TabsTrigger value="agents" className="flex items-center space-x-2">
+                  <Brain className="w-4 h-4" />
+                  <span>AI Agents</span>
+                </TabsTrigger>
                 <TabsTrigger value="editor" className="flex items-center space-x-2">
                   <Edit3 className="w-4 h-4" />
-                  <span>Collaborative Editor</span>
+                  <span>Collaborative</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -164,6 +179,18 @@ const Realtime = () => {
 
               <TabsContent value="activity" className="space-y-6">
                 <LiveActivityFeed />
+              </TabsContent>
+
+              <TabsContent value="business" className="space-y-6">
+                <LiveBusinessUpdates />
+              </TabsContent>
+
+              <TabsContent value="intelligence" className="space-y-6">
+                <LiveMarketIntelligence />
+              </TabsContent>
+
+              <TabsContent value="agents" className="space-y-6">
+                <AgentCommunicationHub />
               </TabsContent>
 
               <TabsContent value="editor" className="space-y-6">
