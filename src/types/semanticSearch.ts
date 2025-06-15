@@ -1,25 +1,25 @@
 
-export interface SearchFilters {
-  location?: string;
-  category?: string;
-  verified?: boolean;
-  tags?: string[];
-  employeeRange?: string;
-  fundingStage?: string;
-}
-
 export interface SearchQuery {
   query: string;
   filters?: SearchFilters;
   limit?: number;
-  includeAnalysis?: boolean;
+  offset?: number;
+}
+
+export interface SearchFilters {
+  category?: string;
+  location?: string;
+  verified?: boolean;
+  employeeRange?: string;
+  foundedYearRange?: string;
+  tags?: string[];
+  projectBudgetRange?: string;
 }
 
 export interface SearchResult {
   business: any;
   relevanceScore: number;
   matchingReasons: string[];
-  contextualInsights?: string;
 }
 
 export interface SearchIntent {

@@ -1,3 +1,4 @@
+
 import { ScoringResult } from '@/types/semanticSearch';
 
 export class BusinessScorer {

@@ -5,118 +5,100 @@ import { logger } from '@/services/loggerService';
 interface PerformanceMetrics {
   renderTime: number;
   memoryUsage: number;
-  componentMountTime: number;
-  updateCount: number;
-  errorCount: number;
+  componentSize: number;
+  reRenderCount: number;
 }
 
 interface PerformanceData {
   metrics: PerformanceMetrics;
-  isOptimal: boolean;
   warnings: string[];
-  suggestions: string[];
+  isOptimal: boolean;
+  recommendations: string[];
 }
 
 export const usePerformanceOptimized = (componentName: string) => {
   const [performanceData, setPerformanceData] = useState<PerformanceData>({
-    metrics: {
-      renderTime: 0,
-      memoryUsage: 0,
-      componentMountTime: 0,
-      updateCount: 0,
-      errorCount: 0
-    },
-    isOptimal: true,
+    metrics: { renderTime: 0, memoryUsage: 0, componentSize: 0, reRenderCount: 0 },
     warnings: [],
-    suggestions: []
+    isOptimal: true,
+    recommendations: []
+  });
+  
+  const renderStartTime = useRef<number>(0);
+  const renderCount = useRef<number>(0);
+  const lastMemoryUsage = useRef<number>(0);
+
+  useEffect(() => {
+    renderStartTime.current = performance.now();
+    renderCount.current += 1;
   });
 
-  const mountTimeRef = useRef<number>(Date.now());
-  const updateCountRef = useRef<number>(0);
-  const errorCountRef = useRef<number>(0);
-  const lastRenderTimeRef = useRef<number>(0);
-
-  // Track component mount time
   useEffect(() => {
-    const mountTime = Date.now() - mountTimeRef.current;
+    const renderEndTime = performance.now();
+    const renderTime = renderEndTime - renderStartTime.current;
     
-    setPerformanceData(prev => ({
-      ...prev,
-      metrics: {
-        ...prev.metrics,
-        componentMountTime: mountTime
-      }
-    }));
-
-    logger.debug(`Component ${componentName} mounted`, { mountTime }, 'Performance');
-
-    return () => {
-      logger.debug(`Component ${componentName} unmounted`, { 
-        totalUpdates: updateCountRef.current,
-        totalErrors: errorCountRef.current 
-      }, 'Performance');
-    };
-  }, [componentName]);
-
-  // Track render performance
-  useEffect(() => {
-    const renderStart = performance.now();
-    updateCountRef.current++;
-
-    // Measure render time
-    const renderTime = performance.now() - renderStart;
-    lastRenderTimeRef.current = renderTime;
-
     // Get memory usage if available
-    const memoryUsage = 'memory' in performance 
-      ? (performance as any).memory?.usedJSHeapSize / 1024 / 1024 
-      : 0;
+    const memoryUsage = (performance as any).memory?.usedJSHeapSize || 0;
+    const memoryDelta = memoryUsage - lastMemoryUsage.current;
+    lastMemoryUsage.current = memoryUsage;
+
+    const metrics: PerformanceMetrics = {
+      renderTime,
+      memoryUsage: memoryUsage / 1024 / 1024, // Convert to MB
+      componentSize: memoryDelta / 1024, // Convert to KB
+      reRenderCount: renderCount.current
+    };
 
     const warnings: string[] = [];
-    const suggestions: string[] = [];
+    const recommendations: string[] = [];
 
     // Performance analysis
     if (renderTime > 16) { // 60fps threshold
-      warnings.push(`Slow render detected: ${renderTime.toFixed(2)}ms`);
-      suggestions.push('Consider memoizing heavy computations');
+      warnings.push(`Slow render time: ${renderTime.toFixed(2)}ms`);
+      recommendations.push('Consider memoization or component splitting');
     }
 
-    if (updateCountRef.current > 50) {
-      warnings.push(`High update count: ${updateCountRef.current}`);
-      suggestions.push('Check for unnecessary re-renders');
+    if (renderCount.current > 10) {
+      warnings.push(`High re-render count: ${renderCount.current}`);
+      recommendations.push('Check for unnecessary state updates or prop changes');
     }
 
-    if (memoryUsage > 50) {
-      warnings.push(`High memory usage: ${memoryUsage.toFixed(2)}MB`);
-      suggestions.push('Check for memory leaks');
+    if (memoryDelta > 1024) { // 1MB
+      warnings.push(`High memory usage: ${(memoryDelta / 1024).toFixed(2)}MB`);
+      recommendations.push('Consider lazy loading or data virtualization');
     }
 
     setPerformanceData({
-      metrics: {
-        renderTime,
-        memoryUsage,
-        componentMountTime: performanceData.metrics.componentMountTime,
-        updateCount: updateCountRef.current,
-        errorCount: errorCountRef.current
-      },
-      isOptimal: warnings.length === 0,
+      metrics,
       warnings,
-      suggestions
+      isOptimal: warnings.length === 0,
+      recommendations
     });
+
+    // Log performance data in development
+    if (import.meta.env.DEV) {
+      logger.info('Performance metrics', { 
+        component: componentName, 
+        metrics 
+      }, 'usePerformanceOptimized');
+    }
   });
 
   const trackError = useCallback((error: Error) => {
-    errorCountRef.current++;
-    logger.error(`Error in ${componentName}`, { error: error.message }, 'Performance');
+    logger.error('Component error', { 
+      component: componentName, 
+      error: error.message 
+    }, 'usePerformanceOptimized');
   }, [componentName]);
 
-  const trackCustomMetric = useCallback((metricName: string, value: number) => {
-    logger.info(`Custom metric ${metricName} in ${componentName}`, { value }, 'Performance');
-  }, [componentName]);
+  const optimizeComponent = useCallback(() => {
+    // Reset render count for fresh analysis
+    renderCount.current = 0;
+  }, []);
 
   return {
     performanceData,
     trackError,
-    trackCustomMetric
+    optimizeComponent
   };
 };

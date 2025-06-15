@@ -1,5 +1,4 @@
-
-import { businessCache, searchCache, aiCache, advancedCacheService } from './advancedCacheService';
+import { businessCache, searchCache, aiCache, advancedCacheService } from './cache/advancedCacheService';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WarmupConfig {
