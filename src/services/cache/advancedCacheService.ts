@@ -80,11 +80,7 @@ class AdvancedCacheService {
     };
   }
 
-  private isExpired(item: CacheItem): boolean {
-    return Date.now() - item.timestamp > item.ttl;
-  }
-
-  private cleanup(): void {
+  cleanup(): void {
     if (this.cache.size <= this.maxSize) return;
 
     // Sort by priority and last accessed time
@@ -99,6 +95,17 @@ class AdvancedCacheService {
     const itemsToRemove = entries.slice(0, this.cache.size - this.maxSize);
     itemsToRemove.forEach(([key]) => this.cache.delete(key));
   }
+
+  private isExpired(item: CacheItem): boolean {
+    return Date.now() - item.timestamp > item.ttl;
+  }
 }
 
+// Create singleton instances
+export const advancedCacheService = new AdvancedCacheService();
+export const businessCache = new AdvancedCacheService();
 export const searchCache = new AdvancedCacheService();
+export const aiCache = new AdvancedCacheService();
+
+// Re-export for backward compatibility
+export { AdvancedCacheService };
