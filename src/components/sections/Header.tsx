@@ -14,7 +14,8 @@ import {
   Calendar,
   Brain,
   User,
-  Settings
+  Settings,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +30,7 @@ const Header = () => {
     { name: 'Forums', href: '/forums', icon: MessageSquare },
     { name: 'Community', href: '/community', icon: Users },
     { name: 'Events', href: '/events', icon: Calendar },
+    { name: 'Real-time', href: '/realtime', icon: Zap },
   ];
 
   const isActive = (href: string) => {

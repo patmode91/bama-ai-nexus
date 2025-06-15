@@ -22,6 +22,7 @@ import AISearch from "./pages/AISearch";
 import ComparisonPage from "./pages/ComparisonPage";
 import Integrations from "./pages/Integrations";
 import MobileSettings from "./pages/MobileSettings";
+import Realtime from "./pages/Realtime";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/compare" element={<ComparisonPage />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/mobile-settings" element={<MobileSettings />} />
+            <Route path="/realtime" element={<Realtime />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
