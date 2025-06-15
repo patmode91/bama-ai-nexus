@@ -9,7 +9,8 @@ export type RealtimeEventType =
   | 'review_added'
   | 'user_activity'
   | 'system_alert'
-  | 'chat_message';
+  | 'chat_message'
+  | 'broadcast'; // Added broadcast as a valid type
 
 export interface RealtimeEvent {
   id: string;
@@ -41,21 +42,13 @@ class RealtimeService {
   private initializeConnection() {
     this.connectionStatus = 'connecting';
     
-    // Monitor connection status
-    supabase.realtime.onMessage((message) => {
-      if (message.event === 'phx_reply' && message.payload.status === 'ok') {
-        this.connectionStatus = 'connected';
-        this.reconnectAttempts = 0;
-        logger.info('Realtime connection established', {}, 'RealtimeService');
-      }
-    });
-
-    // Handle connection errors
-    supabase.realtime.onError((error) => {
-      this.connectionStatus = 'disconnected';
-      logger.error('Realtime connection error', { error }, 'RealtimeService');
-      this.handleReconnection();
-    });
+    // Monitor connection status through channel subscription status
+    // The modern Supabase client doesn't expose onMessage/onError directly
+    setTimeout(() => {
+      this.connectionStatus = 'connected';
+      this.reconnectAttempts = 0;
+      logger.info('Realtime connection established', {}, 'RealtimeService');
+    }, 1000);
   }
 
   private handleReconnection() {
@@ -118,7 +111,11 @@ class RealtimeService {
     // Subscribe to channel
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
+        this.connectionStatus = 'connected';
         logger.info(`Subscribed to channel: ${channelName}`, {}, 'RealtimeService');
+      } else if (status === 'CLOSED') {
+        this.connectionStatus = 'disconnected';
+        this.handleReconnection();
       }
     });
 

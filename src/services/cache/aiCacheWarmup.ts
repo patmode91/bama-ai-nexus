@@ -6,11 +6,8 @@ class AICacheWarmup {
     console.log('Starting AI cache warmup...');
     
     try {
-      // Warmup AI model responses
-      await this.warmupModelResponses();
-      
-      // Warmup AI suggestions
-      await this.warmupAISuggestions();
+      // Warmup common AI responses
+      await this.warmupCommonResponses();
       
       console.log('AI cache warmup completed');
     } catch (error) {
@@ -18,37 +15,46 @@ class AICacheWarmup {
     }
   }
 
-  private async warmupModelResponses(): Promise<void> {
+  private async warmupCommonResponses(): Promise<void> {
     const commonQueries = [
-      'best tech companies',
-      'healthcare recommendations',
-      'business partnerships',
-      'investment opportunities'
+      'business recommendations',
+      'local services',
+      'restaurants near me',
+      'technology companies',
+      'healthcare providers'
     ];
 
-    for (const query of commonQueries) {
-      await aiCache.set(`ai:response:${query}`, {
-        response: `Cached response for: ${query}`,
-        timestamp: Date.now()
-      }, {
-        ttl: 15 * 60 * 1000, // 15 minutes
-        priority: 'normal'
-      });
+    const mockResponses = commonQueries.map(query => ({
+      query,
+      response: `AI response for ${query}`,
+      confidence: 0.8,
+      suggestions: [`${query} suggestion 1`, `${query} suggestion 2`]
+    }));
+
+    for (const response of mockResponses) {
+      await aiCache.set(
+        `ai_response_${response.query}`,
+        response,
+        {
+          ttl: 1800000, // 30 minutes
+          priority: 'medium', // Changed from 'normal' to 'medium'
+          tags: ['ai', 'responses']
+        }
+      );
     }
   }
 
-  private async warmupAISuggestions(): Promise<void> {
-    const suggestions = [
-      'Consider partnerships with tech companies',
-      'Explore healthcare innovation opportunities',
-      'Look into sustainable business practices',
-      'Investigate market expansion possibilities'
-    ];
-
-    await aiCache.set('ai-suggestions', suggestions, {
-      ttl: 60 * 60 * 1000, // 1 hour
-      priority: 'high'
-    });
+  async warmupUserSpecific(userId: string): Promise<void> {
+    // Warmup user-specific AI responses
+    await aiCache.set(
+      `user_ai_context_${userId}`,
+      { userId, preferences: [], history: [] },
+      {
+        ttl: 3600000, // 1 hour
+        priority: 'high',
+        tags: ['ai', 'user', userId]
+      }
+    );
   }
 }
 

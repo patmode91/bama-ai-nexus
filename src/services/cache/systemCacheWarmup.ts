@@ -9,8 +9,8 @@ class SystemCacheWarmup {
       // Warmup system configuration
       await this.warmupSystemConfig();
       
-      // Warmup user preferences
-      await this.warmupUserPreferences();
+      // Warmup common data
+      await this.warmupCommonData();
       
       console.log('System cache warmup completed');
     } catch (error) {
@@ -18,48 +18,65 @@ class SystemCacheWarmup {
     }
   }
 
-  async warmupUserSpecific(userId: string): Promise<void> {
-    console.log(`Warming up cache for user: ${userId}`);
-    
-    try {
-      await advancedCacheService.set(`user:${userId}:preferences`, {
-        theme: 'light',
-        notifications: true,
-        language: 'en'
-      }, {
-        ttl: 24 * 60 * 60 * 1000, // 24 hours
-        priority: 'normal'
-      });
-    } catch (error) {
-      console.warn('User-specific cache warmup failed:', error);
-    }
-  }
-
   private async warmupSystemConfig(): Promise<void> {
     const systemConfig = {
       version: '1.0.0',
-      features: ['ai-search', 'business-matching', 'analytics'],
-      maintenance: false
+      features: ['search', 'ai', 'realtime'],
+      settings: {
+        cacheEnabled: true,
+        compressionEnabled: true,
+        realtimeEnabled: true
+      }
     };
 
-    await advancedCacheService.set('system-config', systemConfig, {
-      ttl: 60 * 60 * 1000, // 1 hour
-      priority: 'high'
-    });
+    await advancedCacheService.set(
+      'system_config',
+      systemConfig,
+      {
+        ttl: 3600000, // 1 hour
+        priority: 'medium', // Changed from 'normal' to 'medium'
+        tags: ['system', 'config']
+      }
+    );
   }
 
-  private async warmupUserPreferences(): Promise<void> {
-    const defaultPreferences = {
-      theme: 'light',
-      notifications: true,
-      language: 'en',
-      searchFilters: []
+  private async warmupCommonData(): Promise<void> {
+    const commonData = {
+      categories: ['Technology', 'Healthcare', 'Retail', 'Construction'],
+      locations: ['Birmingham', 'Montgomery', 'Mobile', 'Huntsville'],
+      tags: ['local', 'verified', 'popular', 'recommended']
     };
 
-    await advancedCacheService.set('default-user-preferences', defaultPreferences, {
-      ttl: 24 * 60 * 60 * 1000, // 24 hours
-      priority: 'normal'
-    });
+    for (const [key, value] of Object.entries(commonData)) {
+      await advancedCacheService.set(
+        `common_${key}`,
+        value,
+        {
+          ttl: 1800000, // 30 minutes
+          priority: 'medium', // Changed from 'normal' to 'medium'
+          tags: ['common', key]
+        }
+      );
+    }
+  }
+
+  async warmupUserSpecific(userId: string): Promise<void> {
+    const userPreferences = {
+      userId,
+      favoriteCategories: [],
+      searchHistory: [],
+      savedBusinesses: []
+    };
+
+    await advancedCacheService.set(
+      `user_preferences_${userId}`,
+      userPreferences,
+      {
+        ttl: 3600000, // 1 hour
+        priority: 'high', // Changed from 'normal' to 'high'
+        tags: ['user', userId]
+      }
+    );
   }
 }
 

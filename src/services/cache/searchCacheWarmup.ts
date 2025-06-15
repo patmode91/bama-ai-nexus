@@ -6,11 +6,8 @@ class SearchCacheWarmup {
     console.log('Starting search cache warmup...');
     
     try {
-      // Warmup popular search queries
-      await this.warmupPopularQueries();
-      
-      // Warmup search suggestions
-      await this.warmupSearchSuggestions();
+      // Warmup popular search terms
+      await this.warmupPopularSearches();
       
       console.log('Search cache warmup completed');
     } catch (error) {
@@ -18,33 +15,41 @@ class SearchCacheWarmup {
     }
   }
 
-  private async warmupPopularQueries(): Promise<void> {
-    const popularQueries = [
-      'technology companies',
-      'healthcare providers',
+  private async warmupPopularSearches(): Promise<void> {
+    const popularSearches = [
       'restaurants',
-      'manufacturing',
-      'construction companies'
+      'technology',
+      'healthcare',
+      'automotive',
+      'retail',
+      'construction',
+      'education',
+      'finance'
     ];
 
-    for (const query of popularQueries) {
-      await searchCache.set(`search:${query}`, [], {
-        ttl: 30 * 60 * 1000, // 30 minutes
-        priority: 'normal'
-      });
+    const mockResults = popularSearches.map(term => ({
+      term,
+      results: Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        name: `${term} Business ${i + 1}`,
+        category: term,
+        rating: 4.0 + Math.random(),
+        location: 'Alabama'
+      })),
+      total: 50 + Math.floor(Math.random() * 100)
+    }));
+
+    for (const result of mockResults) {
+      await searchCache.set(
+        `search_${result.term}`,
+        result,
+        {
+          ttl: 600000, // 10 minutes
+          priority: 'medium', // Changed from 'normal' to 'medium'
+          tags: ['search', 'popular']
+        }
+      );
     }
-  }
-
-  private async warmupSearchSuggestions(): Promise<void> {
-    const suggestions = [
-      'technology', 'healthcare', 'retail', 'manufacturing',
-      'finance', 'education', 'construction', 'food-service'
-    ];
-
-    await searchCache.set('search-suggestions', suggestions, {
-      ttl: 60 * 60 * 1000, // 1 hour
-      priority: 'high'
-    });
   }
 }
 
