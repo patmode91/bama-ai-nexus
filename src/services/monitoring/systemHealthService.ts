@@ -23,10 +23,24 @@ class SystemHealthService {
   private healthHistory: SystemHealth[] = [];
   private checkInterval: number = 30000; // 30 seconds
   private intervalId?: NodeJS.Timeout;
+  private isInitialized: boolean = false;
 
   constructor() {
-    this.initializeHealthChecks();
-    this.startMonitoring();
+    this.safeInitialize();
+  }
+
+  private safeInitialize(): void {
+    try {
+      this.initializeHealthChecks();
+      this.isInitialized = true;
+      // Start monitoring with a delay to ensure all services are ready
+      setTimeout(() => {
+        this.startMonitoring();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to initialize SystemHealthService:', error);
+      this.isInitialized = false;
+    }
   }
 
   private initializeHealthChecks(): void {
@@ -63,6 +77,11 @@ class SystemHealthService {
   }
 
   private startMonitoring(): void {
+    if (!this.isInitialized) {
+      console.warn('SystemHealthService not initialized, skipping monitoring start');
+      return;
+    }
+
     this.runHealthChecks();
     this.intervalId = setInterval(() => {
       this.runHealthChecks();
@@ -70,9 +89,11 @@ class SystemHealthService {
   }
 
   private async runHealthChecks(): Promise<void> {
-    logger.debug('Running system health checks', {}, 'SystemHealth');
+    if (!this.isInitialized) return;
 
     try {
+      logger.debug('Running system health checks', {}, 'SystemHealth');
+
       await Promise.all([
         this.checkPerformanceScore(),
         this.checkMemoryUsage(),
@@ -83,6 +104,7 @@ class SystemHealthService {
 
       this.updateSystemHealth();
     } catch (error) {
+      console.error('Error running health checks:', error);
       logger.error('Error running health checks', { error }, 'SystemHealth');
     }
   }
@@ -92,7 +114,7 @@ class SystemHealthService {
     if (!check) return;
 
     try {
-      const score = performanceMonitor.calculatePerformanceScore();
+      const score = performanceMonitor?.calculatePerformanceScore() || 0;
       
       check.status = score >= 90 ? 'healthy' : score >= 70 ? 'warning' : 'critical';
       check.lastChecked = Date.now();
@@ -101,6 +123,7 @@ class SystemHealthService {
     } catch (error) {
       check.status = 'critical';
       check.message = 'Failed to check performance score';
+      console.error('Performance score check failed:', error);
     }
   }
 
@@ -109,7 +132,7 @@ class SystemHealthService {
     if (!check) return;
 
     try {
-      const metrics = performanceMonitor.getMetricsSummary();
+      const metrics = performanceMonitor?.getMetricsSummary() || {};
       const memoryUsage = metrics.MEMORY_USAGE_PERCENT?.latest || 0;
       
       check.status = memoryUsage < 75 ? 'healthy' : memoryUsage < 90 ? 'warning' : 'critical';
@@ -119,6 +142,7 @@ class SystemHealthService {
     } catch (error) {
       check.status = 'critical';
       check.message = 'Failed to check memory usage';
+      console.error('Memory usage check failed:', error);
     }
   }
 
@@ -127,7 +151,7 @@ class SystemHealthService {
     if (!check) return;
 
     try {
-      const metrics = performanceMonitor.getMetricsSummary();
+      const metrics = performanceMonitor?.getMetricsSummary() || {};
       const avgResponseTime = metrics.API_CALL_DURATION?.average || 0;
       
       check.status = avgResponseTime < 1000 ? 'healthy' : avgResponseTime < 3000 ? 'warning' : 'critical';
@@ -138,6 +162,7 @@ class SystemHealthService {
     } catch (error) {
       check.status = 'critical';
       check.message = 'Failed to check API response time';
+      console.error('API response time check failed:', error);
     }
   }
 
@@ -146,7 +171,7 @@ class SystemHealthService {
     if (!check) return;
 
     try {
-      const metrics = performanceMonitor.getMetricsSummary();
+      const metrics = performanceMonitor?.getMetricsSummary() || {};
       const lcp = metrics.LCP?.latest || 0;
       const fid = metrics.FID?.latest || 0;
       const cls = metrics.CLS?.latest || 0;
@@ -161,6 +186,7 @@ class SystemHealthService {
     } catch (error) {
       check.status = 'critical';
       check.message = 'Failed to check Core Web Vitals';
+      console.error('Core Web Vitals check failed:', error);
     }
   }
 
@@ -179,63 +205,74 @@ class SystemHealthService {
     } catch (error) {
       check.status = 'critical';
       check.message = 'Failed to check error rate';
+      console.error('Error rate check failed:', error);
     }
   }
 
   private updateSystemHealth(): void {
-    const checks = Array.from(this.healthChecks.values());
-    const healthyCount = checks.filter(c => c.status === 'healthy').length;
-    const warningCount = checks.filter(c => c.status === 'warning').length;
-    const criticalCount = checks.filter(c => c.status === 'critical').length;
+    if (!this.isInitialized) return;
 
-    let overall: 'healthy' | 'warning' | 'critical' = 'healthy';
-    let score = 100;
+    try {
+      const checks = Array.from(this.healthChecks.values());
+      const healthyCount = checks.filter(c => c.status === 'healthy').length;
+      const warningCount = checks.filter(c => c.status === 'warning').length;
+      const criticalCount = checks.filter(c => c.status === 'critical').length;
 
-    if (criticalCount > 0) {
-      overall = 'critical';
-      score = Math.max(0, 100 - (criticalCount * 30) - (warningCount * 15));
-    } else if (warningCount > 0) {
-      overall = 'warning';
-      score = Math.max(50, 100 - (warningCount * 20));
+      let overall: 'healthy' | 'warning' | 'critical' = 'healthy';
+      let score = 100;
+
+      if (criticalCount > 0) {
+        overall = 'critical';
+        score = Math.max(0, 100 - (criticalCount * 30) - (warningCount * 15));
+      } else if (warningCount > 0) {
+        overall = 'warning';
+        score = Math.max(50, 100 - (warningCount * 20));
+      }
+
+      const systemHealth: SystemHealth = {
+        overall,
+        score,
+        checks: [...checks],
+        timestamp: Date.now()
+      };
+
+      this.healthHistory.push(systemHealth);
+
+      // Keep only last 100 health records
+      if (this.healthHistory.length > 100) {
+        this.healthHistory = this.healthHistory.slice(-100);
+      }
+
+      logger.debug('System health updated', { 
+        overall, 
+        score, 
+        healthyCount, 
+        warningCount, 
+        criticalCount 
+      }, 'SystemHealth');
+    } catch (error) {
+      console.error('Failed to update system health:', error);
     }
-
-    const systemHealth: SystemHealth = {
-      overall,
-      score,
-      checks: [...checks],
-      timestamp: Date.now()
-    };
-
-    this.healthHistory.push(systemHealth);
-
-    // Keep only last 100 health records
-    if (this.healthHistory.length > 100) {
-      this.healthHistory = this.healthHistory.slice(-100);
-    }
-
-    logger.debug('System health updated', { 
-      overall, 
-      score, 
-      healthyCount, 
-      warningCount, 
-      criticalCount 
-    }, 'SystemHealth');
   }
 
   // Public API
   getCurrentHealth(): SystemHealth | null {
+    if (!this.isInitialized) return null;
     return this.healthHistory[this.healthHistory.length - 1] || null;
   }
 
   getHealthHistory(count = 50): SystemHealth[] {
+    if (!this.isInitialized) return [];
     return this.healthHistory.slice(-count);
   }
 
   getHealthCheck(id: string): HealthCheck | undefined {
+    if (!this.isInitialized) return undefined;
     return this.healthChecks.get(id);
   }
 
   getAllHealthChecks(): HealthCheck[] {
+    if (!this.isInitialized) return [];
     return Array.from(this.healthChecks.values());
   }
 
@@ -246,12 +283,16 @@ class SystemHealthService {
       clearInterval(this.intervalId);
     }
     
-    this.startMonitoring();
+    if (this.isInitialized) {
+      this.startMonitoring();
+    }
   }
 
-  async runManualCheck(): Promise<SystemHealth> {
+  async runManualCheck(): Promise<SystemHealth | null> {
+    if (!this.isInitialized) return null;
+    
     await this.runHealthChecks();
-    return this.getCurrentHealth()!;
+    return this.getCurrentHealth();
   }
 
   stop(): void {
@@ -259,6 +300,10 @@ class SystemHealthService {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
     }
+  }
+
+  isReady(): boolean {
+    return this.isInitialized;
   }
 }
 
