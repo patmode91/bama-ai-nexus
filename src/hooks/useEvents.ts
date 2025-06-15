@@ -4,39 +4,27 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-export interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  time: string;
-  location: string;
-  organizer_id: string;
-  max_attendees?: number;
-  is_public: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export const useEvents = () => {
-  const { data: events, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['events'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('is_public', true)
-        .order('date', { ascending: true });
+        .eq('status', 'active')
+        .order('event_date', { ascending: true });
       
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
   return {
-    data: events,
+    data: data || [],
     isLoading,
-    error
+    error,
+    events: data || [],
+    eventsLoading: isLoading
   };
 };
 
@@ -51,11 +39,11 @@ export const useMyEvents = () => {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('organizer_id', user.id)
-        .order('date', { ascending: true });
+        .eq('created_by', user.id)
+        .order('event_date', { ascending: true });
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id
   });
@@ -72,14 +60,14 @@ export const useCreateEvent = () => {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at' | 'organizer_id'>) => {
+    mutationFn: async (eventData: any) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('events')
         .insert([{
           ...eventData,
-          organizer_id: user.id
+          created_by: user.id
         }])
         .select()
         .single();
@@ -109,6 +97,33 @@ export const useDeleteEvent = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['my-events'] });
+    }
+  });
+};
+
+export const useUpdateRSVP = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ eventId, status }: { eventId: string; status: string }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('event_rsvps')
+        .upsert([{
+          event_id: eventId,
+          user_id: user.id,
+          status: status
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     }
   });
 };
