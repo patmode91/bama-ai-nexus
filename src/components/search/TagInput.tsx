@@ -2,49 +2,78 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { X, Plus } from 'lucide-react';
 
 interface TagInputProps {
+  label: string;
   tags: string[];
   onTagsChange: (tags: string[]) => void;
-  label: string;
+  placeholder?: string;
 }
 
-const TagInput = ({ tags, onTagsChange, label }: TagInputProps) => {
-  const [tagInput, setTagInput] = useState('');
+const TagInput = ({ label, tags, onTagsChange, placeholder = "Add tags..." }: TagInputProps) => {
+  const [inputValue, setInputValue] = useState('');
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && tagInput.trim() !== '') {
-      e.preventDefault();
-      const newTag = tagInput.trim().toLowerCase();
-      if (!tags.includes(newTag)) {
-        onTagsChange([...tags, newTag]);
-      }
-      setTagInput('');
+  const addTag = () => {
+    if (inputValue.trim() && !tags.includes(inputValue.trim())) {
+      onTagsChange([...tags, inputValue.trim()]);
+      setInputValue('');
     }
   };
 
-  const handleRemoveTag = (tagToRemove: string) => {
+  const removeTag = (tagToRemove: string) => {
     onTagsChange(tags.filter(tag => tag !== tagToRemove));
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
   return (
-    <div className="space-y-2 lg:col-span-2">
+    <div className="space-y-2">
       <label className="text-sm font-medium text-gray-300">{label}</label>
-      <Input
-        placeholder="Type a tag and press Enter"
-        value={tagInput}
-        onChange={(e) => setTagInput(e.target.value)}
-        onKeyDown={handleAddTag}
-        className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-      />
-      <div className="flex flex-wrap gap-1 pt-1 min-h-[24px]">
-        {tags.map(tag => (
-          <Badge key={tag} variant="secondary" className="bg-gray-600 text-white">
-            {tag}
-            <button onClick={() => handleRemoveTag(tag)} className="ml-1.5 text-gray-400 hover:text-white text-xs font-bold">x</button>
-          </Badge>
-        ))}
+      <div className="flex gap-2">
+        <Input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder={placeholder}
+          className="bg-gray-700 border-gray-600 text-white flex-1"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addTag}
+          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
       </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tags.map((tag, index) => (
+            <Badge
+              key={index}
+              variant="secondary"
+              className="bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/30"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="ml-1 text-[#00C2FF] hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
