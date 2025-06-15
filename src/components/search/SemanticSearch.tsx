@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Lightbulb, TrendingUp, Target, Zap, Star } from 'lucide-react';
 import { semanticSearchService } from '@/services/semanticSearchService';
 import { matchmakingService } from '@/services/matchmakingService';
-import { BusinessCard } from '@/components/business/BusinessCard';
+import BusinessCard from '@/components/business/BusinessCard';
 import { toast } from 'sonner';
 
 const SemanticSearch = () => {
