@@ -24,10 +24,12 @@ export interface Business {
   certifications: string[] | null;
   project_budget_min: number | null;
   project_budget_max: number | null;
+  phone?: string | null;
+  annual_revenue?: string | null;
 }
 
 export const useBusinesses = () => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['businesses'],
     queryFn: async (): Promise<Business[]> => {
       console.log('Fetching businesses from Supabase...');
@@ -47,6 +49,28 @@ export const useBusinesses = () => {
     },
     refetchInterval: 30000, // Refetch every 30 seconds for real-time feel
   });
+
+  const getBusiness = async (id: number): Promise<Business | null> => {
+    console.log('Fetching business by ID:', id);
+    
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching business:', error);
+      throw error;
+    }
+
+    return data;
+  };
+
+  return {
+    ...query,
+    getBusiness
+  };
 };
 
 export const useBusinessStats = () => {

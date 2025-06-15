@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -132,7 +131,7 @@ const BusinessProfile = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <CardTitle className="text-3xl">{business.businessname}</CardTitle>
-                    <VerificationBadge isVerified={business.verified} />
+                    <VerificationBadge businessId={business.id} isVerified={business.verified} />
                   </div>
                   
                   {business.category && (

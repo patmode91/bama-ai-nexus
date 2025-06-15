@@ -12,10 +12,24 @@ interface BusinessCardProps {
   onSave?: (businessId: number) => void;
   onShare?: (business: Business) => void;
   onView?: (business: Business) => void;
+  onViewProfile?: (businessId: number) => void;
+  onCompareToggle?: (businessId: number) => void;
+  isCompared?: boolean;
   isSaved?: boolean;
+  isCompareDisabled?: boolean;
 }
 
-const BusinessCard = ({ business, onSave, onShare, onView, isSaved }: BusinessCardProps) => {
+const BusinessCard = ({ 
+  business, 
+  onSave, 
+  onShare, 
+  onView, 
+  onViewProfile,
+  onCompareToggle,
+  isCompared = false,
+  isSaved = false,
+  isCompareDisabled = false
+}: BusinessCardProps) => {
   const trackEvent = useTrackEvent();
 
   const handleSave = () => {
@@ -35,7 +49,15 @@ const BusinessCard = ({ business, onSave, onShare, onView, isSaved }: BusinessCa
   const handleView = () => {
     if (onView) {
       onView(business);
-      trackEvent('business_viewed', { businessId: business.id, businessName: business.businessname });
+    } else if (onViewProfile) {
+      onViewProfile(business.id);
+    }
+    trackEvent('business_viewed', { businessId: business.id, businessName: business.businessname });
+  };
+
+  const handleCompareToggle = () => {
+    if (onCompareToggle && !isCompareDisabled) {
+      onCompareToggle(business.id);
     }
   };
 
@@ -130,25 +152,42 @@ const BusinessCard = ({ business, onSave, onShare, onView, isSaved }: BusinessCa
           </Button>
           
           <div className="flex space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSave}
-              className={`flex items-center ${isSaved ? 'text-red-500' : ''}`}
-            >
-              <Heart className={`w-4 h-4 mr-1 ${isSaved ? 'fill-current' : ''}`} />
-              {isSaved ? 'Saved' : 'Save'}
-            </Button>
+            {onCompareToggle && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCompareToggle}
+                disabled={isCompareDisabled}
+                className={`flex items-center ${isCompared ? 'text-blue-500' : ''}`}
+              >
+                <Star className={`w-4 h-4 mr-1 ${isCompared ? 'fill-current' : ''}`} />
+                {isCompared ? 'Added' : 'Compare'}
+              </Button>
+            )}
             
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleShare}
-              className="flex items-center"
-            >
-              <Share2 className="w-4 h-4 mr-1" />
-              Share
-            </Button>
+            {onSave && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSave}
+                className={`flex items-center ${isSaved ? 'text-red-500' : ''}`}
+              >
+                <Heart className={`w-4 h-4 mr-1 ${isSaved ? 'fill-current' : ''}`} />
+                {isSaved ? 'Saved' : 'Save'}
+              </Button>
+            )}
+            
+            {onShare && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleShare}
+                className="flex items-center"
+              >
+                <Share2 className="w-4 h-4 mr-1" />
+                Share
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
