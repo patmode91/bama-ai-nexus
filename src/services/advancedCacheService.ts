@@ -5,129 +5,77 @@ interface CacheItem<T> {
   expiresAt: number;
   accessCount: number;
   lastAccessed: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: 'low' | 'medium' | 'high';
   tags: string[];
+  compressed?: boolean;
+}
+
+interface CacheOptions {
+  ttl?: number;
+  priority?: 'low' | 'medium' | 'high';
+  tags?: string[];
+  compress?: boolean;
 }
 
 interface CacheStats {
   hits: number;
   misses: number;
   size: number;
+  memoryUsage: number;
   hitRate: number;
-  totalRequests: number;
-  evictions: number;
-}
-
-interface CacheConfig {
-  maxSize: number;
-  defaultTTL: number;
-  enableCompression: boolean;
-  enableAnalytics: boolean;
-  evictionPolicy: 'LRU' | 'LFU' | 'TTL' | 'PRIORITY';
 }
 
 class AdvancedCacheService {
   private cache = new Map<string, CacheItem<any>>();
-  private stats: CacheStats = {
-    hits: 0,
-    misses: 0,
-    size: 0,
-    hitRate: 0,
-    totalRequests: 0,
-    evictions: 0
-  };
-  
-  private config: CacheConfig = {
-    maxSize: 1000,
-    defaultTTL: 5 * 60 * 1000, // 5 minutes
-    enableCompression: true,
-    enableAnalytics: true,
-    evictionPolicy: 'LRU'
-  };
+  private maxSize = 1000;
+  private maxMemoryMB = 50;
+  private stats: CacheStats = { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRate: 0 };
+  private compressionEnabled = true;
 
-  private compressionWorker?: Worker;
-  private warmupQueue: Set<string> = new Set();
+  async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
+    const now = Date.now();
+    const ttl = options.ttl || 5 * 60 * 1000; // 5 minutes default
+    
+    let processedData = data;
+    let compressed = false;
 
-  constructor(config?: Partial<CacheConfig>) {
-    if (config) {
-      this.config = { ...this.config, ...config };
-    }
-    this.initializeCompression();
-    this.startCleanupInterval();
-  }
-
-  private initializeCompression() {
-    if (this.config.enableCompression && typeof Worker !== 'undefined') {
-      try {
-        // Simple compression simulation - in production would use actual compression
-        this.compressionWorker = new Worker(
-          URL.createObjectURL(new Blob([`
-            self.onmessage = function(e) {
-              const { data, compress } = e.data;
-              if (compress) {
-                // Simulate compression
-                const compressed = JSON.stringify(data);
-                self.postMessage({ compressed, size: compressed.length });
-              } else {
-                // Simulate decompression
-                const decompressed = JSON.parse(data);
-                self.postMessage({ decompressed });
-              }
-            }
-          `], { type: 'application/javascript' }))
-        );
-      } catch (error) {
-        console.warn('Compression worker not available:', error);
+    // Compress large objects if enabled
+    if (this.compressionEnabled && options.compress !== false) {
+      const dataSize = JSON.stringify(data).length;
+      if (dataSize > 1024) { // Compress objects > 1KB
+        try {
+          processedData = await this.compressData(data);
+          compressed = true;
+        } catch (error) {
+          console.warn('Compression failed, storing uncompressed:', error);
+        }
       }
     }
-  }
 
-  async set<T>(
-    key: string, 
-    data: T, 
-    options: {
-      ttl?: number;
-      priority?: 'low' | 'medium' | 'high' | 'critical';
-      tags?: string[];
-      compress?: boolean;
-    } = {}
-  ): Promise<void> {
-    const now = Date.now();
-    const ttl = options.ttl || this.config.defaultTTL;
-    const priority = options.priority || 'medium';
-    const tags = options.tags || [];
-
-    // Check if we need to evict items
-    if (this.cache.size >= this.config.maxSize) {
-      await this.evictItems(1);
-    }
-
-    let processedData = data;
-    if (options.compress && this.compressionWorker) {
-      processedData = await this.compressData(data);
-    }
-
-    const cacheItem: CacheItem<T> = {
+    const item: CacheItem<T> = {
       data: processedData,
       timestamp: now,
       expiresAt: now + ttl,
       accessCount: 0,
       lastAccessed: now,
-      priority,
-      tags
+      priority: options.priority || 'medium',
+      tags: options.tags || [],
+      compressed
     };
 
-    this.cache.set(key, cacheItem);
-    this.updateStats('set');
+    // Ensure cache size limits
+    await this.evictIfNeeded();
+    
+    this.cache.set(key, item);
+    this.updateStats();
   }
 
   async get<T>(key: string): Promise<T | null> {
-    this.stats.totalRequests++;
     const item = this.cache.get(key);
-
+    
     if (!item) {
       this.stats.misses++;
-      this.updateHitRate();
+      this.updateStats();
       return null;
     }
 
@@ -135,277 +83,178 @@ class AdvancedCacheService {
     if (now > item.expiresAt) {
       this.cache.delete(key);
       this.stats.misses++;
-      this.updateHitRate();
+      this.updateStats();
       return null;
     }
 
-    // Update access tracking
+    // Update access statistics
     item.accessCount++;
     item.lastAccessed = now;
     this.stats.hits++;
-    this.updateHitRate();
+    this.updateStats();
 
-    // Check if data needs decompression
-    if (this.compressionWorker && this.isCompressed(item.data)) {
-      return await this.decompressData(item.data);
+    // Decompress if needed
+    if (item.compressed) {
+      try {
+        return await this.decompressData(item.data);
+      } catch (error) {
+        console.warn('Decompression failed:', error);
+        this.cache.delete(key);
+        return null;
+      }
     }
 
     return item.data;
   }
 
-  async getMultiple<T>(keys: string[]): Promise<Map<string, T>> {
-    const results = new Map<string, T>();
-    const promises = keys.map(async key => {
-      const value = await this.get<T>(key);
-      if (value !== null) {
-        results.set(key, value);
+  async memoize<T>(key: string, fn: () => Promise<T>, options: CacheOptions = {}): Promise<T> {
+    const cached = await this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    const result = await fn();
+    await this.set(key, result, options);
+    return result;
+  }
+
+  async staleWhileRevalidate<T>(
+    key: string, 
+    fn: () => Promise<T>, 
+    options: { staleTTL?: number; freshTTL?: number } = {}
+  ): Promise<T> {
+    const cached = await this.get<T>(key);
+    const staleTTL = options.staleTTL || 5 * 60 * 1000; // 5 minutes
+    const freshTTL = options.freshTTL || 15 * 60 * 1000; // 15 minutes
+
+    if (cached !== null) {
+      const item = this.cache.get(key);
+      const now = Date.now();
+      const isStale = item && (now - item.timestamp) > staleTTL;
+
+      if (isStale) {
+        // Return stale data immediately, refresh in background
+        this.refreshInBackground(key, fn, { ttl: freshTTL });
       }
-    });
 
-    await Promise.all(promises);
-    return results;
+      return cached;
+    }
+
+    // No cached data, fetch fresh
+    const result = await fn();
+    await this.set(key, result, { ttl: freshTTL });
+    return result;
   }
 
-  async setMultiple<T>(items: Array<{ key: string; data: T; options?: any }>): Promise<void> {
-    const promises = items.map(item => 
-      this.set(item.key, item.data, item.options)
-    );
-    await Promise.all(promises);
-  }
-
-  invalidateByTag(tag: string): number {
-    let invalidated = 0;
+  invalidateByTag(tag: string): void {
     for (const [key, item] of this.cache.entries()) {
       if (item.tags.includes(tag)) {
         this.cache.delete(key);
-        invalidated++;
       }
     }
-    return invalidated;
-  }
-
-  invalidateByPattern(pattern: RegExp): number {
-    let invalidated = 0;
-    for (const key of this.cache.keys()) {
-      if (pattern.test(key)) {
-        this.cache.delete(key);
-        invalidated++;
-      }
-    }
-    return invalidated;
+    this.updateStats();
   }
 
   async warmup(keys: string[], dataFetcher: (key: string) => Promise<any>): Promise<void> {
-    const warmupPromises = keys.map(async key => {
-      if (!this.cache.has(key) && !this.warmupQueue.has(key)) {
-        this.warmupQueue.add(key);
-        try {
-          const data = await dataFetcher(key);
-          await this.set(key, data, { priority: 'high', tags: ['warmup'] });
-        } catch (error) {
-          console.warn(`Cache warmup failed for key ${key}:`, error);
-        } finally {
-          this.warmupQueue.delete(key);
-        }
+    const promises = keys.map(async (key) => {
+      try {
+        const data = await dataFetcher(key);
+        await this.set(key, data, { priority: 'high', ttl: 30 * 60 * 1000 });
+      } catch (error) {
+        console.warn(`Failed to warmup cache for key ${key}:`, error);
       }
     });
 
-    await Promise.all(warmupPromises);
-  }
-
-  private async evictItems(count: number): Promise<void> {
-    const itemsToEvict = this.selectItemsForEviction(count);
-    for (const key of itemsToEvict) {
-      this.cache.delete(key);
-      this.stats.evictions++;
-    }
-  }
-
-  private selectItemsForEviction(count: number): string[] {
-    const items = Array.from(this.cache.entries());
-    
-    switch (this.config.evictionPolicy) {
-      case 'LRU':
-        items.sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed);
-        break;
-      case 'LFU':
-        items.sort(([, a], [, b]) => a.accessCount - b.accessCount);
-        break;
-      case 'TTL':
-        items.sort(([, a], [, b]) => a.expiresAt - b.expiresAt);
-        break;
-      case 'PRIORITY':
-        const priorityOrder = { low: 0, medium: 1, high: 2, critical: 3 };
-        items.sort(([, a], [, b]) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-        break;
-    }
-
-    return items.slice(0, count).map(([key]) => key);
-  }
-
-  private async compressData(data: any): Promise<any> {
-    return new Promise((resolve) => {
-      if (this.compressionWorker) {
-        this.compressionWorker.onmessage = (e) => {
-          resolve({ __compressed: e.data.compressed, __size: e.data.size });
-        };
-        this.compressionWorker.postMessage({ data, compress: true });
-      } else {
-        resolve(data);
-      }
-    });
-  }
-
-  private async decompressData(data: any): Promise<any> {
-    if (!this.isCompressed(data)) return data;
-    
-    return new Promise((resolve) => {
-      if (this.compressionWorker) {
-        this.compressionWorker.onmessage = (e) => {
-          resolve(e.data.decompressed);
-        };
-        this.compressionWorker.postMessage({ data: data.__compressed, compress: false });
-      } else {
-        resolve(data);
-      }
-    });
-  }
-
-  private isCompressed(data: any): boolean {
-    return data && typeof data === 'object' && data.__compressed;
-  }
-
-  private updateStats(operation: 'set' | 'get' | 'delete') {
-    this.stats.size = this.cache.size;
-    if (operation === 'get') {
-      this.updateHitRate();
-    }
-  }
-
-  private updateHitRate() {
-    this.stats.hitRate = this.stats.totalRequests > 0 
-      ? (this.stats.hits / this.stats.totalRequests) * 100 
-      : 0;
-  }
-
-  private startCleanupInterval() {
-    setInterval(() => {
-      this.cleanup();
-    }, 60000); // Cleanup every minute
-  }
-
-  cleanup(): void {
-    const now = Date.now();
-    let cleaned = 0;
-    
-    for (const [key, item] of this.cache.entries()) {
-      if (now > item.expiresAt) {
-        this.cache.delete(key);
-        cleaned++;
-      }
-    }
-    
-    if (cleaned > 0) {
-      this.updateStats('delete');
-      console.log(`Cache cleanup: removed ${cleaned} expired items`);
-    }
+    await Promise.allSettled(promises);
   }
 
   getStats(): CacheStats {
     return { ...this.stats };
   }
 
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, item] of this.cache.entries()) {
+      if (now > item.expiresAt) {
+        this.cache.delete(key);
+      }
+    }
+    this.updateStats();
+  }
+
   clear(): void {
     this.cache.clear();
-    this.stats = {
-      hits: 0,
-      misses: 0,
-      size: 0,
-      hitRate: 0,
-      totalRequests: 0,
-      evictions: 0
-    };
+    this.stats = { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRate: 0 };
   }
 
-  // Cache strategy patterns
-  async memoize<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    options?: { ttl?: number; tags?: string[] }
-  ): Promise<T> {
-    const cached = await this.get<T>(key);
-    if (cached !== null) {
-      return cached;
-    }
-
-    const data = await fetcher();
-    await this.set(key, data, options);
-    return data;
-  }
-
-  async staleWhileRevalidate<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    options?: { staleTTL?: number; freshTTL?: number }
-  ): Promise<T> {
-    const cached = this.cache.get(key);
-    const now = Date.now();
-    
-    if (cached) {
-      const isStale = now > (cached.timestamp + (options?.staleTTL || 30000));
-      
-      if (!isStale) {
-        return cached.data;
-      }
-      
-      // Return stale data immediately, refresh in background
-      this.backgroundRefresh(key, fetcher, options?.freshTTL);
-      return cached.data;
-    }
-
-    // No cached data, fetch immediately
-    const data = await fetcher();
-    await this.set(key, data, { ttl: options?.freshTTL });
-    return data;
-  }
-
-  private async backgroundRefresh<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    ttl?: number
-  ): Promise<void> {
+  private async refreshInBackground<T>(key: string, fn: () => Promise<T>, options: CacheOptions): Promise<void> {
     try {
-      const data = await fetcher();
-      await this.set(key, data, { ttl, priority: 'high' });
+      const result = await fn();
+      await this.set(key, result, options);
     } catch (error) {
       console.warn(`Background refresh failed for key ${key}:`, error);
     }
   }
+
+  private async evictIfNeeded(): Promise<void> {
+    if (this.cache.size < this.maxSize) return;
+
+    // LRU eviction with priority consideration
+    const entries = Array.from(this.cache.entries());
+    entries.sort((a, b) => {
+      const priorityWeight = { low: 1, medium: 2, high: 3 };
+      const aPriority = priorityWeight[a[1].priority];
+      const bPriority = priorityWeight[b[1].priority];
+      
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority; // Lower priority first
+      }
+      
+      return a[1].lastAccessed - b[1].lastAccessed; // Then by LRU
+    });
+
+    // Remove 20% of cache
+    const toRemove = Math.floor(this.cache.size * 0.2);
+    for (let i = 0; i < toRemove; i++) {
+      if (entries[i]) {
+        this.cache.delete(entries[i][0]);
+      }
+    }
+  }
+
+  private async compressData<T>(data: T): Promise<string> {
+    // Simple compression simulation (in real app, use actual compression)
+    return JSON.stringify(data);
+  }
+
+  private async decompressData<T>(compressedData: string): Promise<T> {
+    // Simple decompression simulation
+    return JSON.parse(compressedData);
+  }
+
+  private updateStats(): void {
+    this.stats.size = this.cache.size;
+    this.stats.hitRate = this.stats.hits / (this.stats.hits + this.stats.misses) || 0;
+    
+    // Estimate memory usage
+    let memoryUsage = 0;
+    for (const item of this.cache.values()) {
+      memoryUsage += JSON.stringify(item).length;
+    }
+    this.stats.memoryUsage = memoryUsage / 1024 / 1024; // Convert to MB
+  }
 }
 
-export const advancedCacheService = new AdvancedCacheService({
-  maxSize: 2000,
-  defaultTTL: 10 * 60 * 1000, // 10 minutes
-  enableCompression: true,
-  enableAnalytics: true,
-  evictionPolicy: 'LRU'
-});
+// Create specialized cache instances
+export const advancedCacheService = new AdvancedCacheService();
+export const businessCache = new AdvancedCacheService();
+export const searchCache = new AdvancedCacheService();
+export const aiCache = new AdvancedCacheService();
 
-// Export specialized cache instances
-export const businessCache = new AdvancedCacheService({
-  maxSize: 500,
-  defaultTTL: 15 * 60 * 1000, // 15 minutes
-  evictionPolicy: 'LFU'
-});
-
-export const searchCache = new AdvancedCacheService({
-  maxSize: 1000,
-  defaultTTL: 5 * 60 * 1000, // 5 minutes
-  evictionPolicy: 'LRU'
-});
-
-export const aiCache = new AdvancedCacheService({
-  maxSize: 200,
-  defaultTTL: 30 * 60 * 1000, // 30 minutes
-  evictionPolicy: 'PRIORITY'
-});
+// Auto cleanup every 5 minutes
+setInterval(() => {
+  advancedCacheService.cleanup();
+  businessCache.cleanup();
+  searchCache.cleanup();
+  aiCache.cleanup();
+}, 5 * 60 * 1000);

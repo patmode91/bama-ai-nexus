@@ -1,107 +1,118 @@
 
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Database, Zap, Clock } from 'lucide-react';
-import { advancedCacheService } from '@/services/advancedCacheService';
+import { advancedCacheService, businessCache, searchCache, aiCache } from '@/services/advancedCacheService';
+import { Zap, Database, Clock, TrendingUp } from 'lucide-react';
 
 interface CacheIndicatorProps {
-  cacheKey?: string;
+  cacheType?: 'business' | 'search' | 'ai' | 'general';
   showStats?: boolean;
-  className?: string;
+  compact?: boolean;
 }
 
-export const CacheIndicator = ({ 
-  cacheKey, 
-  showStats = false, 
-  className = "" 
-}: CacheIndicatorProps) => {
-  const [cacheStatus, setCacheStatus] = useState<'hit' | 'miss' | 'loading' | 'unknown'>('unknown');
-  const [cacheStats, setCacheStats] = useState(advancedCacheService.getStats());
+export const CacheIndicator: React.FC<CacheIndicatorProps> = ({ 
+  cacheType = 'general', 
+  showStats = false,
+  compact = false 
+}) => {
+  const [stats, setStats] = useState({
+    hits: 0,
+    misses: 0,
+    hitRate: 0,
+    size: 0,
+    memoryUsage: 0
+  });
 
   useEffect(() => {
     const updateStats = () => {
-      setCacheStats(advancedCacheService.getStats());
+      let cacheService;
+      switch (cacheType) {
+        case 'business':
+          cacheService = businessCache;
+          break;
+        case 'search':
+          cacheService = searchCache;
+          break;
+        case 'ai':
+          cacheService = aiCache;
+          break;
+        default:
+          cacheService = advancedCacheService;
+      }
+      
+      setStats(cacheService.getStats());
     };
 
-    // Update stats every 5 seconds
-    const interval = setInterval(updateStats, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    updateStats();
+    const interval = setInterval(updateStats, 5000); // Update every 5 seconds
 
-  useEffect(() => {
-    if (cacheKey) {
-      // Check if key exists in cache
-      const checkCache = async () => {
-        const cached = await advancedCacheService.get(cacheKey);
-        setCacheStatus(cached ? 'hit' : 'miss');
-      };
-      checkCache();
-    }
-  }, [cacheKey]);
+    return () => clearInterval(interval);
+  }, [cacheType]);
 
   const getCacheIcon = () => {
-    switch (cacheStatus) {
-      case 'hit':
-        return <Zap className="w-3 h-3" />;
-      case 'miss':
-        return <Clock className="w-3 h-3" />;
-      case 'loading':
-        return <Database className="w-3 h-3 animate-pulse" />;
-      default:
+    switch (cacheType) {
+      case 'business':
         return <Database className="w-3 h-3" />;
-    }
-  };
-
-  const getCacheColor = () => {
-    switch (cacheStatus) {
-      case 'hit':
-        return 'bg-green-500';
-      case 'miss':
-        return 'bg-yellow-500';
-      case 'loading':
-        return 'bg-blue-500';
+      case 'search':
+        return <TrendingUp className="w-3 h-3" />;
+      case 'ai':
+        return <Zap className="w-3 h-3" />;
       default:
-        return 'bg-gray-500';
+        return <Clock className="w-3 h-3" />;
     }
   };
 
-  const getCacheText = () => {
-    switch (cacheStatus) {
-      case 'hit':
-        return 'Cached';
-      case 'miss':
-        return 'Fresh';
-      case 'loading':
-        return 'Loading';
-      default:
-        return 'Cache';
-    }
+  const getVariant = () => {
+    if (stats.hitRate > 0.8) return 'default';
+    if (stats.hitRate > 0.6) return 'secondary';
+    return 'outline';
   };
 
-  if (!showStats && !cacheKey) return null;
+  const formatMemory = (mb: number) => {
+    if (mb < 1) return `${(mb * 1024).toFixed(0)}KB`;
+    return `${mb.toFixed(1)}MB`;
+  };
+
+  if (compact) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant={getVariant()} className="flex items-center gap-1 text-xs">
+              {getCacheIcon()}
+              {(stats.hitRate * 100).toFixed(0)}%
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="text-sm">
+              <div className="font-medium">{cacheType} Cache Performance</div>
+              <div>Hit Rate: {(stats.hitRate * 100).toFixed(1)}%</div>
+              <div>Size: {stats.size} items</div>
+              <div>Memory: {formatMemory(stats.memoryUsage)}</div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge className={`${getCacheColor()} text-white ${className}`}>
-            {getCacheIcon()}
-            <span className="ml-1 text-xs">{getCacheText()}</span>
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className="space-y-1 text-xs">
-            {cacheKey && (
-              <div>Cache Key: {cacheKey}</div>
-            )}
-            <div>Hit Rate: {cacheStats.hitRate.toFixed(1)}%</div>
-            <div>Total Requests: {cacheStats.totalRequests}</div>
-            <div>Cache Size: {cacheStats.size} items</div>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div className="flex items-center gap-2">
+      <Badge variant={getVariant()} className="flex items-center gap-1">
+        {getCacheIcon()}
+        Cache: {(stats.hitRate * 100).toFixed(1)}%
+      </Badge>
+      
+      {showStats && (
+        <div className="text-xs text-muted-foreground flex items-center gap-3">
+          <span>{stats.hits} hits</span>
+          <span>{stats.misses} misses</span>
+          <span>{stats.size} items</span>
+          <span>{formatMemory(stats.memoryUsage)}</span>
+        </div>
+      )}
+    </div>
   );
 };
 
