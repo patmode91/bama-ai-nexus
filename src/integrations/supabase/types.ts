@@ -88,6 +88,38 @@ export type Database = {
           },
         ]
       }
+      business_embeddings: {
+        Row: {
+          business_id: number | null
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id?: number | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: number | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_embeddings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_updates: {
         Row: {
           business_id: number | null
@@ -820,6 +852,20 @@ export type Database = {
       get_saved_business_ids: {
         Args: { user_id: string }
         Returns: number[]
+      }
+      match_businesses: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+        }
+        Returns: {
+          id: string
+          business_id: number
+          businessname: string
+          description: string
+          similarity: number
+        }[]
       }
       save_business: {
         Args: { user_id: string; business_id: number }

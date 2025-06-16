@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,9 +13,13 @@ import {
   XCircle,
   Edit,
   Eye,
-  Trash2
+  Trash2,
+  Download,
+  Upload
 } from 'lucide-react';
 import { useBusinesses } from '@/hooks/useBusinesses';
+import { useBusinessImport } from '@/hooks/useBusinessImport';
+import { useAlabamaAIImport } from '@/hooks/useAlabamaAIImport';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,6 +28,18 @@ const BusinessManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'verified' | 'unverified'>('all');
   const { toast } = useToast();
+  
+  // Import hooks
+  const { 
+    importBusinesses, 
+    isImporting: isImportingOriginal 
+  } = useBusinessImport();
+  
+  const {
+    importAlabamaAICompanies,
+    isImporting: isImportingAI,
+    totalCompanies: totalAICompanies
+  } = useAlabamaAIImport();
 
   const filteredBusinesses = businesses?.filter(business => {
     const matchesSearch = business.businessname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,6 +107,22 @@ const BusinessManagement = () => {
     }
   };
 
+  const handleOriginalImport = () => {
+    importBusinesses();
+    toast({
+      title: "Import Started",
+      description: "Importing original business data...",
+    });
+  };
+
+  const handleAIImport = () => {
+    importAlabamaAICompanies();
+    toast({
+      title: "Import Started",
+      description: `Importing ${totalAICompanies} Alabama AI companies...`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <Card className="bg-gray-800 border-gray-700">
@@ -102,6 +133,28 @@ const BusinessManagement = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Import Controls */}
+          <div className="flex flex-wrap gap-4 p-4 bg-gray-700 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleOriginalImport}
+                disabled={isImportingOriginal}
+                className="bg-blue-600 hover:bg-blue-500"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {isImportingOriginal ? 'Importing...' : 'Import Original Data'}
+              </Button>
+              <Button
+                onClick={handleAIImport}
+                disabled={isImportingAI}
+                className="bg-green-600 hover:bg-green-500"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {isImportingAI ? 'Importing...' : `Import Alabama AI Companies (${totalAICompanies})`}
+              </Button>
+            </div>
+          </div>
+
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
