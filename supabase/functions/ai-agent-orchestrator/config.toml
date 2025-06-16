@@ -1,0 +1,12 @@
+[functions.ai-agent-orchestrator]
+  # Maximum execution time in seconds (default: 10)
+  max_duration = 60
+  # Amount of memory in MB (default: 128)
+  memory = 256
+  # Region to deploy to (default: none, uses project's default region)
+  region = "us-east-1"
+  # Environment variables
+  [functions.ai-agent-orchestrator.secrets]
+    SUPABASE_URL = ""
+    SUPABASE_SERVICE_ROLE_KEY = ""
+    GOOGLE_AI_API_KEY = ""

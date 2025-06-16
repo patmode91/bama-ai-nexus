@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "strict": true,
+    "target": "esnext"
+  },
+  "importMap": "./import_map.json"
+}
