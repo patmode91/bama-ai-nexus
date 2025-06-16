@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentChat } from '@/components/ai/AgentChat';
 import { BusinessSearch } from '@/components/ai/BusinessSearch';
@@ -59,15 +60,7 @@ export function AIAgentsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AgentChat 
-                agentType="connector" 
-                placeholder="Find businesses that match your criteria..."
-                suggestions={[
-                  'Find tech startups in Austin',
-                  'Show me businesses similar to Acme Corp',
-                  'Connect me with sustainable fashion brands'
-                ]}
-              />
+              <AgentChat agentType="connector" />
             </CardContent>
           </Card>
         </TabsContent>
@@ -81,15 +74,7 @@ export function AIAgentsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AgentChat 
-                agentType="analyst" 
-                placeholder="Ask about market trends or analysis..."
-                suggestions={[
-                  'What are the latest trends in renewable energy?',
-                  'Analyze the tech job market in Texas',
-                  'Compare growth rates of SaaS companies'
-                ]}
-              />
+              <AgentChat agentType="analyst" />
             </CardContent>
           </Card>
         </TabsContent>
@@ -103,15 +88,7 @@ export function AIAgentsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AgentChat 
-                agentType="curator" 
-                placeholder="Ask to update or validate business data..."
-                suggestions={[
-                  'Update our business profile with latest funding info',
-                  'Find social media profiles for our business',
-                  'Verify contact information for Acme Corp'
-                ]}
-              />
+              <AgentChat agentType="curator" />
             </CardContent>
           </Card>
         </TabsContent>

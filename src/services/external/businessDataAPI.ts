@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { createClient } from '@supabase/supabase-js';
 
 interface BusinessDataCache {
   data: any;
@@ -12,6 +13,10 @@ export class BusinessDataAPI {
   private static instance: BusinessDataAPI;
   private readonly CLEARBIT_API_KEY = import.meta.env.VITE_CLEARBIT_API_KEY;
   private readonly ZOOMINFO_API_KEY = import.meta.env.VITE_ZOOMINFO_API_KEY;
+  private supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+  );
 
   private constructor() {}
 
