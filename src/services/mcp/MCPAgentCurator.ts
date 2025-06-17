@@ -4,8 +4,9 @@ import { mcpEventBus } from './MCPEventBus';
 import { BusinessEnricher } from './curator/businessEnricher';
 import { DataQualityAnalyzer } from './curator/dataQualityAnalyzer';
 import type { EnrichedBusinessData, CuratorResponse } from './curator/types';
+import type { BusinessForValidation, ValidationIssue } from './curator/curationRules'; // Import validation types
 
-export type { EnrichedBusinessData, CuratorResponse };
+export type { EnrichedBusinessData, CuratorResponse, BusinessForValidation, ValidationIssue };
 
 class MCPAgentCurator {
   private static instance: MCPAgentCurator;
@@ -87,6 +88,32 @@ class MCPAgentCurator {
       console.error('Error in curator enrichBusinessData:', error);
       throw error;
     }
+  }
+
+  /**
+   * Performs validation on a given business profile.
+   * @param business The business data object to validate.
+   * @returns A promise that resolves to an object containing the validation status (isValid)
+   *          and a list of identified issues.
+   */
+  async performBusinessDataValidation(
+    business: BusinessForValidation
+  ): Promise<{ isValid: boolean; issues: ValidationIssue[] }> {
+    // In a more complex scenario, this might involve fetching the business by ID first,
+    // or handling a list of businesses. For now, it directly validates the provided object.
+
+    // The actual validation logic is in DataQualityAnalyzer
+    const validationResult = this.dataQualityAnalyzer.validateBusinessProfile(business);
+
+    // Optionally, emit an event or log validation results here if needed at the agent level
+    // For example:
+    // await mcpEventBus.emit({
+    //   type: 'data_validation_ran',
+    //   source: 'curator',
+    //   payload: { businessId: business.id, issues: validationResult.issues }
+    // });
+
+    return validationResult;
   }
 }
 

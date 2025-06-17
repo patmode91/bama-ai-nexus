@@ -1,13 +1,27 @@
 
 import { MCPContext } from '../MCPContextManager';
-import type { EnrichedBusinessData } from './types';
+import type { EnrichedBusinessData, BusinessSocialMediaLinks } from './types'; // Import BusinessSocialMediaLinks
+import { ClearbitCompanyData } from '../../external/marketDataAPI'; // For type hint
+import { isValidURL } from '../../utils/validationUtils'; // Import the real isValidURL
+import {
+  generateFacebookURL,
+  generateTwitterURL,
+  generateLinkedInCompanyURL,
+  generateInstagramURL,
+  generateYouTubeURL,
+} from '../../utils/socialMediaUtils';
 
 export class BusinessEnricher {
   async enrichSingleBusiness(business: any, context: MCPContext): Promise<EnrichedBusinessData> {
+    // Assume business object might have a 'clearbit_data' field from marketDataAPI.enrichBusinessProfile
+    const clearbitData = business.clearbit_data as ClearbitCompanyData | undefined;
+
     const enrichedTags = await this.generateEnrichedTags(business, context);
     const industryInsights = this.generateIndustryInsights(business, context);
     const compatibilityScore = this.calculateCompatibilityScore(business, context);
     const dataQuality = this.assessDataQuality(business);
+    const socialMediaUrls = this.generateSocialMediaLinks(business, clearbitData);
+
 
     return {
       business,
@@ -15,9 +29,39 @@ export class BusinessEnricher {
       industryInsights,
       compatibilityScore,
       dataQuality,
+      socialMediaUrls, // Added social media URLs
       lastEnriched: new Date()
     };
   }
+
+  private generateSocialMediaLinks(business: any, clearbitData?: ClearbitCompanyData): BusinessSocialMediaLinks {
+    const links: BusinessSocialMediaLinks = {};
+
+    // Handles could be directly on the business object or from Clearbit data
+    const fbHandle = clearbitData?.socialMedia?.facebookHandle || business.facebook_handle;
+    const twHandle = clearbitData?.socialMedia?.twitterHandle || business.twitter_handle;
+    // LinkedIn from Clearbit is often just the domain or a path, best to use the company specific one if available
+    const liHandle = clearbitData?.socialMedia?.linkedinHandle || business.linkedin_handle || business.linkedin_vanity_name;
+    const igHandle = clearbitData?.socialMedia?.instagramHandle /* if Clearbit provided it */ || business.instagram_handle;
+    const ytHandle = clearbitData?.socialMedia?.youtubeHandle /* if Clearbit provided it */ || business.youtube_handle;
+
+    if (fbHandle) links.facebookUrl = generateFacebookURL(fbHandle);
+    if (twHandle) links.twitterUrl = generateTwitterURL(twHandle);
+    if (liHandle) links.linkedinCompanyUrl = generateLinkedInCompanyURL(liHandle);
+    if (igHandle) links.instagramUrl = generateInstagramURL(igHandle);
+    if (ytHandle) links.youtubeUrl = generateYouTubeURL(ytHandle);
+
+    // Fallback: if business object has full URLs already, use them (prefer generated ones if handles exist)
+    if (!links.facebookUrl && isValidURL(business.facebook_url)) links.facebookUrl = business.facebook_url;
+    if (!links.twitterUrl && isValidURL(business.twitter_url)) links.twitterUrl = business.twitter_url;
+    if (!links.linkedinCompanyUrl && isValidURL(business.linkedin_url)) links.linkedinCompanyUrl = business.linkedin_url;
+    if (!links.instagramUrl && isValidURL(business.instagram_url)) links.instagramUrl = business.instagram_url;
+    if (!links.youtubeUrl && isValidURL(business.youtube_url)) links.youtubeUrl = business.youtube_url;
+
+    return links;
+  }
+
+  // Temporary isValidURL removed, will use imported version.
 
   private async generateEnrichedTags(business: any, context: MCPContext): Promise<string[]> {
     const existingTags = business.tags || [];
