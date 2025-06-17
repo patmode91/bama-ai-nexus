@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 
 interface BusinessDataCache {
   data: any;
@@ -17,6 +17,7 @@ export class BusinessDataAPI {
     import.meta.env.VITE_SUPABASE_URL,
     import.meta.env.VITE_SUPABASE_ANON_KEY
   );
+  private businessUpdateChannel: RealtimeChannel | null = null;
 
   private constructor() {}
 
@@ -152,6 +153,72 @@ export class BusinessDataAPI {
     } catch (error) {
       console.error('Error enriching business profile:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Subscribes to real-time updates (inserts, updates, deletes) from the 'businesses' table.
+   * @param callback A function to be called with the payload of any change.
+   * @returns A function to unsubscribe from the channel.
+   */
+  onBusinessUpdated(callback: (payload: any) => void): () => void {
+    if (this.businessUpdateChannel) {
+      console.warn('Already subscribed to business updates. Unsubscribing existing channel before creating a new one.');
+      this.businessUpdateChannel.unsubscribe();
+      this.businessUpdateChannel = null; // Reset after unsubscribing
+    }
+
+    this.businessUpdateChannel = this.supabase
+      .channel('public:businesses') // Channel name can be any string, but good to namespace
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'businesses' },
+        (payload) => {
+          // console.log('Change received!', payload); // For debugging
+          callback(payload);
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to real-time business updates.');
+        } else if (status === 'TIMED_OUT') {
+          console.warn('Real-time business updates subscription timed out.');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Real-time business updates subscription error:', err);
+        } else if (status === 'CLOSED') {
+          console.log('Real-time business updates subscription closed.');
+        }
+      });
+
+    // Return an unsubscribe function
+    const unsubscribe = () => {
+      if (this.businessUpdateChannel) {
+        this.businessUpdateChannel.unsubscribe()
+          .then(status => console.log('Unsubscribe status:', status))
+          .catch(error => console.error('Error unsubscribing:', error))
+          .finally(() => {
+            this.businessUpdateChannel = null;
+            console.log('Unsubscribed from real-time business updates.');
+          });
+      }
+    };
+
+    return unsubscribe;
+  }
+
+  /**
+   * Cleans up any active subscriptions.
+   * Should be called when the service instance is no longer needed.
+   */
+  cleanup() {
+    if (this.businessUpdateChannel) {
+      this.businessUpdateChannel.unsubscribe()
+        .then(status => console.log('Cleanup unsubscribe status:', status))
+        .catch(error => console.error('Error unsubscribing during cleanup:', error))
+        .finally(() => {
+            this.businessUpdateChannel = null;
+            console.log('Cleaned up business updates channel.');
+        });
     }
   }
 }

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { aiCache } from '../cache/advancedCacheService'; // Import advanced AI cache
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -25,10 +26,14 @@ interface EmbeddingResponse {
 
 export class SemanticSearchEngine {
   private model: any;
-  private cache: Map<string, SearchResult[]> = new Map();
+  // private cache: Map<string, SearchResult[]> = new Map(); // Replaced with aiCache
 
   constructor() {
-    this.model = genAI.getGenerativeModel({ model: 'embedding-001' });
+    // Utilizing 'text-embedding-004', a more advanced model than 'embedding-001'.
+    // According to Google's documentation, 'text-embedding-004' offers stronger
+    // retrieval performance and outperforms older models on embedding benchmarks.
+    // This change enhances the semantic understanding of queries and content.
+    this.model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
   }
 
   async generateEmbedding(text: string): Promise<number[]> {
@@ -49,8 +54,8 @@ export class SemanticSearchEngine {
     limit = 10
   ): Promise<SearchResult[]> {
     // Check cache first
-    const cacheKey = `${query}:${threshold}:${limit}`;
-    const cached = this.cache.get(cacheKey);
+    const cacheKey = `semantic_search:${query}:${threshold}:${limit}`; // Added prefix for clarity in shared cache
+    const cached = aiCache.get<SearchResult[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -78,13 +83,8 @@ export class SemanticSearchEngine {
         metadata: r.metadata || {}
       }));
 
-      // Cache the results
-      this.cache.set(cacheKey, formattedResults);
-      
-      // Set cache expiration (1 hour)
-      setTimeout(() => {
-        this.cache.delete(cacheKey);
-      }, 60 * 60 * 1000);
+      // Cache the results using aiCache with a 1-hour TTL
+      aiCache.set(cacheKey, formattedResults, { ttl: 60 * 60 * 1000 });
 
       return formattedResults;
     } catch (error) {
@@ -133,7 +133,23 @@ export class SemanticSearchEngine {
     }
   }
 
+  /**
+   * Clears semantic search related entries from the aiCache.
+   * Note: This is a naive implementation. For a large number of cached items,
+   * a more targeted approach (e.g., using tags if aiCache supports it for prefixes)
+   * or tracking keys would be more efficient. Currently, aiCache does not expose
+   * a method to clear by prefix directly. This method is a placeholder or would
+   * need aiCache to be augmented.
+   * For now, it's a no-op to prevent clearing the entire aiCache unintentionally.
+   */
   clearCache() {
-    this.cache.clear();
+    // Option 1: If aiCache had a clearByPrefix or uses tags for this key.
+    // aiCache.invalidateByTag(`semantic_search_query`); // Assuming keys were tagged
+    // aiCache.deleteByPrefix(cacheKeyPrefix); // If such method existed
+
+    // Option 2: No-op or log, as clearing the whole aiCache might be too broad.
+    console.warn("SemanticSearchEngine.clearCache() called. Specific cache clearing for semantic search prefix not implemented in shared aiCache without tag/prefix support. Consider clearing specific keys if known, or enhancing aiCache.");
+    // To clear *all* aiCache (use with caution):
+    // aiCache.clear();
   }
 }

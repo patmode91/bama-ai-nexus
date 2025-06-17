@@ -1,10 +1,20 @@
 
+// Define this here to be centrally available
+export interface BusinessSocialMediaLinks {
+  facebookUrl?: string;
+  twitterUrl?: string;
+  linkedinCompanyUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
+}
+
 export interface EnrichedBusinessData {
-  business: any;
+  business: any; // This should ideally be a more specific Business type
   enrichedTags: string[];
   industryInsights: string[];
   compatibilityScore: number;
   dataQuality: 'high' | 'medium' | 'low';
+  socialMediaUrls?: BusinessSocialMediaLinks; // Added field
   lastEnriched: Date;
 }
 
