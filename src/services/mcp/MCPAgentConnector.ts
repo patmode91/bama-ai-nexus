@@ -2,6 +2,7 @@
 import { mcpContextManager, MCPContext } from './MCPContextManager';
 import { mcpEventBus } from './MCPEventBus';
 import { supabase } from '@/integrations/supabase/client';
+import { predictionEngine } from '../ml/predictionEngine';
 
 export interface BusinessMatch {
   business: any;
@@ -80,7 +81,7 @@ class MCPAgentConnector {
       if (error) throw error;
 
       // Score and rank businesses
-      const matches = this.scoreBusinesses(businesses || [], mergedContext);
+      const matches = await this.scoreBusinesses(businesses || [], mergedContext); // Made async
 
       // Get market insights from The Analyst
       const marketInsights = await this.requestMarketInsights(mergedContext);
@@ -147,8 +148,10 @@ class MCPAgentConnector {
     return criteria;
   }
 
-  private scoreBusinesses(businesses: any[], context: MCPContext): BusinessMatch[] {
-    return businesses.map(business => {
+  private async scoreBusinesses(businesses: any[], context: MCPContext): Promise<BusinessMatch[]> { // Made async
+    const MAX_ML_BONUS_POINTS = 20; // Define max points from ML prediction
+
+    const scoredBusinesses = await Promise.all(businesses.map(async business => { // Added async/await for Promise.all
       let score = 0;
       const contextMatch: string[] = [];
       let reasoning = '';
@@ -204,9 +207,34 @@ class MCPAgentConnector {
       }
 
       // Rating bonus
-      if (business.rating > 4.0) {
+      if (business.rating && business.rating > 4.0) { // Added null check for business.rating
         score += 5;
         reasoning += `High rating (${business.rating}). `;
+      }
+
+      // ML-based scoring improvement
+      try {
+        const features = [
+          business.rating || 0,
+          business.review_count || 0, // Assuming review_count might exist
+          business.years_in_business || 0, // Assuming years_in_business might exist
+          // Pad with more relevant features if available, otherwise use zeros
+          (business.employees_count || 0) / 100, // Example: normalized employee count
+          business.verified ? 1 : 0, // Example: verification status as a feature
+        ];
+        // Ensure feature vector has fixed length of 10 for the model
+        while (features.length < 10) {
+          features.push(0);
+        }
+
+        const successProbability = await predictionEngine.predictSuccessProbability(features.slice(0, 10));
+        const mlBonus = Math.round(successProbability * MAX_ML_BONUS_POINTS);
+        score += mlBonus;
+        reasoning += `ML Prediction Confidence: ${Math.round(successProbability * 100)}% (+${mlBonus} pts). `;
+
+      } catch (mlError) {
+        console.warn(`ML prediction failed for business ${business.id || business.name}:`, mlError);
+        reasoning += `ML prediction not available. `;
       }
 
       return {
@@ -215,7 +243,9 @@ class MCPAgentConnector {
         reasoning: reasoning.trim() || 'General business match',
         contextMatch
       };
-    }).sort((a, b) => b.score - a.score);
+    })); // End of Promise.all(businesses.map...
+
+    return scoredBusinesses.sort((a, b) => b.score - a.score);
   }
 
   private matchCompanySize(preferredSize: string, employeeCount: number): boolean {

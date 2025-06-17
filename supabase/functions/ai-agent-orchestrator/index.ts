@@ -2,18 +2,21 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai';
 
-interface AgentRequest {
+// Redefined for more specific task-based orchestration
+export interface OrchestratorRequest { // Added export for potential use in client
   sessionId: string;
-  userId: string;
-  query: string;
-  context?: Record<string, any>;
+  userId?: string; // Optional if system-generated session or task
+  task: string; // e.g., 'analyst_get_trend_analysis', 'curator_enrich_business_profile'
+  payload: Record<string, any>; // Task-specific parameters
+  clientContext?: Record<string, any>; // Broader client context if needed (e.g. user prefs)
 }
 
-interface AgentResponse {
+export interface OrchestratorResponse { // Added export
   success: boolean;
   data?: any;
   error?: string;
-  sessionId: string;
+  sessionId?: string; // SessionId might not always be relevant for error responses before session is known
+  taskId?: string; // Optional: could be same as task, or a unique ID for this execution
   timestamp: string;
 }
 
@@ -31,8 +34,20 @@ serve(async (req) => {
   }
 
   try {
-    const requestData: AgentRequest = await req.json();
-    const { sessionId, userId, query, context = {} } = requestData;
+    const requestData = await req.json() as OrchestratorRequest; // Type assertion
+    const { sessionId, userId, task, payload, clientContext = {} } = requestData;
+
+    // Validate essential parameters early
+    if (!sessionId || !task || typeof payload !== 'object' || payload === null) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Missing or invalid required fields: sessionId, task, or payload must be an object.',
+          timestamp: new Date().toISOString(),
+        } as OrchestratorResponse),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
 
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -46,198 +61,250 @@ serve(async (req) => {
     );
 
     // Log the request
+    // Log the structured request
+    // Consider a different table or modifying 'agent_requests' structure for these task-based invocations
     await supabaseClient
-      .from('agent_requests')
+      .from('orchestrator_tasks') // New table for structured tasks
       .insert([
         {
           session_id: sessionId,
           user_id: userId,
-          query,
-          context,
+          task_name: task,
+          payload: payload,
+          client_context: clientContext,
           status: 'processing'
         },
       ]);
 
-    // Route the request to the appropriate agent based on the query
-    let result;
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    let resultData; // To store the data returned by the agent handlers
     
     try {
-      // First, classify the intent of the query
-      const intentPrompt = `Classify the following user query into one of these categories: 
-      - business_search: For finding or discovering businesses
-      - market_analysis: For market trends, analysis, or insights
-      - data_enrichment: For enriching or validating business data
-      - general: For general questions or support
-      
-      Query: "${query}"
-      
-      Respond with only the category name.`;
-      
-      const intentResult = await model.generateContent(intentPrompt);
-      const intent = (await intentResult.response.text()).trim().toLowerCase();
-      
-      // Route based on intent
-      switch (intent) {
-        case 'business_search':
-          result = await handleConnectorAgent(query, context, model, supabaseClient);
-          break;
-          
-        case 'market_analysis':
-          result = await handleAnalystAgent(query, context, model, supabaseClient);
-          break;
-          
-        case 'data_enrichment':
-          result = await handleCuratorAgent(query, context, model, supabaseClient);
-          break;
-          
-        default:
-          result = await handleGeneralQuery(query, model);
+      // Route based on task prefix or main task category
+      // The Gemini model is now passed to handlers that might need it (e.g. general query)
+      if (task.startsWith('connector_')) {
+        resultData = await handleConnectorAgent(task, payload, clientContext, supabaseClient);
+      } else if (task.startsWith('analyst_')) {
+        resultData = await handleAnalystAgent(task, payload, clientContext, supabaseClient);
+      } else if (task.startsWith('curator_')) {
+        resultData = await handleCuratorAgent(task, payload, clientContext, supabaseClient);
+      } else if (task === 'general_query' && payload.queryText) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        resultData = await handleGeneralQuery(payload.queryText, model);
+      } else {
+        throw new Error(`Unknown or malformed task: ${task}`);
       }
       
       // Log successful response
       await supabaseClient
-        .from('agent_requests')
-        .update({ status: 'completed', response: result })
-        .eq('session_id', sessionId);
+        .from('orchestrator_tasks')
+        .update({ status: 'completed', response_data: resultData }) // Storing structured result
+        .eq('session_id', sessionId).eq('task_name', task); // More specific update
 
       return new Response(
         JSON.stringify({
           success: true,
-          data: result,
+          data: resultData,
           sessionId,
+          taskId: task,
           timestamp: new Date().toISOString(),
-        } as AgentResponse),
+        } as OrchestratorResponse),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         }
       );
       
-    } catch (error) {
-      console.error('Agent processing error:', error);
-      
-      // Log the error
+    } catch (agentError) { // Catch errors from agent handlers or task routing
+      console.error('Agent/Task processing error:', agentError);
       await supabaseClient
-        .from('agent_requests')
+        .from('orchestrator_tasks')
         .update({ 
           status: 'error', 
-          error: error.message || 'Unknown error occurred' 
+          error_details: agentError.message || 'Unknown error during agent processing'
         })
-        .eq('session_id', sessionId);
+        .eq('session_id', sessionId).eq('task_name', task);
 
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Failed to process request',
+          error: agentError.message || 'Failed to process task via agent',
           sessionId,
+          taskId: task,
           timestamp: new Date().toISOString(),
-        } as AgentResponse),
+        } as OrchestratorResponse),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
+          // Use a property like 'statusCode' from the error if available, otherwise default to 500 or 400
+          status: (agentError as any).statusCode || 500,
         }
       );
     }
     
-  } catch (error) {
-    console.error('Server error:', error);
+  } catch (requestError) { // Catch errors like invalid JSON payload before Supabase client is initialized
+    console.error('Initial request processing error:', requestError);
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Internal server error',
+        error: requestError.message || 'Internal server error processing request',
+        // sessionId might not be available here if requestData parsing failed
         timestamp: new Date().toISOString(),
-      } as AgentResponse),
+      } as OrchestratorResponse),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: (requestError as any).statusCode || 500,
       }
     );
   }
 });
 
-// Agent Handlers
+// Agent Handlers - These will now primarily use supabase.functions.invoke
+// The 'model' parameter (Gemini) is removed unless a specific handler still needs direct LLM access for a sub-task.
+
 async function handleConnectorAgent(
-  query: string, 
-  context: Record<string, any>,
-  model: any,
-  supabase: any
+  task: string,
+  payload: Record<string, any>,
+  clientContext: Record<string, any>, // Added clientContext
+  supabase: any // Supabase client for invoking functions
 ) {
-  // Implement business search and matching logic
-  const prompt = `You are The Connector, an AI that helps find and match businesses.
+  console.log(`Connector Agent handling task: ${task}`, {payload, clientContext} );
+  // Example: If task is 'connector_find_business_matches'
+  if (task === 'connector_find_business_matches') {
+    // This is where you would invoke another Supabase Function for the Connector Agent's specific task
+    // const { data, error } = await supabase.functions.invoke('connector-agent-main', {
+    //   body: { taskAction: task, payload, clientContext }, // Pass task, payload, context
+    // });
+    // if (error) throw new Error(`Error invoking connector agent: ${error.message}`, { cause: error });
+    // return data;
+
+    // Mock response for now, as the actual agent functions are not created in this step
+    return {
+      agent: 'connector',
+      taskPerformed: task, // Echo back the task
+      status: 'mock_success_connector',
+      message: 'Connector agent task for finding matches would be invoked here.',
+      data: { matches: [{ id: '123', name: 'Mock Business Match', score: 0.9, ...payload }] },
+      timestamp: new Date().toISOString()
+    };
+  }
+  // Add more specific connector tasks here
+  // else if (task === 'connector_get_business_details') { ... }
   
-  User query: "${query}"
-  Context: ${JSON.stringify(context, null, 2)}
-  
-  Generate a structured response with business matches and recommendations.`;
-  
-  const result = await model.generateContent(prompt);
-  return {
-    agent: 'connector',
-    response: await result.response.text(),
-    timestamp: new Date().toISOString()
-  };
+  const err = new Error(`Unknown connector task: ${task}`);
+  (err as any).statusCode = 400; // Bad request if task is unknown
+  throw err;
 }
 
 async function handleAnalystAgent(
-  query: string, 
-  context: Record<string, any>,
-  model: any,
+  task: string,
+  payload: Record<string, any>,
+  clientContext: Record<string, any>, // Added clientContext
   supabase: any
 ) {
-  // Implement market analysis logic
-  const prompt = `You are The Analyst, an AI that provides market intelligence and insights.
-  
-  User query: "${query}"
-  Context: ${JSON.stringify(context, null, 2)}
-  
-  Generate a detailed market analysis based on the query.`;
-  
-  const result = await model.generateContent(prompt);
+  console.log(`Analyst Agent handling task: ${task}`, {payload, clientContext});
+  let functionToInvoke = '';
+  switch (task) {
+    case 'analyst_get_trend_analysis':
+      functionToInvoke = 'analyst-perform-trend-analysis'; // Hypothetical function name
+      break;
+    case 'analyst_get_business_risk_profile':
+      functionToInvoke = 'analyst-assess-business-risk';
+      break;
+    case 'analyst_get_competitor_analysis':
+      functionToInvoke = 'analyst-identify-competitors';
+      break;
+    // Add more cases for other analyst tasks
+    default:
+      const err = new Error(`Unknown analyst task: ${task}`);
+      (err as any).statusCode = 400;
+      throw err;
+  }
+
+  // const { data, error } = await supabase.functions.invoke(functionToInvoke, {
+  //    body: { taskAction: task, payload, clientContext },
+  // });
+  // if (error) throw new Error(`Error invoking analyst agent task ${task}: ${error.message}`, { cause: error });
+  // return data;
+
+  // Mock response for now
+  let mockData: any = { taskSpecificPayload: payload };
+  if (task === 'analyst_get_trend_analysis') {
+    mockData = { ...mockData, trendType: payload.analysisType, dataPointsCount: payload.seriesData?.length, trend: "stable (mock)" };
+  } else if (task === 'analyst_get_business_risk_profile') {
+    mockData = { ...mockData, businessId: payload.targetBusinessId, riskLevel: "low (mock)" };
+  } else if (task === 'analyst_get_competitor_analysis') {
+    mockData = { ...mockData, businessId: payload.targetBusinessId, competitors: ["MockCompA", "MockCompB"] };
+  }
+
   return {
     agent: 'analyst',
-    response: await result.response.text(),
+    taskPerformed: task,
+    status: 'mock_success_analyst',
+    message: `Analyst agent task for ${task} would be invoked here (function: ${functionToInvoke}).`,
+    data: mockData,
     timestamp: new Date().toISOString()
   };
 }
 
 async function handleCuratorAgent(
-  query: string, 
-  context: Record<string, any>,
-  model: any,
+  task: string,
+  payload: Record<string, any>,
+  clientContext: Record<string, any>, // Added clientContext
   supabase: any
 ) {
-  // Implement data enrichment logic
-  const prompt = `You are The Curator, an AI that enriches and validates business data.
+  console.log(`Curator Agent handling task: ${task}`, {payload, clientContext});
+  let functionToInvoke = '';
+  switch (task) {
+    case 'curator_enrich_business_profile':
+      functionToInvoke = 'curator-enrich-profile'; // Hypothetical function name
+      break;
+    case 'curator_validate_business_data':
+      functionToInvoke = 'curator-validate-data';
+      break;
+    // Add more cases for other curator tasks
+    default:
+      const err = new Error(`Unknown curator task: ${task}`);
+      (err as any).statusCode = 400;
+      throw err;
+  }
   
-  User query: "${query}"
-  Context: ${JSON.stringify(context, null, 2)}
+  // const { data, error } = await supabase.functions.invoke(functionToInvoke, {
+  //    body: { taskAction: task, payload, clientContext },
+  // });
+  // if (error) throw new Error(`Error invoking curator agent task ${task}: ${error.message}`, { cause: error });
+  // return data;
   
-  Provide enriched business information and data validation.`;
+  // Mock response for now
+  let mockData: any = { taskSpecificPayload: payload };
+   if (task === 'curator_enrich_business_profile') {
+    mockData = { ...mockData, businessId: payload.businessId, enrichedFieldsCount: 3 };
+  } else if (task === 'curator_validate_business_data') {
+    mockData = { ...mockData, businessId: payload.businessData?.id, validationStatus: "passed (mock)", issuesCount: 0 };
+  }
   
-  const result = await model.generateContent(prompt);
   return {
     agent: 'curator',
-    response: await result.response.text(),
+    taskPerformed: task,
+    status: 'mock_success_curator',
+    message: `Curator agent task for ${task} would be invoked here (function: ${functionToInvoke}).`,
+    data: mockData,
     timestamp: new Date().toISOString()
   };
 }
 
 async function handleGeneralQuery(
-  query: string,
-  model: any
+  queryText: string, // Now expects just the query text directly
+  model: any // Gemini model
 ) {
-  // Handle general queries
+  console.log(`Handling general query: ${queryText}`);
+  // This function remains as a direct LLM call for general queries
   const prompt = `You are BamaBot, a helpful AI assistant for the BAMA AI Nexus platform.
-  
-  User query: "${query}"
-  
+  User query: "${queryText}"
   Provide a helpful and informative response.`;
   
   const result = await model.generateContent(prompt);
   return {
-    agent: 'general',
-    response: await result.response.text(),
+    agent: 'general_bot', // Renamed for clarity
+    response: await result.response.text(), // Keep original response structure for this one
     timestamp: new Date().toISOString()
   };
 }
