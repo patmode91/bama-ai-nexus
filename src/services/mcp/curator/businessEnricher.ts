@@ -42,8 +42,9 @@ export class BusinessEnricher {
     const twHandle = clearbitData?.socialMedia?.twitterHandle || business.twitter_handle;
     // LinkedIn from Clearbit is often just the domain or a path, best to use the company specific one if available
     const liHandle = clearbitData?.socialMedia?.linkedinHandle || business.linkedin_handle || business.linkedin_vanity_name;
-    const igHandle = clearbitData?.socialMedia?.instagramHandle /* if Clearbit provided it */ || business.instagram_handle;
-    const ytHandle = clearbitData?.socialMedia?.youtubeHandle /* if Clearbit provided it */ || business.youtube_handle;
+    // Note: Instagram and YouTube handles are not available in ClearbitCompanySocialMedia interface
+    const igHandle = business.instagram_handle;
+    const ytHandle = business.youtube_handle;
 
     if (fbHandle) links.facebookUrl = generateFacebookURL(fbHandle);
     if (twHandle) links.twitterUrl = generateTwitterURL(twHandle);

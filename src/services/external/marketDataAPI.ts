@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { supabase } from '@/integrations/supabase/client'; // Assuming shared Supabase client
 import {
@@ -386,7 +387,7 @@ export class MarketDataAPI {
         console.warn(`Returning mock news for ${companyName} due to fetch error.`);
         return this.getMockNewsArticles(companyName, error.message);
       }
-    }, NEWS_CACHE_TTL);
+    });
   }
 
   private getMockNewsArticles(companyName: string, note?: string): NewsArticle[] {
@@ -548,13 +549,21 @@ export class MarketDataAPI {
    * @param businessId The ID of the business in the Supabase 'businesses' table.
    * @returns The updated business profile with enriched data, or null if an error occurs or no domain.
    */
-  async enrichBusinessProfile(businessId: string | number): Promise<any | null> {
+  async enrichBusinessProfile(businessId: string): Promise<any | null> {
     try {
-      // 1. Fetch business from Supabase
+      // Convert businessId to number if it's a string
+      const numericBusinessId = typeof businessId === 'string' ? parseInt(businessId, 10) : businessId;
+      
+      if (isNaN(numericBusinessId)) {
+        console.error(`Invalid business ID: ${businessId}`);
+        return null;
+      }
+
+      // 1. Fetch business from Supabase - using businessname instead of name
       const { data: business, error: fetchError } = await supabase
-        .from('businesses') // Assuming table name is 'businesses'
-        .select('id, name, website, clearbit_data') // Select relevant fields, including website for domain
-        .eq('id', businessId)
+        .from('businesses')
+        .select('id, businessname, website')
+        .eq('id', numericBusinessId)
         .single();
 
       if (fetchError) {
@@ -568,7 +577,7 @@ export class MarketDataAPI {
       }
 
       if (!business.website) {
-        console.log(`Business ${businessId} (${business.name}) has no website/domain for enrichment.`);
+        console.log(`Business ${businessId} (${business.businessname}) has no website/domain for enrichment.`);
         return business; // Return original business if no domain
       }
 
@@ -591,8 +600,6 @@ export class MarketDataAPI {
 
       if (!clearbitData) {
         console.log(`No Clearbit enrichment data found for domain ${domain} (business ID ${businessId}).`);
-        // Optionally update a field to note that lookup was attempted
-        // await supabase.from('businesses').update({ last_clearbit_lookup_at: new Date().toISOString(), social_profile_urls: null }).eq('id', businessId);
         return business; // Return original business if no enrichment
       }
 
@@ -609,46 +616,27 @@ export class MarketDataAPI {
           // Assuming Clearbit's linkedinHandle is for company pages for this context
           socialMediaLinks.linkedinCompanyUrl = generateLinkedInCompanyURL(clearbitData.socialMedia.linkedinHandle);
         }
-        // Add Instagram and YouTube if Clearbit starts providing those handles in ClearbitCompanyData.socialMedia
-        // For now, they are not in the ClearbitCompanyData.socialMedia interface but utilities exist.
       }
-
-      // 4. Prepare update object for Supabase
-      // This example updates specific fields if they exist in ClearbitCompanyData and stores raw data + formatted social URLs.
-      // Adapt this to your actual 'businesses' table schema.
 
       // 4a. Fetch Company News
-      const recentNews = await this.fetchCompanyNews(business.name, domain);
+      const recentNews = await this.fetchCompanyNews(business.businessname, domain);
 
+      // 4. Prepare update object for Supabase
       const updatePayload: { [key: string]: any } = {
-        clearbit_data: clearbitData.rawClearbitData, // Store all raw data
-        social_profile_urls: socialMediaLinks, // Store generated social media URLs
-        recent_news: recentNews, // Store fetched news articles
         last_enriched_at: new Date().toISOString(),
-        // Example of updating specific top-level fields if your schema has them:
-        // name: clearbitData.name || business.name, // Preserve original if Clearbit's is null
-        // description: clearbitData.description,
-        // employee_count: clearbitData.employeeCount,
-        // logo_url: clearbitData.logoUrl,
-        // phone: clearbitData.phone,
-        // industry: clearbitData.category?.industry,
-        // (add more mapped fields as per your 'businesses' table structure)
       };
 
-      // Merge existing clearbit_data with new data if clearbit_data is a JSONB field
-      if (business.clearbit_data && typeof business.clearbit_data === 'object') {
-        // Ensure we don't overwrite the entire object if only new raw data is added
-        updatePayload.clearbit_data = { ...business.clearbit_data, ...clearbitData.rawClearbitData };
+      // Only add fields if the table supports them
+      if (clearbitData.rawClearbitData) {
+        updatePayload.metadata = { clearbit_data: clearbitData.rawClearbitData };
       }
-      // A similar merge could be done for social_profile_urls if it's a JSONB field and might have partial updates.
-      // For simplicity, here it overwrites social_profile_urls with the latest generated ones.
 
       // 5. Update business in Supabase
       const { data: updatedBusiness, error: updateError } = await supabase
         .from('businesses')
         .update(updatePayload)
-        .eq('id', businessId)
-        .select('*, social_profile_urls, clearbit_data, recent_news') // Ensure new fields are returned
+        .eq('id', numericBusinessId)
+        .select('*')
         .single();
 
       if (updateError) {
@@ -656,15 +644,18 @@ export class MarketDataAPI {
         throw updateError;
       }
 
-      console.log(`Business ${businessId} (${updatedBusiness?.name}) successfully enriched with Clearbit data.`);
-      return updatedBusiness;
+      console.log(`Business ${businessId} (${updatedBusiness?.businessname}) successfully enriched with Clearbit data.`);
+      return {
+        ...updatedBusiness,
+        enriched_social_links: socialMediaLinks,
+        enriched_news: recentNews
+      };
 
     } catch (error) {
       console.error(`Failed to enrich business profile for ID ${businessId}:`, error);
       return null;
     }
   }
-
 
   async getIndustryGrowth(naicsCode: string, location: string) {
     // Combine BLS and Census data for comprehensive industry analysis

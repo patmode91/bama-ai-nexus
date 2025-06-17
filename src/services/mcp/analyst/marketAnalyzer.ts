@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { MCPContext } from '../MCPContextManager';
 import { MarketInsight } from './types';
@@ -88,9 +87,7 @@ export class MarketAnalyzer {
       sector,
       averageProjectCost: this.calculateProjectCosts(context, businesses),
       typicalTimeline: this.estimateTimeline(context),
-      // marketTrend: this.assessMarketTrend(sector, businesses), // Original call
-      // Enhanced marketTrend could use analyzeTimeSeriesData if historical data for the sector is fetched
-      marketTrend: await this.assessMarketTrend(sector, businesses, context), // Placeholder for potential async call
+      marketTrend: await this.assessMarketTrend(sector, businesses, context),
       competitorCount,
       demandLevel: this.assessDemand(sector, context),
       keyFactors: this.identifyKeyFactors(context, sector)
@@ -142,18 +139,8 @@ export class MarketAnalyzer {
     }
   }
 
-  // Modified to be async to potentially accommodate fetching time series data for trend analysis
-  private async assessMarketTrend(sector: string, businesses: any[], context: MCPContext): Promise<'growing' | 'stable' | 'declining' | 'indeterminate'> {
-    // TODO: Future enhancement - Fetch actual time-series data for the sector/location using marketDataAPI
-    // e.g., BLS employment data for the sector, or new business registrations over time.
-    // For now, this retains simplified logic but could call analyzeTimeSeriesData with fetched data.
-    // Example conceptual call:
-    // const timeSeries = await marketDataAPI.getSomeTimeSeriesForSector(sector, context.location);
-    // if (timeSeries && timeSeries.length > 0) {
-    //   const trendResult = await this.analyzeTimeSeriesData(timeSeries, 'linearRegression');
-    //   if (trendResult && trendResult.trendDirection) return trendResult.trendDirection;
-    // }
-
+  // Modified to return only the valid market trend types
+  private async assessMarketTrend(sector: string, businesses: any[], context: MCPContext): Promise<'growing' | 'stable' | 'declining'> {
     const aiRelatedSectors = ['technology', 'healthcare', 'finance', 'legal'];
     if (aiRelatedSectors.some(s => sector.toLowerCase().includes(s))) {
       return 'growing';
