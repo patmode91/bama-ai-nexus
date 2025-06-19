@@ -101,7 +101,7 @@ serve(async (req) => {
       }
       
       // Log successful response
-      await supabaseClient
+      await orchestratorSupabaseClient // Use the initialized client
         .from('orchestrator_tasks')
         .update({ status: 'completed', response_data: resultData }) // Storing structured result
         .eq('session_id', sessionId).eq('task_name', task); // More specific update
@@ -122,7 +122,7 @@ serve(async (req) => {
       
     } catch (agentError) { // Catch errors from agent handlers or task routing
       console.error('Agent/Task processing error:', agentError);
-      await supabaseClient
+      await orchestratorSupabaseClient // Use the initialized client
         .from('orchestrator_tasks')
         .update({ 
           status: 'error', 
