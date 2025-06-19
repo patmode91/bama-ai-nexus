@@ -87,11 +87,17 @@ serve(async (req) => {
         resultData = await handleAnalystAgent(task, payload, clientContext, supabaseClient);
       } else if (task.startsWith('curator_')) {
         resultData = await handleCuratorAgent(task, payload, clientContext, supabaseClient);
+      } else if (task === 'bamabot_chat_interaction' && payload.queryText) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' }); // Ensure genAI is available
+        resultData = await handleBamaBotChat(payload, clientContext, model);
       } else if (task === 'general_query' && payload.queryText) {
         const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         resultData = await handleGeneralQuery(payload.queryText, model);
       } else {
-        throw new Error(`Unknown or malformed task: ${task}`);
+        // Ensure statusCode is set for client errors for proper response
+        const err = new Error(`Unknown or malformed task: ${task}`);
+        (err as any).statusCode = 400;
+        throw err;
       }
       
       // Log successful response
@@ -166,32 +172,27 @@ async function handleConnectorAgent(
   clientContext: Record<string, any>, // Added clientContext
   supabase: any // Supabase client for invoking functions
 ) {
-  console.log(`Connector Agent handling task: ${task}`, {payload, clientContext} );
-  // Example: If task is 'connector_find_business_matches'
-  if (task === 'connector_find_business_matches') {
-    // This is where you would invoke another Supabase Function for the Connector Agent's specific task
-    // const { data, error } = await supabase.functions.invoke('connector-agent-main', {
-    //   body: { taskAction: task, payload, clientContext }, // Pass task, payload, context
-    // });
-    // if (error) throw new Error(`Error invoking connector agent: ${error.message}`, { cause: error });
-    // return data;
+  console.log(`Invoking connector-agent-handler for task: ${task}`, { payload, clientContext });
 
-    // Mock response for now, as the actual agent functions are not created in this step
-    return {
-      agent: 'connector',
-      taskPerformed: task, // Echo back the task
-      status: 'mock_success_connector',
-      message: 'Connector agent task for finding matches would be invoked here.',
-      data: { matches: [{ id: '123', name: 'Mock Business Match', score: 0.9, ...payload }] },
-      timestamp: new Date().toISOString()
-    };
+  const { data, error } = await supabase.functions.invoke('connector-agent-handler', {
+    body: JSON.stringify({ task, payload, clientContext }),
+    // Supabase client automatically sets Authorization header if invoking with user's context.
+    // If needing service_role for the invoked function, ensure it's configured or use a dedicated client.
+  });
+
+  if (error) {
+    console.error(`Error from connector-agent-handler (task: ${task}):`, error.message || error);
+    const err = new Error(`Connector agent task ${task} failed: ${error.message || 'Function invocation error'}`);
+    // Attempt to get status from underlying error if possible, default to 500
+    (err as any).statusCode = typeof error === 'object' && error !== null && 'status' in error ? (error as any).status : 500;
+    (err as any).details = typeof error === 'object' && error !== null && 'details' in error ? (error as any).details : error;
+    throw err;
   }
-  // Add more specific connector tasks here
-  // else if (task === 'connector_get_business_details') { ... }
-  
-  const err = new Error(`Unknown connector task: ${task}`);
-  (err as any).statusCode = 400; // Bad request if task is unknown
-  throw err;
+
+  // The invoked function's response is expected to be in the 'data' field.
+  // If the invoked function returns { success: true, data: actualResponseData }, then data.data is needed.
+  // Assuming the invoked function returns the actual business data directly.
+  return data;
 }
 
 async function handleAnalystAgent(
@@ -200,49 +201,20 @@ async function handleAnalystAgent(
   clientContext: Record<string, any>, // Added clientContext
   supabase: any
 ) {
-  console.log(`Analyst Agent handling task: ${task}`, {payload, clientContext});
-  let functionToInvoke = '';
-  switch (task) {
-    case 'analyst_get_trend_analysis':
-      functionToInvoke = 'analyst-perform-trend-analysis'; // Hypothetical function name
-      break;
-    case 'analyst_get_business_risk_profile':
-      functionToInvoke = 'analyst-assess-business-risk';
-      break;
-    case 'analyst_get_competitor_analysis':
-      functionToInvoke = 'analyst-identify-competitors';
-      break;
-    // Add more cases for other analyst tasks
-    default:
-      const err = new Error(`Unknown analyst task: ${task}`);
-      (err as any).statusCode = 400;
-      throw err;
+  console.log(`Invoking analyst-agent-handler for task: ${task}`, { payload, clientContext });
+
+  const { data, error } = await supabase.functions.invoke('analyst-agent-handler', {
+    body: JSON.stringify({ task, payload, clientContext }),
+  });
+
+  if (error) {
+    console.error(`Error from analyst-agent-handler (task: ${task}):`, error.message || error);
+    const err = new Error(`Analyst agent task ${task} failed: ${error.message || 'Function invocation error'}`);
+    (err as any).statusCode = typeof error === 'object' && error !== null && 'status' in error ? (error as any).status : 500;
+    (err as any).details = typeof error === 'object' && error !== null && 'details' in error ? (error as any).details : error;
+    throw err;
   }
-
-  // const { data, error } = await supabase.functions.invoke(functionToInvoke, {
-  //    body: { taskAction: task, payload, clientContext },
-  // });
-  // if (error) throw new Error(`Error invoking analyst agent task ${task}: ${error.message}`, { cause: error });
-  // return data;
-
-  // Mock response for now
-  let mockData: any = { taskSpecificPayload: payload };
-  if (task === 'analyst_get_trend_analysis') {
-    mockData = { ...mockData, trendType: payload.analysisType, dataPointsCount: payload.seriesData?.length, trend: "stable (mock)" };
-  } else if (task === 'analyst_get_business_risk_profile') {
-    mockData = { ...mockData, businessId: payload.targetBusinessId, riskLevel: "low (mock)" };
-  } else if (task === 'analyst_get_competitor_analysis') {
-    mockData = { ...mockData, businessId: payload.targetBusinessId, competitors: ["MockCompA", "MockCompB"] };
-  }
-
-  return {
-    agent: 'analyst',
-    taskPerformed: task,
-    status: 'mock_success_analyst',
-    message: `Analyst agent task for ${task} would be invoked here (function: ${functionToInvoke}).`,
-    data: mockData,
-    timestamp: new Date().toISOString()
-  };
+  return data;
 }
 
 async function handleCuratorAgent(
@@ -251,44 +223,20 @@ async function handleCuratorAgent(
   clientContext: Record<string, any>, // Added clientContext
   supabase: any
 ) {
-  console.log(`Curator Agent handling task: ${task}`, {payload, clientContext});
-  let functionToInvoke = '';
-  switch (task) {
-    case 'curator_enrich_business_profile':
-      functionToInvoke = 'curator-enrich-profile'; // Hypothetical function name
-      break;
-    case 'curator_validate_business_data':
-      functionToInvoke = 'curator-validate-data';
-      break;
-    // Add more cases for other curator tasks
-    default:
-      const err = new Error(`Unknown curator task: ${task}`);
-      (err as any).statusCode = 400;
-      throw err;
+  console.log(`Invoking curator-agent-handler for task: ${task}`, { payload, clientContext });
+
+  const { data, error } = await supabase.functions.invoke('curator-agent-handler', {
+    body: JSON.stringify({ task, payload, clientContext }),
+  });
+
+  if (error) {
+    console.error(`Error from curator-agent-handler (task: ${task}):`, error.message || error);
+    const err = new Error(`Curator agent task ${task} failed: ${error.message || 'Function invocation error'}`);
+    (err as any).statusCode = typeof error === 'object' && error !== null && 'status' in error ? (error as any).status : 500;
+    (err as any).details = typeof error === 'object' && error !== null && 'details' in error ? (error as any).details : error;
+    throw err;
   }
-  
-  // const { data, error } = await supabase.functions.invoke(functionToInvoke, {
-  //    body: { taskAction: task, payload, clientContext },
-  // });
-  // if (error) throw new Error(`Error invoking curator agent task ${task}: ${error.message}`, { cause: error });
-  // return data;
-  
-  // Mock response for now
-  let mockData: any = { taskSpecificPayload: payload };
-   if (task === 'curator_enrich_business_profile') {
-    mockData = { ...mockData, businessId: payload.businessId, enrichedFieldsCount: 3 };
-  } else if (task === 'curator_validate_business_data') {
-    mockData = { ...mockData, businessId: payload.businessData?.id, validationStatus: "passed (mock)", issuesCount: 0 };
-  }
-  
-  return {
-    agent: 'curator',
-    taskPerformed: task,
-    status: 'mock_success_curator',
-    message: `Curator agent task for ${task} would be invoked here (function: ${functionToInvoke}).`,
-    data: mockData,
-    timestamp: new Date().toISOString()
-  };
+  return data;
 }
 
 async function handleGeneralQuery(
@@ -302,9 +250,120 @@ async function handleGeneralQuery(
   Provide a helpful and informative response.`;
   
   const result = await model.generateContent(prompt);
+  // Ensure the response structure is consistent if orchestrator expects a 'data' wrapper from all handlers
+  // For now, handleGeneralQuery's direct response might be fine if client handles it.
+  // However, for consistency with other agent handlers which return structured data:
   return {
-    agent: 'general_bot', // Renamed for clarity
-    response: await result.response.text(), // Keep original response structure for this one
+    agent: 'general_bot',
+    textResponse: await result.response.text(), // Changed 'response' to 'textResponse' for consistency
     timestamp: new Date().toISOString()
+  };
+}
+
+async function handleBamaBotChat(
+  payload: Record<string, any>,
+  clientContext: Record<string, any>, // Contains clientType e.g. BamaBotUI
+  model: any // Gemini model instance
+) {
+  const { queryText, chatHistory } = payload;
+
+  // Construct a detailed prompt for intent classification and response generation
+  const historyString = (chatHistory || [])
+    .map((msg: { text: string; sender: string }) => `${msg.sender === 'bot' ? 'BamaBot' : 'User'}: ${msg.text}`) // Assuming sender 'bot' or 'user'
+    .join('\n');
+
+  const prompt = `
+You are BamaBot, a helpful AI assistant for the BAMA AI Nexus platform.
+Your goal is to understand the user's query, provide a direct and helpful textual response, AND classify the user's intent and extract key entities.
+
+User's Current Query: "${queryText}"
+
+Chat History (last few messages):
+${historyString}
+
+Alabama Business Ecosystem Context:
+- Major hubs: Birmingham (healthcare, finance), Huntsville (aerospace, tech), Mobile (manufacturing, logistics)
+- Key industries: Aerospace, Automotive, Healthcare, Technology, Manufacturing, Legal Services, Financial Services
+- Growing sectors: AI/ML, Fintech, Healthtech, Defense Technology, Cybersecurity, Supply Chain Tech
+
+Based on the user's current query and chat history:
+1.  Provide a natural, conversational, and helpful textual response to the user's query. The response should be directly usable for display.
+2.  After the textual response, on a new line, provide a JSON object with your classification. The JSON object must start with "Classification: {" and end with "}".
+
+Textual Response:
+[Your engaging and helpful textual response here. Answer the query or ask for clarification if needed.]
+
+Classification:
+{
+  "intent": "CLASSIFIED_INTENT",
+  "entities": {
+    "industry": "extracted_industry_if_any (e.g., Healthcare, Aerospace, Technology)",
+    "location": "extracted_location_if_any (e.g., Birmingham, Huntsville, Alabama)",
+    "company_name": "extracted_company_name_if_any",
+    "search_terms": ["relevant", "search", "terms", "from", "query"],
+    "specific_details_requested": "e.g., contact info, recent news, risk assessment, market trends, validation status",
+    "task_target": "e.g., a specific business ID if mentioned for enrichment/validation"
+  },
+  "suggested_next_task": "SUGGESTED_ORCHESTRATOR_TASK_IF_APPLICABLE",
+  "confidence_score": 0.0
+}
+
+Possible intents: "request_business_match", "ask_market_trend", "request_company_info", "request_enrichment", "request_validation", "general_question", "greeting", "farewell", "clarification_needed", "help_suggestion", "other".
+Possible suggested_next_task (align with orchestrator tasks): "connector_find_business_matches", "analyst_get_market_trend_analysis", "analyst_get_business_risk_profile", "analyst_get_competitor_analysis", "curator_enrich_business_profile", "curator_validate_business_data", "none".
+
+Example:
+User: "Hi BamaBot, can you find me tech companies in Huntsville that work with AI?"
+Textual Response:
+Hello! I can certainly help you with that. Huntsville is a major tech hub, especially for AI. I'll look for technology companies in Huntsville that specialize in Artificial Intelligence. One moment...
+Classification:
+{
+  "intent": "request_business_match",
+  "entities": {
+    "industry": "Technology",
+    "location": "Huntsville",
+    "search_terms": ["tech companies", "Huntsville", "AI"],
+    "specific_details_requested": null,
+    "task_target": null
+  },
+  "suggested_next_task": "connector_find_business_matches",
+  "confidence_score": 0.9
+}
+
+Ensure the JSON is well-formed and directly parsable.
+`;
+
+  const rawLLMResponse = await model.generateContent(prompt);
+  const responseText = await rawLLMResponse.response.text();
+
+  let textualReply = "I'm having a little trouble understanding that. Could you try rephrasing your request?";
+  let classification = { intent: "clarification_needed", entities: {}, confidence_score: 0.2, suggested_next_task: "none" };
+
+  const classificationMarker = "Classification:";
+  // Use lastIndexOf in case the textual response itself contains the word "Classification:"
+  const classificationIndex = responseText.lastIndexOf(classificationMarker);
+
+  if (classificationIndex !== -1) {
+    const textualPart = responseText.substring(0, classificationIndex).replace(/^Textual Response:\s*/im, "").trim();
+    if (textualPart) textualReply = textualPart; // Use LLM response only if non-empty
+
+    const jsonString = responseText.substring(classificationIndex + classificationMarker.length).trim();
+    try {
+      classification = JSON.parse(jsonString);
+    } catch (e) {
+      console.error("Failed to parse classification JSON from LLM:", e, "JSON String was:", jsonString);
+      // Keep default classification, textualReply might still be useful
+    }
+  } else {
+    // If marker not found, assume the whole response is textual and intent is unclear
+    const trimmedResponse = responseText.replace(/^Textual Response:\s*/im, "").trim();
+    if (trimmedResponse) textualReply = trimmedResponse;
+  }
+
+  return {
+    agent: 'bamabot_nlp_engine',
+    textResponse: textualReply,
+    classification: classification,
+    clientContext: clientContext, // Echo back client context if needed
+    debug_llm_raw_output: responseText // For debugging purposes
   };
 }

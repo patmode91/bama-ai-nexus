@@ -1,215 +1,173 @@
+import { supabase } from '@/integrations/supabase/client'; // Adjust path as per your project structure
+import type { RealtimeChannel, RealtimePresenceJoinPayload, RealtimePresenceLeavePayload, RealtimePresenceState } from '@supabase/supabase-js';
 
-import { supabase } from '@/integrations/supabase/client';
-import { RealtimeChannel } from '@supabase/supabase-js';
-import { logger } from '../loggerService';
-
-export type RealtimeEventType = 
-  | 'business_update' 
-  | 'new_business' 
-  | 'review_added'
-  | 'user_activity'
-  | 'system_alert'
-  | 'chat_message'
-  | 'broadcast'; // Added broadcast as a valid type
-
-export interface RealtimeEvent {
-  id: string;
-  type: RealtimeEventType;
-  data: any;
-  timestamp: number;
-  userId?: string;
-  metadata?: Record<string, any>;
+export interface UserPresenceState {
+  user_id: string; // UUID of the user
+  username?: string; // Display name
+  avatar_url?: string; // URL to user's avatar
+  last_seen?: string; // ISO timestamp, updated by track()
+  // Add any other relevant state information, e.g., status: 'editing', 'typing...'
+  [key: string]: any; // Allow arbitrary other properties
 }
 
-export interface RealtimeSubscription {
-  id: string;
-  channel: string;
-  callback: (event: RealtimeEvent) => void;
-  isActive: boolean;
-}
+export class RealtimeService {
+  private static instance: RealtimeService;
 
-class RealtimeService {
-  private channels = new Map<string, RealtimeChannel>();
-  private subscriptions = new Map<string, RealtimeSubscription>();
-  private connectionStatus: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-
-  constructor() {
-    this.initializeConnection();
-  }
-
-  private initializeConnection() {
-    this.connectionStatus = 'connecting';
-    
-    // Monitor connection status through channel subscription status
-    // The modern Supabase client doesn't expose onMessage/onError directly
-    setTimeout(() => {
-      this.connectionStatus = 'connected';
-      this.reconnectAttempts = 0;
-      logger.info('Realtime connection established', {}, 'RealtimeService');
-    }, 1000);
-  }
-
-  private handleReconnection() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = Math.pow(2, this.reconnectAttempts) * 1000; // Exponential backoff
-      
-      setTimeout(() => {
-        logger.info(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`, {}, 'RealtimeService');
-        this.initializeConnection();
-      }, delay);
+  public static getInstance(): RealtimeService {
+    if (!RealtimeService.instance) {
+      RealtimeService.instance = new RealtimeService();
     }
+    return RealtimeService.instance;
   }
 
-  subscribe(channelName: string, callback: (event: RealtimeEvent) => void): string {
-    const subscriptionId = `${channelName}_${Date.now()}_${Math.random()}`;
-    
-    // Create or get existing channel
-    let channel = this.channels.get(channelName);
-    if (!channel) {
-      channel = supabase.channel(channelName);
-      this.channels.set(channelName, channel);
+  /**
+   * Joins a room-specific presence channel, subscribes to it, and tracks the user's presence.
+   * @param roomId The ID of the room for which to track presence.
+   * @param userProfileToTrack The presence state for the current user to broadcast.
+   * @returns The RealtimeChannel object if successfully subscribed and tracking, otherwise null.
+   */
+  async joinRoomChannel(
+    roomId: string,
+    userProfileToTrack: UserPresenceState
+  ): Promise<RealtimeChannel | null> {
+    if (!roomId || !userProfileToTrack || !userProfileToTrack.user_id) {
+      console.error('Room ID and user profile (with user_id) are required to join a room channel.');
+      return null;
     }
 
-    // Set up broadcast listener
-    channel.on('broadcast', { event: 'realtime_event' }, (payload) => {
-      const event: RealtimeEvent = {
-        id: payload.id || `event_${Date.now()}`,
-        type: payload.type,
-        data: payload.data,
-        timestamp: payload.timestamp || Date.now(),
-        userId: payload.userId,
-        metadata: payload.metadata
-      };
-      
-      callback(event);
-      logger.debug('Realtime event received', { event }, 'RealtimeService');
+    const channelName = `presence-room-${roomId}`;
+    const channel = supabase.channel(channelName, {
+      config: {
+        presence: {
+          key: userProfileToTrack.user_id, // Unique key for this client's presence
+        },
+      },
     });
 
-    // Set up database changes listener
-    channel.on('postgres_changes', 
-      { event: '*', schema: 'public' }, 
-      (payload) => {
-        const event: RealtimeEvent = {
-          id: `db_${Date.now()}`,
-          type: this.mapDatabaseEventType(payload.table, payload.eventType),
-          data: payload.new || payload.old,
-          timestamp: Date.now(),
-          metadata: { 
-            table: payload.table, 
-            eventType: payload.eventType,
-            old: payload.old 
-          }
-        };
-        
-        callback(event);
-      }
-    );
-
-    // Subscribe to channel
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        this.connectionStatus = 'connected';
-        logger.info(`Subscribed to channel: ${channelName}`, {}, 'RealtimeService');
-      } else if (status === 'CLOSED') {
-        this.connectionStatus = 'disconnected';
-        this.handleReconnection();
-      }
-    });
-
-    // Store subscription
-    const subscription: RealtimeSubscription = {
-      id: subscriptionId,
-      channel: channelName,
-      callback,
-      isActive: true
-    };
-    this.subscriptions.set(subscriptionId, subscription);
-
-    return subscriptionId;
-  }
-
-  unsubscribe(subscriptionId: string): void {
-    const subscription = this.subscriptions.get(subscriptionId);
-    if (subscription) {
-      subscription.isActive = false;
-      this.subscriptions.delete(subscriptionId);
-      
-      // Check if channel has other active subscriptions
-      const hasActiveSubscriptions = Array.from(this.subscriptions.values())
-        .some(sub => sub.channel === subscription.channel && sub.isActive);
-      
-      if (!hasActiveSubscriptions) {
-        const channel = this.channels.get(subscription.channel);
-        if (channel) {
-          channel.unsubscribe();
-          this.channels.delete(subscription.channel);
-          logger.info(`Unsubscribed from channel: ${subscription.channel}`, {}, 'RealtimeService');
-        }
-      }
-    }
-  }
-
-  broadcast(channelName: string, event: Omit<RealtimeEvent, 'id' | 'timestamp'>): void {
-    const channel = this.channels.get(channelName);
-    if (channel) {
-      const fullEvent: RealtimeEvent = {
-        ...event,
-        id: `broadcast_${Date.now()}_${Math.random()}`,
-        timestamp: Date.now()
-      };
-
-      channel.send({
-        type: 'broadcast',
-        event: 'realtime_event',
-        payload: fullEvent
+    try {
+      await new Promise<void>((resolve, reject) => { // Changed to Promise<void> as channel is returned outside
+        channel
+          .on('presence', { event: 'sync' }, () => {
+            // This event is triggered when the client first connects and gets the current presence state.
+            // console.log(`Presence synced for room ${roomId}`, channel.presenceState());
+          })
+          .subscribe(async (status, err) => { // Added err parameter for detailed error logging
+            if (status === 'SUBSCRIBED') {
+              console.log(`Successfully subscribed to presence channel: ${channelName}`);
+              const trackStatus = await channel.track(userProfileToTrack);
+              if (trackStatus === 'ok') {
+                console.log(`User presence tracked for ${userProfileToTrack.user_id} in ${channelName}`);
+                resolve();
+              } else {
+                console.error(`Failed to track presence for ${userProfileToTrack.user_id} in ${channelName}:`, trackStatus);
+                // Attempt to unsubscribe and remove channel before rejecting
+                await this.cleanupChannel(channel, `Track failure: ${trackStatus}`);
+                reject(new Error('Failed to track presence.'));
+              }
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              const errorDetails = err ? `Error: ${err.message}` : `Status: ${status}`;
+              console.error(`Subscription error on channel ${channelName}: ${errorDetails}`);
+              await this.cleanupChannel(channel, `Subscription failure: ${errorDetails}`);
+              reject(new Error(`Subscription failed with status: ${status}. ${err ? err.message : ''}`));
+            }
+          });
       });
-
-      logger.debug('Event broadcasted', { channelName, event: fullEvent }, 'RealtimeService');
+      return channel;
+    } catch (error: any) {
+      console.error(`Error joining room channel ${channelName}:`, error.message);
+      // Ensure channel is cleaned up if it exists and an error occurred during the process
+      await this.cleanupChannel(channel, `Join room error: ${error.message}`);
+      return null;
     }
   }
 
-  private mapDatabaseEventType(table: string, eventType: string): RealtimeEventType {
-    switch (table) {
-      case 'businesses':
-        return eventType === 'INSERT' ? 'new_business' : 'business_update';
-      case 'reviews':
-        return 'review_added';
-      case 'chat_messages':
-        return 'chat_message';
-      default:
-        return 'system_alert';
+  /**
+   * Private helper to attempt to unsubscribe and remove a channel, logging errors.
+   */
+  private async cleanupChannel(channel: RealtimeChannel | null, contextMessage: string = "Cleaning up channel") {
+    if (!channel) return;
+    console.warn(`${contextMessage} - attempting to clean up channel ${channel.topic}`);
+    try {
+      await channel.unsubscribe();
+    } catch (e: any) {
+      console.error(`Error during unsubscribe for ${channel.topic}: ${e.message}`);
+    }
+    try {
+      await supabase.removeChannel(channel);
+    } catch (e: any) {
+      console.error(`Error during removeChannel for ${channel.topic}: ${e.message}`);
     }
   }
 
-  getConnectionStatus(): string {
-    return this.connectionStatus;
-  }
 
-  getActiveSubscriptions(): RealtimeSubscription[] {
-    return Array.from(this.subscriptions.values()).filter(sub => sub.isActive);
-  }
-
-  disconnect(): void {
-    // Unsubscribe from all channels
-    this.channels.forEach((channel, channelName) => {
-      channel.unsubscribe();
-      logger.info(`Disconnected from channel: ${channelName}`, {}, 'RealtimeService');
+  /**
+   * Subscribes to presence updates (sync, join, leave) on a given channel.
+   * @param channel The RealtimeChannel to listen on.
+   * @param onSync Callback triggered on initial connection, receives the full presence state.
+   * @param onJoin Callback triggered when a new user joins, receives their ID (key) and presence state.
+   * @param onLeave Callback triggered when a user leaves, receives their ID (key) and the presence state they had.
+   */
+  subscribeToRoomPresenceUpdates(
+    channel: RealtimeChannel,
+    onSync: (currentState: RealtimePresenceState<UserPresenceState>) => void,
+    onJoin: (presenceKey: string, newPresence: UserPresenceState) => void,
+    onLeave: (presenceKey: string, leftPresence: UserPresenceState) => void
+  ): void {
+    channel.on('presence', { event: 'sync' }, () => {
+      const currentState = channel.presenceState<UserPresenceState>();
+      onSync(currentState);
     });
+    channel.on('presence', { event: 'join' }, (payload: RealtimePresenceJoinPayload<UserPresenceState>) => {
+      // Supabase Realtime: newPresences is an array. The 'key' in payload refers to the key of the client *that triggered this event*,
+      // not necessarily the key of the user who joined if multiple join events are batched.
+      // It's generally better to iterate through newPresences and use the key from within each presence state if available,
+      // or the 'key' property on the RealtimePresence instance itself.
+      // For this UserPresenceState, 'key' is user_id.
+      payload.newPresences.forEach(p => onJoin(p.user_id, p));
+    });
+    channel.on('presence', { event: 'leave' }, (payload: RealtimePresenceLeavePayload<UserPresenceState>) => {
+      payload.leftPresences.forEach(p => onLeave(p.user_id, p));
+    });
+    // Note: The subscribe call is typically done once when setting up the channel (e.g. in joinRoomChannel).
+    // This function just attaches handlers. If the channel isn't subscribed, these won't fire.
+  }
 
-    this.channels.clear();
-    this.subscriptions.clear();
-    this.connectionStatus = 'disconnected';
+  /**
+   * Untracks user presence, unsubscribes from the channel, and removes it from Supabase client.
+   * @param channel The RealtimeChannel to leave.
+   */
+  async leaveRoomChannel(channel: RealtimeChannel | null): Promise<void> {
+    if (!channel) {
+      console.warn("leaveRoomChannel called with null channel.");
+      return;
+    }
+
+    try {
+      const untrackStatus = await channel.untrack();
+      if (untrackStatus === 'ok') {
+        console.log(`Successfully untracked presence from channel: ${channel.topic}`);
+      } else {
+        console.warn(`Failed to untrack presence from channel ${channel.topic}: ${untrackStatus}`);
+      }
+    } catch (error: any) {
+      console.error(`Error untracking presence from channel ${channel.topic}:`, error.message);
+    }
+    // Proceed with unsubscribe and remove regardless of untrack status for cleanup.
+    await this.cleanupChannel(channel, `Leaving room channel ${channel.topic}`);
+  }
+
+  /**
+   * Retrieves the current presence state for a channel.
+   * Note: This is a synchronous call and reflects the client's last known state.
+   * For real-time updates, use subscribeToRoomPresenceUpdates and rely on the 'sync' event.
+   * @param channel The RealtimeChannel.
+   * @returns The current presence state. Returns an empty object if channel is null.
+   */
+  getRoomPresenceState(channel: RealtimeChannel | null): RealtimePresenceState<UserPresenceState> {
+    if (!channel) return {};
+    return channel.presenceState<UserPresenceState>();
   }
 }
 
-export const realtimeService = new RealtimeService();
-
-// Auto-cleanup on page unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    realtimeService.disconnect();
-  });
-}
+// Export a singleton instance
+export const realtimeService = RealtimeService.getInstance();

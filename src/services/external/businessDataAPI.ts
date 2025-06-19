@@ -1,23 +1,106 @@
 import axios from 'axios';
+// Use createClient from supabase-js directly if this service manages its own client,
+// or import the shared client if available (e.g. from '@/integrations/supabase/client')
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
+import {
+  generateFacebookURL,
+  generateTwitterURL,
+  generateLinkedInCompanyURL,
+  // generateInstagramURL, // Not used yet by Clearbit data structure
+  // generateYouTubeURL,  // Not used yet by Clearbit data structure
+} from '../utils/socialMediaUtils';
+import type { BusinessSocialMediaLinks } from '../mcp/curator/types';
 
-interface BusinessDataCache {
-  data: any;
+
+// --- NewsArticle Interface ---
+export interface NewsArticle {
+  title: string;
+  sourceName: string;
+  url: string;
+  publishedAt: string;
+  description?: string;
+  imageUrl?: string;
+  content?: string;
+}
+// --- End NewsArticle Interface ---
+
+// --- ClearbitCompanyData Interface ---
+interface ClearbitCompanyGeo {
+  streetNumber?: string;
+  streetName?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface ClearbitCompanyCategory {
+  industry?: string;
+  sector?: string;
+  subIndustry?: string;
+}
+
+interface ClearbitCompanySocialMedia {
+  facebookHandle?: string;
+  linkedinHandle?: string;
+  twitterHandle?: string;
+}
+
+export interface ClearbitCompanyData {
+  name?: string;
+  legalName?: string;
+  domain?: string;
+  description?: string;
+  foundedYear?: number;
+  url?: string;
+  geo?: ClearbitCompanyGeo;
+  category?: ClearbitCompanyCategory;
+  socialMedia?: ClearbitCompanySocialMedia;
+  logoUrl?: string;
+  phone?: string;
+  employeeCount?: number;
+  rawClearbitData?: any;
+}
+// --- End ClearbitCompanyData Interface ---
+
+
+interface BusinessDataCacheItem<T> { // Renamed to avoid conflict if interfaces are merged later
+  data: T;
   timestamp: number;
 }
 
-const BUSINESS_DATA_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const businessDataCache: Record<string, BusinessDataCache> = {};
+const BUSINESS_DATA_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours default
+const businessDataCache: Record<string, BusinessDataCacheItem<any>> = {}; // Use renamed interface
 
 export class BusinessDataAPI {
   private static instance: BusinessDataAPI;
   private readonly CLEARBIT_API_KEY = import.meta.env.VITE_CLEARBIT_API_KEY;
-  private readonly ZOOMINFO_API_KEY = import.meta.env.VITE_ZOOMINFO_API_KEY;
-  private supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
+  private readonly ZOOMINFO_API_KEY = import.meta.env.VITE_ZOOMINFO_API_KEY; // Existing
+  private readonly NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY; // Added
+
+  private supabase = createClient( // Existing Supabase client initialization
+    import.meta.env.VITE_SUPABASE_URL!, // Added non-null assertion
+    import.meta.env.VITE_SUPABASE_ANON_KEY! // Added non-null assertion
   );
   private businessUpdateChannel: RealtimeChannel | null = null;
+
+  private MOCK_CLEARBIT_COMPANY_DATA: ClearbitCompanyData = {
+    name: "Mock Company LLC",
+    legalName: "Mock Company LLC",
+    domain: "mockcompany.com",
+    description: "This is a mock company description for development purposes.",
+    foundedYear: 2024,
+    url: "https://mockcompany.com",
+    geo: { city: "Mockville", state: "MS" },
+    category: { industry: "Mock Industry" },
+    socialMedia: { facebookHandle: "mockcompanyfb", linkedinHandle: "mockcompanyli", twitterHandle: "mockcompanytw" },
+    logoUrl: "https://logo.clearbit.com/mockcompany.com",
+    phone: "1-800-MOCKDATA",
+    employeeCount: 50,
+    rawClearbitData: { note: "This is mock data" }
+  };
 
   private constructor() {}
 
@@ -28,18 +111,20 @@ export class BusinessDataAPI {
     return BusinessDataAPI.instance;
   }
 
-  private getCacheKey(domain: string, endpoint: string): string {
-    return `${endpoint}:${domain}`.toLowerCase();
+  private getCacheKey(identifier: string, endpoint: string): string { // identifier can be domain or companyName
+    return `${endpoint}:${identifier}`.toLowerCase();
   }
 
+  // Updated fetchWithCache to accept custom TTL
   private async fetchWithCache<T>(
     key: string,
-    fetchFn: () => Promise<T>
+    fetchFn: () => Promise<T>,
+    ttl: number = BUSINESS_DATA_CACHE_TTL // Default TTL from the class
   ): Promise<T> {
     const now = Date.now();
     const cached = businessDataCache[key];
 
-    if (cached && now - cached.timestamp < BUSINESS_DATA_CACHE_TTL) {
+    if (cached && now - cached.timestamp < ttl) {
       return cached.data as T;
     }
 
@@ -52,107 +137,201 @@ export class BusinessDataAPI {
       return data;
     } catch (error) {
       console.error(`Error fetching business data for key ${key}:`, error);
-      throw error;
+      throw error; // Re-throw to be handled by caller
     }
   }
 
-  async getCompanyInfo(domain: string) {
-    const key = this.getCacheKey(domain, 'company');
-    return this.fetchWithCache(key, async () => {
-      const response = await axios.get(`https://company.clearbit.com/v2/companies/find`, {
-        params: { domain },
-        headers: {
-          'Authorization': `Bearer ${this.CLEARBIT_API_KEY}`
+  /**
+   * Fetches enriched company data from Clearbit based on a domain name.
+   * (Copied and adapted from marketDataAPI.ts)
+   */
+  async getCompanyInfo(domain: string): Promise<ClearbitCompanyData | null> {
+    const cacheKey = this.getCacheKey(domain, 'clearbit_company_info');
+
+    if (!this.CLEARBIT_API_KEY) {
+      console.warn(`CLEARBIT_API_KEY is missing. Returning mock data for Clearbit getCompanyInfo(${domain}).`);
+      return { ...this.MOCK_CLEARBIT_COMPANY_DATA, domain: domain, name: `Mock for ${domain.split('.')[0]}`, logoUrl: `https://logo.clearbit.com/${domain}` };
+    }
+
+    return this.fetchWithCache(cacheKey, async () => {
+      try {
+        const response = await axios.get(`https://company.clearbit.com/v2/companies/find`, {
+          params: { domain },
+          headers: { 'Authorization': `Bearer ${this.CLEARBIT_API_KEY}`, 'Accept': 'application/json' },
+          timeout: 10000
+        });
+        if (response.status === 200 && response.data && response.data.domain) {
+          const cbData = response.data;
+          return { // Mapped data
+            name: cbData.name, legalName: cbData.legalName, domain: cbData.domain, description: cbData.description,
+            foundedYear: cbData.foundedYear, url: cbData.site?.url || cbData.url,
+            geo: cbData.geo, category: cbData.category, socialMedia: cbData.socialMedia,
+            logoUrl: cbData.logo, phone: cbData.phone || cbData.site?.phoneNumbers?.[0],
+            employeeCount: cbData.metrics?.employees, rawClearbitData: cbData
+          };
+        } else if (response.status === 404) {
+          console.log(`Clearbit: Company not found for domain ${domain} (404).`);
+          return null;
+        } else if (response.status === 200 && (!response.data || !response.data.domain)) {
+           console.log(`Clearbit: Company data incomplete or pending for domain ${domain}.`);
+           return null;
+        } else {
+          throw new Error(`Clearbit API error: Status ${response.status}`);
         }
-      });
-      return response.data;
+      } catch (error: any) {
+        // Error logging similar to marketDataAPI version
+        if (axios.isAxiosError(error) && error.response) {
+            if (error.response.status === 401) console.error("Clearbit API Key is invalid or unauthorized.");
+            else if (error.response.status === 402) console.error("Clearbit API call failed: Payment Required.");
+            else if (error.response.status === 404) { console.log(`Clearbit: Company not found for domain ${domain} (error path).`); return null; }
+            else if (error.response.status === 429) console.warn("Clearbit API rate limit likely exceeded.");
+            else console.error(`Clearbit API error for domain ${domain}: Status ${error.response.status}`);
+        } else {
+            console.error(`Network or other error fetching Clearbit data for ${domain}: ${error.message}`);
+        }
+        console.warn(`Returning mock data for Clearbit getCompanyInfo(${domain}) due to fetch error.`);
+        return { ...this.MOCK_CLEARBIT_COMPANY_DATA, domain: domain, name: `Mock for ${domain.split('.')[0]} (Error)`, logoUrl: `https://logo.clearbit.com/${domain}` };
+      }
     });
   }
 
+  // Existing getEnrichedCompanyData (ZoomInfo) - kept as is
   async getEnrichedCompanyData(domain: string) {
-    const key = this.getCacheKey(domain, 'enriched');
+    const key = this.getCacheKey(domain, 'zoominfo_enriched'); // Changed key prefix
     return this.fetchWithCache(key, async () => {
+      if (!this.ZOOMINFO_API_KEY) {
+        console.warn(`ZOOMINFO_API_KEY is missing. Cannot fetch data for domain ${domain}.`);
+        return { note: "ZoomInfo API key missing. This is mock data.", domain }; // Return mock/indicator
+      }
       const response = await axios.get(`https://api.zoominfo.com/enrich/company`, {
         params: { domain },
-        headers: {
-          'Authorization': `Bearer ${this.ZOOMINFO_API_KEY}`,
-          'Accept': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${this.ZOOMINFO_API_KEY}`, 'Accept': 'application/json' },
+        timeout: 10000
       });
-      return response.data;
+      return response.data; // Assuming direct return is fine, or map to a structure
     });
   }
 
-  async getSocialMediaPresence(domain: string) {
-    const key = this.getCacheKey(domain, 'social');
-    return this.fetchWithCache(key, async () => {
-      const response = await axios.get(`https://company.clearbit.com/v1/domains/find`, {
-        params: { name: domain },
-        headers: {
-          'Authorization': `Bearer ${this.CLEARBIT_API_KEY}`
+  // Removed getSocialMediaPresence as its functionality is covered by getCompanyInfo's socialMedia handles
+
+  /**
+   * Fetches recent news articles related to a company.
+   * (Copied and adapted from marketDataAPI.ts)
+   */
+  async fetchCompanyNews( companyName: string, domain?: string, language: string = 'en', pageSize: number = 5 ): Promise<NewsArticle[] | null> {
+    const cacheKey = this.getCacheKey(domain || companyName, `newsapi_company_news:${language}:${pageSize}`);
+    const NEWS_CACHE_TTL = 1 * 60 * 60 * 1000; // 1 hour for news
+
+    if (!this.NEWS_API_KEY) {
+      console.warn(`NEWS_API_KEY is missing. Returning mock news for ${companyName}.`);
+      return this.getMockNewsArticles(companyName);
+    }
+    if (!companyName && !domain) {
+        console.warn("Cannot fetch news without a company name or domain.");
+        return null;
+    }
+
+    return this.fetchWithCache(cacheKey, async () => {
+      try {
+        let searchQuery = `"${companyName}"`;
+        if (domain) {
+          const coreDomain = domain.replace(/^www\./, '').split('.')[0];
+          searchQuery = `("${companyName}") OR ("${companyName}" AND "${coreDomain}")`;
         }
-      });
-      return response.data.social || {};
-    });
+        const response = await axios.get('https://newsapi.org/v2/everything', {
+          params: { q: searchQuery, language, pageSize, sortBy: 'relevancy' },
+          headers: { 'X-Api-Key': this.NEWS_API_KEY, 'Accept': 'application/json' },
+          timeout: 10000
+        });
+        if (response.status === 200 && response.data?.articles) {
+          return response.data.articles.map((article: any): NewsArticle => ({
+            title: article.title, sourceName: article.source?.name, url: article.url,
+            publishedAt: article.publishedAt, description: article.description,
+            imageUrl: article.urlToImage, content: article.content,
+          }));
+        } else {
+          console.warn(`NewsAPI returned status ${response.status} or no articles for ${companyName}.`);
+          return this.getMockNewsArticles(companyName, `API status ${response.status}`);
+        }
+      } catch (error: any) {
+        // Error logging similar to marketDataAPI version
+         if (axios.isAxiosError(error) && error.response) {
+            const apiError = error.response.data?.message || error.message;
+            console.error(`NewsAPI error for ${companyName}: Status ${error.response.status} - ${apiError}`);
+            if (error.response.status === 401) console.error("NewsAPI Key is invalid or unauthorized.");
+            if (error.response.status === 429) console.warn("NewsAPI rate limit likely exceeded.");
+        } else {
+            console.error(`Network or other error fetching NewsAPI data for ${companyName}: ${error.message}`);
+        }
+        console.warn(`Returning mock news for ${companyName} due to fetch error.`);
+        return this.getMockNewsArticles(companyName, error.message);
+      }
+    }, NEWS_CACHE_TTL);
   }
 
-  async getCompanyNews(companyName: string, limit = 5) {
-    const key = this.getCacheKey(companyName, 'news');
-    return this.fetchWithCache(key, async () => {
-      const response = await axios.get('https://newsapi.org/v2/everything', {
-        params: {
-          q: `"${companyName}"`,
-          apiKey: import.meta.env.VITE_NEWS_API_KEY,
-          pageSize: limit,
-          sortBy: 'publishedAt',
-          language: 'en'
-        }
-      });
-      return response.data.articles || [];
-    });
+  private getMockNewsArticles(companyName: string, note?: string): NewsArticle[] {
+    return [
+      { title: `Developments at ${companyName}`, sourceName: "Mock News", url: `https://example.com/news/${companyName.toLowerCase().replace(/\s+/g, '-')}-1`, publishedAt: new Date().toISOString(), description: `Mock article. ${note || ''}` },
+      { title: `${companyName} Strategy Update`, sourceName: "Fictional Times", url: `https://example.com/news/${companyName.toLowerCase().replace(/\s+/g, '-')}-2`, publishedAt: new Date(Date.now() - 86400000).toISOString(), description: `Mock strategy report. ${note || ''}` }
+    ];
   }
 
-  async enrichBusinessProfile(businessId: string) {
+  /**
+   * Enriches a business profile in the database with data from Clearbit and NewsAPI.
+   * (Copied and adapted from marketDataAPI.ts, uses this.supabase)
+   */
+  async enrichBusinessProfile(businessId: string | number): Promise<any | null> {
     try {
-      // Get business data from database
-      const { data: business, error } = await this.supabase
+      const { data: business, error: fetchError } = await this.supabase
         .from('businesses')
-        .select('*')
+        .select('id, name, website, clearbit_data, social_profile_urls, recent_news') // Added more fields to select
         .eq('id', businessId)
         .single();
 
-      if (error || !business) {
-        throw new Error('Business not found');
+      if (fetchError) { console.error(`Error fetching business ${businessId}:`, fetchError.message); throw fetchError; }
+      if (!business) { console.warn(`Business ${businessId} not found.`); return null; }
+      if (!business.website) { console.log(`Business ${businessId} has no website for enrichment.`); return business; }
+
+      let domain = '';
+      try { domain = new URL(business.website).hostname.replace(/^www\./, ''); }
+      catch (e) { console.warn(`Invalid website URL for business ${businessId}: ${business.website}`); return business; }
+      if (!domain) { console.log(`Could not extract domain for business ${businessId}.`); return business; }
+
+      const clearbitData = await this.getCompanyInfo(domain);
+      const recentNews = await this.fetchCompanyNews(business.name, domain);
+
+      const socialMediaLinks: BusinessSocialMediaLinks = {};
+      if (clearbitData?.socialMedia) {
+        if (clearbitData.socialMedia.facebookHandle) socialMediaLinks.facebookUrl = generateFacebookURL(clearbitData.socialMedia.facebookHandle);
+        if (clearbitData.socialMedia.twitterHandle) socialMediaLinks.twitterUrl = generateTwitterURL(clearbitData.socialMedia.twitterHandle);
+        if (clearbitData.socialMedia.linkedinHandle) socialMediaLinks.linkedinCompanyUrl = generateLinkedInCompanyURL(clearbitData.socialMedia.linkedinHandle);
       }
 
-      // Enrich with external data
-      const [companyData, socialData, news] = await Promise.all([
-        this.getCompanyInfo(business.website),
-        this.getSocialMediaPresence(business.website),
-        this.getCompanyNews(business.name, 3)
-      ]);
+      const updatePayload: { [key: string]: any } = { last_enriched_at: new Date().toISOString() };
+      if (clearbitData) {
+        updatePayload.clearbit_data = business.clearbit_data ? { ...business.clearbit_data, ...clearbitData.rawClearbitData } : clearbitData.rawClearbitData;
+      }
+      if (Object.keys(socialMediaLinks).length > 0) {
+        updatePayload.social_profile_urls = business.social_profile_urls ? { ...business.social_profile_urls, ...socialMediaLinks } : socialMediaLinks;
+      }
+      if (recentNews && recentNews.length > 0) {
+        updatePayload.recent_news = recentNews; // Overwrites previous news for simplicity
+      }
 
-      // Update business with enriched data
-      const enrichedData = {
-        ...business,
-        company_data: companyData,
-        social_media: socialData,
-        recent_news: news,
-        last_updated: new Date().toISOString()
-      };
-
-      // Save back to database
-      const { error: updateError } = await this.supabase
+      const { data: updatedBusiness, error: updateError } = await this.supabase
         .from('businesses')
-        .update(enrichedData)
-        .eq('id', businessId);
+        .update(updatePayload)
+        .eq('id', businessId)
+        .select() // Select all to get the updated record
+        .single();
 
-      if (updateError) throw updateError;
+      if (updateError) { console.error(`Error updating business ${businessId}:`, updateError.message); throw updateError; }
+      console.log(`Business ${businessId} successfully enriched.`);
+      return updatedBusiness;
 
-      return enrichedData;
     } catch (error) {
-      console.error('Error enriching business profile:', error);
-      throw error;
+      console.error(`Failed to enrich business profile for ID ${businessId}:`, error);
+      return null;
     }
   }
 

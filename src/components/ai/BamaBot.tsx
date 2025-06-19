@@ -27,6 +27,21 @@ const BamaBot = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Access Supabase URL and Anon Key from environment variables (Vite specific)
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  // Placeholder for actual Supabase auth client if available globally or via context
+  // For now, assuming a way to get the current session/token.
+  // In a real app, you'd use the Supabase client instance: e.g., supabase.auth.getSession()
+  const getAuthToken = async () => {
+    // This is a placeholder. Replace with your actual Supabase auth token retrieval logic.
+    // const { data: { session } } = await supabase.auth.getSession();
+    // return session?.access_token;
+    return 'your-placeholder-jwt-if-needed-for-testing-without-auth'; // Or null if no auth
+  };
+
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -35,40 +50,7 @@ const BamaBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const generateBotResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Simple AI-like responses based on keywords
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return "Hello! I'm here to help you navigate Alabama's AI landscape. Are you looking for AI companies, job opportunities, or market insights?";
-    }
-    
-    if (lowerMessage.includes('company') || lowerMessage.includes('business')) {
-      return "I can help you find AI companies in Alabama! We have businesses in Birmingham, Huntsville, Mobile, and other cities. Are you looking for a specific type of AI service like machine learning, robotics, or data analytics?";
-    }
-    
-    if (lowerMessage.includes('job') || lowerMessage.includes('career')) {
-      return "Great! Alabama has a growing AI job market. I can help you find opportunities in machine learning, data science, AI research, and more. What's your background and what type of role interests you?";
-    }
-    
-    if (lowerMessage.includes('huntsville')) {
-      return "Huntsville is a major AI hub in Alabama, especially for aerospace and defense applications! The city has strong connections to NASA and defense contractors, making it perfect for AI in robotics and space technology.";
-    }
-    
-    if (lowerMessage.includes('birmingham')) {
-      return "Birmingham has a thriving AI scene focused on healthcare, manufacturing, and fintech! The city's medical district and industrial base provide great opportunities for AI applications.";
-    }
-    
-    if (lowerMessage.includes('funding') || lowerMessage.includes('investment')) {
-      return "Alabama's AI ecosystem has seen over $45M in total funding! The state offers various incentives for tech companies, and there are active investor networks in Birmingham and Huntsville.";
-    }
-    
-    if (lowerMessage.includes('start') || lowerMessage.includes('begin')) {
-      return "Perfect! Let's get you started. I recommend taking our Quick Start Quiz to get personalized AI company recommendations. You can also browse our directory by category or location. What sounds most interesting?";
-    }
-    
-    return "That's a great question! While I'm still learning about Alabama's AI ecosystem, I can help you explore our company directory, find job opportunities, or connect you with the right resources. Is there something specific you'd like to discover?";
-  };
+  // generateBotResponse function is removed.
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -80,22 +62,92 @@ const BamaBot = () => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Add user message to state immediately
+    // Keep a reference to current messages for chat history
+    const currentMessages = [...messages, userMessage];
+    setMessages(currentMessages);
+    const currentInputValue = inputValue; // Store before clearing
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI thinking time
-    setTimeout(() => {
-      const botResponse: Message = {
+    try {
+      const authToken = await getAuthToken(); // Placeholder for actual token
+      const requestBody = {
+        sessionId: "bamabot_session_placeholder_" + new Date().getTime(), // Basic unique session for now
+        userId: "bamabot_user_placeholder_123", // Static user for now
+        task: "bamabot_chat_interaction",
+        payload: {
+          queryText: userMessage.text,
+          chatHistory: currentMessages.slice(-6, -1).map(m => ({ // Send up to 5 previous messages
+            text: m.text,
+            sender: m.isBot ? 'bot' : 'user'
+          }))
+        },
+        clientContext: {
+          clientType: "BamaBotUI"
+        }
+      };
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-agent-orchestrator`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY, // Supabase Anon Key
+          'Authorization': `Bearer ${authToken}`, // User's JWT or Service Role Key if appropriate
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      setIsTyping(false);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Network error or invalid JSON response" }));
+        console.error('BamaBot API Error:', errorData);
+        const errorMessage = errorData?.error || `Error: ${response.status} ${response.statusText}`;
+        const botErrorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: `Sorry, I encountered an error: ${errorMessage}`,
+          isBot: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, botErrorMessage]);
+        return;
+      }
+
+      const responseData = await response.json();
+
+      if (responseData.success && responseData.data?.textResponse) {
+        const botResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: responseData.data.textResponse,
+          isBot: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, botResponse]);
+        // Optionally log or use responseData.data.classification
+        console.log("BamaBot Classification:", responseData.data.classification);
+      } else {
+        const errorMessageText = responseData.error || "Sorry, I couldn't get a proper response.";
+        const botErrorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: errorMessageText,
+          isBot: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, botErrorMessage]);
+      }
+
+    } catch (error: any) {
+      setIsTyping(false);
+      console.error('BamaBot send message error:', error);
+      const botErrorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: generateBotResponse(inputValue),
+        text: `Sorry, something went wrong: ${error.message || "Network request failed."}`,
         isBot: true,
         timestamp: new Date()
       };
-      
-      setMessages(prev => [...prev, botResponse]);
-      setIsTyping(false);
-    }, 1000 + Math.random() * 1500);
+      setMessages(prev => [...prev, botErrorMessage]);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
