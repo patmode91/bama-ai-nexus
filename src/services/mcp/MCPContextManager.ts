@@ -7,6 +7,7 @@ export interface MCPContext {
   userId?: string;
   intent: string;
   entities: Record<string, any>;
+  chat_message_text?: string; // For actual text of user/bot message
   industry?: string;
   businessType?: string;
   location?: string;
@@ -39,12 +40,26 @@ class MCPContextManager {
   }
 
   // Create a new session
-  createSession(userId?: string): string {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  createSession(userId?: string, sessionIdToUse?: string, initialContexts?: MCPContext[]): string {
+    const sessionId = sessionIdToUse || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Check if session with this ID already exists if sessionIdToUse is provided
+    if (sessionIdToUse && this.sessions.has(sessionIdToUse)) {
+      // Optionally, one might update lastActivity or return existing session.
+      // For now, let's assume client handles this or we overwrite (though map overwrites by default).
+      // Or, more robustly:
+      // const existingSession = this.sessions.get(sessionIdToUse);
+      // if (existingSession) {
+      //   existingSession.lastActivity = new Date();
+      //   if (userId && !existingSession.userId) existingSession.userId = userId; // Update userId if it was missing
+      //   return sessionIdToUse;
+      // }
+      console.log(`Session with provided ID ${sessionIdToUse} already exists or is being re-initialized.`);
+    }
+
     const session: MCPSession = {
       id: sessionId,
       userId,
-      contexts: [],
+      contexts: initialContexts || [],
       createdAt: new Date(),
       lastActivity: new Date(),
       status: 'active'
@@ -173,6 +188,40 @@ class MCPContextManager {
       supabase.removeChannel(channel);
     };
   }
+
+  /**
+   * Retrieves formatted chat history for use in an LLM prompt.
+   * @param sessionId The ID of the session.
+   * @param limit The maximum number of chat turns (user + bot message = 1 turn, roughly) to retrieve. Defaults to 10.
+   * @returns A string representing the chat history, or an empty string if no relevant history.
+   */
+  getChatHistoryForLLM(sessionId: string, limit: number = 10): string {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.contexts.length === 0) {
+      return "";
+    }
+
+    const chatMessages: { sender: string, text: string }[] = [];
+
+    // Filter for contexts that represent chat messages and have the necessary fields
+    const relevantContexts = session.contexts.filter(
+      ctx => ctx.chat_message_text && (ctx.source === 'user' || ctx.source === 'bamabot')
+    );
+
+    // Get the last 'limit' messages (approximately, as one turn might be two contexts)
+    // We want 'limit' user/bot exchanges. If limit is 10, it's roughly last 20 contexts.
+    const recentContexts = relevantContexts.slice(- (limit * 2));
+
+    for (const ctx of recentContexts) {
+      const sender = ctx.source === 'user' ? 'User' : 'BamaBot';
+      chatMessages.push({ sender, text: ctx.chat_message_text! });
+    }
+
+    if (chatMessages.length === 0) return "";
+
+    return chatMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
+  }
+
 
   // Clean up expired sessions
   cleanupSessions() {

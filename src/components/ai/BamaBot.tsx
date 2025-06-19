@@ -26,21 +26,30 @@ const BamaBot = () => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sessionId, setSessionId] = useState<string>('');
 
   // Access Supabase URL and Anon Key from environment variables (Vite specific)
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  // Placeholder for actual Supabase auth client if available globally or via context
-  // For now, assuming a way to get the current session/token.
-  // In a real app, you'd use the Supabase client instance: e.g., supabase.auth.getSession()
+  // Placeholder for actual Supabase auth client
   const getAuthToken = async () => {
-    // This is a placeholder. Replace with your actual Supabase auth token retrieval logic.
+    // In a real app:
+    // import { supabase } from '@/integrations/supabase/client'; // if this is your client
     // const { data: { session } } = await supabase.auth.getSession();
-    // return session?.access_token;
-    return 'your-placeholder-jwt-if-needed-for-testing-without-auth'; // Or null if no auth
+    // return session?.access_token || null;
+    return 'your-placeholder-jwt'; // Or null if a truly unauthenticated session
   };
 
+  useEffect(() => {
+    // Initialize sessionId
+    let currentSessionId = localStorage.getItem('bamabotSessionId');
+    if (!currentSessionId) {
+      currentSessionId = crypto.randomUUID();
+      localStorage.setItem('bamabotSessionId', currentSessionId);
+    }
+    setSessionId(currentSessionId);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -63,28 +72,32 @@ const BamaBot = () => {
     };
 
     // Add user message to state immediately
-    // Keep a reference to current messages for chat history
-    const currentMessages = [...messages, userMessage];
-    setMessages(currentMessages);
-    const currentInputValue = inputValue; // Store before clearing
-    setInputValue('');
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setInputValue(''); // Clear input after getting its value
     setIsTyping(true);
 
+    if (!sessionId) {
+      console.error("BamaBot: Session ID not initialized!");
+      setIsTyping(false);
+      // Optionally add an error message to chat
+      const errMessage: Message = {id: Date.now().toString(), text: "Error: Session not initialized. Please refresh.", isBot: true, timestamp: new Date()};
+      setMessages(prevMessages => [...prevMessages, errMessage]);
+      return;
+    }
+
     try {
-      const authToken = await getAuthToken(); // Placeholder for actual token
+      const authToken = await getAuthToken();
       const requestBody = {
-        sessionId: "bamabot_session_placeholder_" + new Date().getTime(), // Basic unique session for now
-        userId: "bamabot_user_placeholder_123", // Static user for now
+        sessionId: sessionId, // Use persisted sessionId
+        userId: "bamabot_user_placeholder_123", // Replace with actual user ID if available
         task: "bamabot_chat_interaction",
         payload: {
-          queryText: userMessage.text,
-          chatHistory: currentMessages.slice(-6, -1).map(m => ({ // Send up to 5 previous messages
-            text: m.text,
-            sender: m.isBot ? 'bot' : 'user'
-          }))
+          queryText: userMessage.text, // Only send the current query
+          // chatHistory is now handled by the orchestrator via MCPContextManager
         },
         clientContext: {
-          clientType: "BamaBotUI"
+          clientType: "BamaBotUI",
+          // Potentially include other client-specific context here if needed by orchestrator
         }
       };
 
