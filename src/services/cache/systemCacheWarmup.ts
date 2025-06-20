@@ -6,11 +6,9 @@ class SystemCacheWarmup {
     console.log('Starting system cache warmup...');
     
     try {
-      // Warmup system configuration
+      // Warmup system configuration and metadata
       await this.warmupSystemConfig();
-      
-      // Warmup common data
-      await this.warmupCommonData();
+      await this.warmupAppMetadata();
       
       console.log('System cache warmup completed');
     } catch (error) {
@@ -20,61 +18,68 @@ class SystemCacheWarmup {
 
   private async warmupSystemConfig(): Promise<void> {
     const systemConfig = {
-      version: '1.0.0',
-      features: ['search', 'ai', 'realtime'],
-      settings: {
-        cacheEnabled: true,
-        compressionEnabled: true,
-        realtimeEnabled: true
-      }
+      version: '2.0.0',
+      features: ['ai-search', 'matchmaking', 'realtime', 'analytics'],
+      maintenance: false,
+      lastUpdated: new Date().toISOString()
     };
 
-    await advancedCacheService.set(
+    advancedCacheService.set(
       'system_config',
       systemConfig,
       {
         ttl: 3600000, // 1 hour
-        priority: 'normal',
+        priority: 'high',
         tags: ['system', 'config']
       }
     );
   }
 
-  private async warmupCommonData(): Promise<void> {
-    const commonData = {
-      categories: ['Technology', 'Healthcare', 'Retail', 'Construction'],
-      locations: ['Birmingham', 'Montgomery', 'Mobile', 'Huntsville'],
-      tags: ['local', 'verified', 'popular', 'recommended']
+  private async warmupAppMetadata(): Promise<void> {
+    const appMetadata = {
+      name: 'BamaAI Connect',
+      description: 'Alabama Business Intelligence Platform',
+      totalBusinesses: 1200,
+      totalUsers: 5600,
+      categories: [
+        'Technology', 'Healthcare', 'Automotive', 'Retail', 
+        'Construction', 'Education', 'Finance', 'Restaurants'
+      ],
+      regions: ['Birmingham', 'Montgomery', 'Huntsville', 'Mobile', 'Tuscaloosa']
     };
 
-    for (const [key, value] of Object.entries(commonData)) {
-      await advancedCacheService.set(
-        `common_${key}`,
-        value,
-        {
-          ttl: 1800000, // 30 minutes
-          priority: 'normal',
-          tags: ['common', key]
-        }
-      );
-    }
+    advancedCacheService.set(
+      'app_metadata',
+      appMetadata,
+      {
+        ttl: 7200000, // 2 hours
+        priority: 'normal',
+        tags: ['system', 'metadata']
+      }
+    );
   }
 
-  async warmupUserSpecific(userId: string): Promise<void> {
-    const userPreferences = {
+  async warmupUserSession(userId: string): Promise<void> {
+    // Warmup user-specific cache data
+    const userSession = {
       userId,
-      favoriteCategories: [],
-      searchHistory: [],
-      savedBusinesses: []
+      preferences: {
+        theme: 'dark',
+        notifications: true,
+        location: 'Alabama'
+      },
+      recentSearches: [],
+      favoriteCategories: ['technology', 'healthcare'],
+      lastActivity: new Date().toISOString()
     };
 
-    await advancedCacheService.set(
-      `user_preferences_${userId}`,
-      userPreferences,
+    advancedCacheService.set(
+      `user_session_${userId}`,
+      userSession,
       {
-        ttl: 3600000, // 1 hour
+        ttl: 1800000, // 30 minutes
         priority: 'high',
-        tags: ['user', userId]
+        tags: ['user', 'session', userId]
       }
     );
   }

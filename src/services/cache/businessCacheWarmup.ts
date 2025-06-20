@@ -6,11 +6,8 @@ class BusinessCacheWarmup {
     console.log('Starting business cache warmup...');
     
     try {
-      // Warmup popular business categories
-      await this.warmupCategories();
-      
-      // Warmup featured businesses
-      await this.warmupFeaturedBusinesses();
+      // Warmup popular business data
+      await this.warmupPopularBusinesses();
       
       console.log('Business cache warmup completed');
     } catch (error) {
@@ -18,30 +15,67 @@ class BusinessCacheWarmup {
     }
   }
 
-  private async warmupCategories(): Promise<void> {
+  private async warmupPopularBusinesses(): Promise<void> {
     const popularCategories = [
-      'technology', 'healthcare', 'retail', 'manufacturing', 
-      'finance', 'education', 'construction', 'food-service'
+      'technology',
+      'healthcare',
+      'automotive',
+      'retail',
+      'construction',
+      'education',
+      'finance',
+      'restaurants'
     ];
 
-    businessCache.set('popular-categories', popularCategories, {
-      ttl: 24 * 60 * 60 * 1000, // 24 hours
-      priority: 'high'
-    });
+    const mockBusinesses = popularCategories.map(category => ({
+      category,
+      businesses: Array.from({ length: 5 }, (_, i) => ({
+        id: i + 1,
+        businessname: `${category} Business ${i + 1}`,
+        category,
+        rating: 4.0 + Math.random(),
+        location: 'Alabama',
+        verified: Math.random() > 0.5
+      })),
+      total: 50 + Math.floor(Math.random() * 100)
+    }));
+
+    for (const categoryData of mockBusinesses) {
+      businessCache.set(
+        `businesses_${categoryData.category}`,
+        categoryData,
+        {
+          ttl: 900000, // 15 minutes
+          priority: 'normal',
+          tags: ['business', 'category', categoryData.category]
+        }
+      );
+    }
   }
 
-  private async warmupFeaturedBusinesses(): Promise<void> {
-    // Mock featured businesses data
-    const featuredBusinesses = [
-      { id: 1, name: 'Tech Innovators', category: 'technology' },
-      { id: 2, name: 'Healthcare Plus', category: 'healthcare' },
-      { id: 3, name: 'Retail Excellence', category: 'retail' }
-    ];
+  async warmupBusinessDetails(businessId: string): Promise<void> {
+    // Warmup specific business details
+    const mockBusiness = {
+      id: businessId,
+      businessname: `Business ${businessId}`,
+      description: 'Sample business description',
+      category: 'technology',
+      location: 'Alabama',
+      rating: 4.5,
+      verified: true,
+      employees_count: 50,
+      tags: ['ai', 'software', 'innovation']
+    };
 
-    businessCache.set('featured-businesses', featuredBusinesses, {
-      ttl: 12 * 60 * 60 * 1000, // 12 hours
-      priority: 'high'
-    });
+    businessCache.set(
+      `business_${businessId}`,
+      mockBusiness,
+      {
+        ttl: 1800000, // 30 minutes
+        priority: 'high',
+        tags: ['business', 'details', businessId]
+      }
+    );
   }
 }
 
