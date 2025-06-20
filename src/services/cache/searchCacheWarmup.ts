@@ -45,7 +45,7 @@ class SearchCacheWarmup {
         result,
         {
           ttl: 600000, // 10 minutes
-          priority: 'medium',
+          priority: 'normal',
           tags: ['search', 'popular']
         }
       );

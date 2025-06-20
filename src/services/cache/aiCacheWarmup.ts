@@ -37,7 +37,7 @@ class AICacheWarmup {
         response,
         {
           ttl: 1800000, // 30 minutes
-          priority: 'medium',
+          priority: 'normal',
           tags: ['ai', 'responses']
         }
       );

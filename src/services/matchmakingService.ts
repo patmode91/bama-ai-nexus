@@ -1,15 +1,14 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { semanticSearchService } from './semanticSearchService';
 
 export interface MatchRequest {
-  type: 'b2b' | 'investment' | 'partnership' | 'talent';
+  type: 'b2b' | 'investment' | 'partnership' | 'talent' | 'candidate-to-job' | 'startup-to-investor';
   description: string;
   requirements: {
     location?: string;
     industry?: string;
     companySize?: string;
-    budget?: { min: number; max: number };
+    budget?: { min: number; max: number } | string;
     timeline?: string;
     technologies?: string[];
   };
@@ -18,6 +17,7 @@ export interface MatchRequest {
     rating?: number;
     founded?: { min: number; max: number };
   };
+  userProfile?: any;
 }
 
 export interface MatchResult {
@@ -32,11 +32,18 @@ export interface MatchResult {
     overall: number;
   };
   recommendations: string[];
+  confidenceLevel?: number;
 }
 
 class MatchmakingService {
   async findMatches(request: MatchRequest): Promise<MatchResult[]> {
     try {
+      // Normalize budget if it's a string
+      let normalizedRequest = { ...request };
+      if (typeof request.requirements.budget === 'string') {
+        normalizedRequest.requirements.budget = this.parseBudgetString(request.requirements.budget);
+      }
+
       // First, get potential matches using semantic search
       const searchResults = await semanticSearchService.searchBusinesses({
         query: request.description,
@@ -50,17 +57,18 @@ class MatchmakingService {
 
       // Score and rank matches
       const matches = searchResults.map(result => {
-        const matchScore = this.calculateMatchScore(result.business, request);
-        const compatibility = this.calculateCompatibility(result.business, request);
-        const matchReasons = this.generateMatchReasons(result.business, request, compatibility);
-        const recommendations = this.generateRecommendations(result.business, request);
+        const matchScore = this.calculateMatchScore(result.business, normalizedRequest);
+        const compatibility = this.calculateCompatibility(result.business, normalizedRequest);
+        const matchReasons = this.generateMatchReasons(result.business, normalizedRequest, compatibility);
+        const recommendations = this.generateRecommendations(result.business, normalizedRequest);
 
         return {
           business: result.business,
           matchScore,
           matchReasons,
           compatibility,
-          recommendations
+          recommendations,
+          confidenceLevel: matchScore / 100
         };
       });
 
@@ -73,6 +81,17 @@ class MatchmakingService {
       console.error('Matchmaking error:', error);
       throw error;
     }
+  }
+
+  private parseBudgetString(budgetStr: string): { min: number; max: number } {
+    // Simple budget parsing - could be enhanced
+    const ranges = {
+      'under-10k': { min: 0, max: 10000 },
+      '10k-50k': { min: 10000, max: 50000 },
+      '50k-100k': { min: 50000, max: 100000 },
+      'over-100k': { min: 100000, max: Infinity }
+    };
+    return ranges[budgetStr as keyof typeof ranges] || { min: 0, max: Infinity };
   }
 
   private calculateMatchScore(business: any, request: MatchRequest): number {

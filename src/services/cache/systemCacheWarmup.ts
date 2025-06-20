@@ -34,7 +34,7 @@ class SystemCacheWarmup {
       systemConfig,
       {
         ttl: 3600000, // 1 hour
-        priority: 'medium', // Changed from 'normal' to 'medium'
+        priority: 'normal',
         tags: ['system', 'config']
       }
     );
@@ -53,7 +53,7 @@ class SystemCacheWarmup {
         value,
         {
           ttl: 1800000, // 30 minutes
-          priority: 'medium', // Changed from 'normal' to 'medium'
+          priority: 'normal',
           tags: ['common', key]
         }
       );
@@ -73,7 +73,7 @@ class SystemCacheWarmup {
       userPreferences,
       {
         ttl: 3600000, // 1 hour
-        priority: 'high', // Changed from 'normal' to 'high'
+        priority: 'high',
         tags: ['user', userId]
       }
     );

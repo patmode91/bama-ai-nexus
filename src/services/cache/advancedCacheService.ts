@@ -106,7 +106,7 @@ class AdvancedCacheService {
     return count;
   }
 
-  private cleanup(): void {
+  cleanup(): void {
     const now = Date.now();
     
     for (const [key, item] of this.cache.entries()) {
@@ -148,14 +148,23 @@ class AdvancedCacheService {
       totalItems: totalSize,
       expiredItems: expiredCount,
       hitRatio: this.calculateHitRatio(),
-      memoryUsage: this.estimateMemoryUsage()
+      memoryUsage: this.estimateMemoryUsage(),
+      hitRate: this.calculateHitRatio() / 100,
+      size: totalSize,
+      maxSize: this.maxSize,
+      totalHits: 0, // Placeholder
+      totalMisses: 0, // Placeholder
+      totalRequests: 0, // Placeholder
+      hits: 0, // Placeholder
+      misses: 0, // Placeholder
+      evictions: 0 // Placeholder
     };
   }
 
   private calculateHitRatio(): number {
     // This is a simplified calculation
     // In a real implementation, you'd track hits vs misses
-    return 0.85; // Placeholder
+    return 85; // Placeholder
   }
 
   private estimateMemoryUsage(): number {
@@ -171,4 +180,8 @@ class AdvancedCacheService {
   }
 }
 
+// Create instances for different cache types
+export const advancedCacheService = new AdvancedCacheService();
+export const businessCache = new AdvancedCacheService();
+export const searchCache = new AdvancedCacheService();
 export const aiCache = new AdvancedCacheService();

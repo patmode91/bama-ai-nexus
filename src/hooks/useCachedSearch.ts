@@ -1,7 +1,12 @@
 
 import { useState, useCallback } from 'react';
 import { searchCache } from '@/services/cache/advancedCacheService';
-import { CacheOptions } from '@/services/cache/types';
+
+interface CacheOptions {
+  ttl?: number;
+  priority?: 'low' | 'normal' | 'high';
+  tags?: string[];
+}
 
 export const useCachedSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,14 +19,24 @@ export const useCachedSearch = () => {
     setIsLoading(true);
     
     try {
+      // Check cache first
+      const cached = searchCache.get<T>(key);
+      if (cached) {
+        return cached;
+      }
+
+      // Execute search function
+      const result = await searchFn();
+      
+      // Cache the result
       const defaultOptions: CacheOptions = {
         ttl: 300000, // 5 minutes
-        priority: 'medium',
+        priority: 'normal',
         tags: ['search'],
         ...options
       };
 
-      const result = await searchCache.memoize(key, searchFn, defaultOptions);
+      searchCache.set(key, result, defaultOptions);
       return result;
     } finally {
       setIsLoading(false);
