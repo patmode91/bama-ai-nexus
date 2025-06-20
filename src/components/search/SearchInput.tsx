@@ -1,8 +1,9 @@
 
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search, Target, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Search, Lightbulb, Target } from 'lucide-react';
 
 interface SearchInputProps {
   query: string;
@@ -23,44 +24,74 @@ const SearchInput = ({
   onMatchmaking,
   onSuggestionClick
 }: SearchInputProps) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      onSearch();
+      setShowSuggestions(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="relative">
       <div className="flex gap-2">
-        <Input
-          placeholder="Describe what you're looking for... (e.g., 'AI companies in Birmingham for computer vision projects')"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && onSearch()}
-          className="flex-1"
-        />
+        <div className="relative flex-1">
+          <Input
+            type="text"
+            placeholder="Search for AI companies, technologies, or services..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyPress={handleKeyPress}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            className="pr-4"
+          />
+          
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 bg-background border border-border rounded-md shadow-lg z-10 mt-1">
+              <div className="p-2 space-y-1">
+                {suggestions.slice(0, 6).map((suggestion, index) => (
+                  <button
+                    key={index}
+                    className="w-full text-left px-3 py-2 hover:bg-muted rounded-sm text-sm"
+                    onClick={() => {
+                      onSuggestionClick(suggestion);
+                      setShowSuggestions(false);
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        
         <Button onClick={onSearch} disabled={isLoading}>
-          <Search className="w-4 h-4 mr-2" />
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Search className="w-4 h-4" />
+          )}
           Search
         </Button>
+        
         <Button onClick={onMatchmaking} disabled={isLoading} variant="outline">
-          <Target className="w-4 h-4 mr-2" />
-          Find Matches
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Target className="w-4 h-4" />
+          )}
+          AI Match
         </Button>
       </div>
-
-      {suggestions.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Lightbulb className="w-4 h-4" />
-            Suggestions:
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {suggestions.map((suggestion, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="cursor-pointer hover:bg-blue-50"
-                onClick={() => onSuggestionClick(suggestion)}
-              >
-                {suggestion}
-              </Badge>
-            ))}
-          </div>
+      
+      {query && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge variant="secondary" className="text-xs">
+            Query: {query}
+          </Badge>
         </div>
       )}
     </div>

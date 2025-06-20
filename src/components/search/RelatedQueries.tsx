@@ -1,7 +1,7 @@
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Lightbulb } from 'lucide-react';
 
 interface RelatedQueriesProps {
   relatedQueries: string[];
@@ -13,24 +13,25 @@ const RelatedQueries = ({ relatedQueries, onRelatedQueryClick }: RelatedQueriesP
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <TrendingUp className="w-4 h-4" />
-            Related Searches:
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {relatedQueries.map((query, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="cursor-pointer hover:bg-blue-50"
-                onClick={() => onRelatedQueryClick(query)}
-              >
-                {query}
-              </Badge>
-            ))}
-          </div>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Lightbulb className="w-4 h-4" />
+          Related Searches
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {relatedQueries.map((query, index) => (
+            <Button
+              key={index}
+              variant="ghost"
+              size="sm"
+              className="h-auto py-2 px-3 text-sm border border-border hover:bg-muted"
+              onClick={() => onRelatedQueryClick(query)}
+            >
+              {query}
+            </Button>
+          ))}
         </div>
       </CardContent>
     </Card>

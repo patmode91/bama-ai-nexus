@@ -1,13 +1,15 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { aiCache } from '../cache/advancedCacheService'; // Import advanced AI cache
 
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  "https://xwkzvcgymbelwuiqifgy.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3a3p2Y2d5bWJlbHd1aXFpZmd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NjQyNzAsImV4cCI6MjA2NTM0MDI3MH0.px-YCUhJwImfJqngX1mMZEZqL22Butn0ajragC7JLrE"
 );
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_AI_API_KEY);
+// Note: We'll need to set up GOOGLE_AI_API_KEY as a secret
+const genAI = new GoogleGenerativeAI(''); // Will be set via environment variable
 
 interface SearchResult {
   id: string;
@@ -26,7 +28,6 @@ interface EmbeddingResponse {
 
 export class SemanticSearchEngine {
   private model: any;
-  // private cache: Map<string, SearchResult[]> = new Map(); // Replaced with aiCache
 
   constructor() {
     // Utilizing 'text-embedding-004', a more advanced model than 'embedding-001'.
@@ -153,3 +154,5 @@ export class SemanticSearchEngine {
     // aiCache.clear();
   }
 }
+
+export const semanticSearchEngine = new SemanticSearchEngine();
