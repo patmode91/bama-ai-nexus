@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { semanticSearchService } from './semanticSearchService';
 
@@ -32,7 +33,7 @@ export interface MatchResult {
     overall: number;
   };
   recommendations: string[];
-  confidenceLevel?: 'low' | 'medium' | 'high'; // Fix type to match expected interface
+  confidenceLevel: 'low' | 'medium' | 'high'; // Always required
 }
 
 class MatchmakingService {
@@ -68,7 +69,7 @@ class MatchmakingService {
           matchReasons,
           compatibility,
           recommendations,
-          confidenceLevel: this.getConfidenceLevel(matchScore) // Convert to proper type
+          confidenceLevel: this.getConfidenceLevel(matchScore) // Always provide confidence level
         };
       });
 

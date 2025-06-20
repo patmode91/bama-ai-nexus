@@ -16,6 +16,6 @@ export interface MatchResult {
   business: any;
   matchScore: number;
   matchReasons: string[];
-  confidenceLevel: 'high' | 'medium' | 'low';
+  confidenceLevel: 'high' | 'medium' | 'low'; // Made required to match component expectation
   recommendations: string[];
 }

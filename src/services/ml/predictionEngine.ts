@@ -73,12 +73,13 @@ export class PredictionEngine {
     try {
       console.log('Training new prediction model...');
       
-      // Fetch training data from Supabase if available
+      // Try to fetch training data from existing businesses table instead of non-existent training_data
       let trainingData = null;
       try {
         const { data, error } = await supabase
-          .from('training_data')
+          .from('businesses')
           .select('*')
+          .not('rating', 'is', null)
           .limit(1000);
 
         if (!error && data && data.length > 0) {
@@ -141,26 +142,28 @@ export class PredictionEngine {
   }
 
   private preprocessData(data: any[]): { features: number[][], labels: number[] } {
-    // This is a simplified example - adjust based on your actual data structure
+    // Use business data to create features and labels
     const features: number[][] = [];
     const labels: number[] = [];
 
     for (const item of data) {
-      // Example feature extraction - customize based on your data
+      // Create features from business data
       const featureVector = [
-        item.rating || 0,
-        item.review_count || 0,
-        item.years_in_business || 0,
-        // Add more features as needed
+        parseFloat(item.rating) || 0,
+        item.employees_count || 0,
+        item.founded_year ? (new Date().getFullYear() - item.founded_year) : 0,
+        item.verified ? 1 : 0,
+        item.tags ? item.tags.length : 0,
+        item.certifications ? item.certifications.length : 0,
+        item.project_budget_min || 0,
+        item.project_budget_max || 0,
+        0, // placeholder
+        0  // placeholder
       ];
       
-      // Ensure all feature vectors have the same length
-      while (featureVector.length < 10) {
-        featureVector.push(0);
-      }
-      
-      features.push(featureVector.slice(0, 10));
-      labels.push(item.success ? 1 : 0); // Assuming 'success' is a boolean field
+      features.push(featureVector);
+      // Use rating as success indicator (>= 4.0 is success)
+      labels.push(parseFloat(item.rating) >= 4.0 ? 1 : 0);
     }
 
     return { features, labels };
