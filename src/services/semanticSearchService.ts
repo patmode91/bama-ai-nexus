@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import type { SearchQuery, SearchResult, SearchIntent } from '@/types/semanticSearch';
 
@@ -32,9 +31,11 @@ class SemanticSearchService {
         dbQuery = dbQuery.or(`businessname.ilike.%${query.query}%,description.ilike.%${query.query}%`);
       }
 
-      const { data: businesses, error } = await dbQuery
-        .limit(query.limit || 20)
-        .offset(query.offset || 0);
+      // Apply pagination using range instead of limit/offset
+      const startRange = query.offset || 0;
+      const endRange = startRange + (query.limit || 20) - 1;
+
+      const { data: businesses, error } = await dbQuery.range(startRange, endRange);
 
       if (error) throw error;
 
