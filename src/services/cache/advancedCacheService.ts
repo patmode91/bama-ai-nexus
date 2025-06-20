@@ -18,6 +18,23 @@ interface CacheOptions {
   priority?: 'low' | 'normal' | 'high';
 }
 
+interface CacheStats {
+  totalItems: number;
+  expiredItems: number;
+  hitRatio: number;
+  memoryUsage: number;
+  hitRate: number;
+  size: number;
+  maxSize: number;
+  totalHits: number;
+  totalMisses: number;
+  totalRequests: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+  expiredEntries: number; // Added to match expected interface
+}
+
 class AdvancedCacheService {
   private cache = new Map<string, CacheItem<any>>();
   private maxSize = 1000;
@@ -132,7 +149,7 @@ class AdvancedCacheService {
     }
   }
 
-  getStats() {
+  getStats(): CacheStats {
     const now = Date.now();
     let totalSize = 0;
     let expiredCount = 0;
@@ -147,6 +164,7 @@ class AdvancedCacheService {
     return {
       totalItems: totalSize,
       expiredItems: expiredCount,
+      expiredEntries: expiredCount, // Add this to match interface
       hitRatio: this.calculateHitRatio(),
       memoryUsage: this.estimateMemoryUsage(),
       hitRate: this.calculateHitRatio() / 100,

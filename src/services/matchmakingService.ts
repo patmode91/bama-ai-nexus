@@ -32,7 +32,7 @@ export interface MatchResult {
     overall: number;
   };
   recommendations: string[];
-  confidenceLevel?: number;
+  confidenceLevel?: 'low' | 'medium' | 'high'; // Fix type to match expected interface
 }
 
 class MatchmakingService {
@@ -68,7 +68,7 @@ class MatchmakingService {
           matchReasons,
           compatibility,
           recommendations,
-          confidenceLevel: matchScore / 100
+          confidenceLevel: this.getConfidenceLevel(matchScore) // Convert to proper type
         };
       });
 
@@ -81,6 +81,12 @@ class MatchmakingService {
       console.error('Matchmaking error:', error);
       throw error;
     }
+  }
+
+  private getConfidenceLevel(matchScore: number): 'low' | 'medium' | 'high' {
+    if (matchScore >= 80) return 'high';
+    if (matchScore >= 60) return 'medium';
+    return 'low';
   }
 
   private parseBudgetString(budgetStr: string): { min: number; max: number } {

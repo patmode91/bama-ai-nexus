@@ -1,10 +1,6 @@
-import * as tf from '@tensorflow/tfjs';
-import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+import * as tf from '@tensorflow/tfjs';
+import { supabase } from '@/integrations/supabase/client';
 
 tf.ENV.set('WEBGL_PACK', false);
 
@@ -14,6 +10,7 @@ export class PredictionEngine {
   private modelVersion: string = '1.0.0';
   private isTraining: boolean = false;
   private readonly MODEL_KEY = 'bama-ai-prediction-model';
+  private isInitialized: boolean = false;
 
   private constructor() {}
 
@@ -25,12 +22,29 @@ export class PredictionEngine {
   }
 
   async initialize() {
+    if (this.isInitialized) return;
+    
     try {
+      // Check if we have a valid Supabase configuration
+      if (!supabase) {
+        console.warn('Supabase not configured, skipping prediction engine initialization');
+        return;
+      }
+      
       await this.loadModel();
+      this.isInitialized = true;
       console.log('Prediction engine initialized');
     } catch (error) {
       console.error('Failed to initialize prediction engine:', error);
-      await this.trainNewModel();
+      try {
+        await this.trainNewModel();
+        this.isInitialized = true;
+      } catch (trainError) {
+        console.error('Failed to train new model:', trainError);
+        // Initialize with default model as fallback
+        await this.initializeDefaultModel();
+        this.isInitialized = true;
+      }
     }
   }
 
@@ -59,13 +73,22 @@ export class PredictionEngine {
     try {
       console.log('Training new prediction model...');
       
-      // Fetch training data from Supabase
-      const { data: trainingData, error } = await supabase
-        .from('training_data')
-        .select('*')
-        .limit(1000);
+      // Fetch training data from Supabase if available
+      let trainingData = null;
+      try {
+        const { data, error } = await supabase
+          .from('training_data')
+          .select('*')
+          .limit(1000);
 
-      if (error || !trainingData || trainingData.length === 0) {
+        if (!error && data && data.length > 0) {
+          trainingData = data;
+        }
+      } catch (supabaseError) {
+        console.warn('Could not fetch training data from Supabase:', supabaseError);
+      }
+
+      if (!trainingData || trainingData.length === 0) {
         console.warn('No training data available, using default model');
         await this.initializeDefaultModel();
         return;
@@ -164,14 +187,19 @@ export class PredictionEngine {
   }
 
   async predictSuccessProbability(features: number[]): Promise<number> {
-    if (!this.model) {
+    if (!this.isInitialized) {
       await this.initialize();
+    }
+
+    if (!this.model) {
+      console.warn('Model not available, returning default probability');
+      return 0.5;
     }
 
     try {
       // Ensure features match model's expected input shape
       const input = tf.tensor2d([features]);
-      const prediction = this.model!.predict(input) as tf.Tensor;
+      const prediction = this.model.predict(input) as tf.Tensor;
       const probability = (await prediction.data())[0];
       
       // Clean up tensors to prevent memory leaks
@@ -191,5 +219,7 @@ export class PredictionEngine {
 
 export const predictionEngine = PredictionEngine.getInstance();
 
-// Initialize the prediction engine when the module loads
-predictionEngine.initialize().catch(console.error);
+// Initialize the prediction engine when the module loads, but handle errors gracefully
+predictionEngine.initialize().catch(error => {
+  console.warn('Prediction engine initialization failed, will retry on first use:', error);
+});
