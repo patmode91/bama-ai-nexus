@@ -274,6 +274,41 @@ export type Database = {
           },
         ]
       }
+      chat_participants: {
+        Row: {
+          id: string
+          joined_at: string | null
+          last_read_at: string | null
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          last_read_at?: string | null
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          last_read_at?: string | null
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_rooms: {
         Row: {
           created_at: string | null
@@ -304,6 +339,54 @@ export type Database = {
           max_members?: number | null
           name?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      curation_requests: {
+        Row: {
+          action: string
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          error_details: Json | null
+          id: string
+          metadata: Json | null
+          result: Json | null
+          session_id: string
+          status: string
+          target_id: string | null
+          target_type: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          error_details?: Json | null
+          id?: string
+          metadata?: Json | null
+          result?: Json | null
+          session_id: string
+          status?: string
+          target_id?: string | null
+          target_type: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          error_details?: Json | null
+          id?: string
+          metadata?: Json | null
+          result?: Json | null
+          session_id?: string
+          status?: string
+          target_id?: string | null
+          target_type?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -642,6 +725,36 @@ export type Database = {
         }
         Relationships: []
       }
+      quality_metrics: {
+        Row: {
+          entity_id: string
+          entity_type: string
+          evaluated_at: string
+          evaluated_by: string | null
+          id: string
+          metrics: Json
+          score: number
+        }
+        Insert: {
+          entity_id: string
+          entity_type: string
+          evaluated_at?: string
+          evaluated_by?: string | null
+          id?: string
+          metrics?: Json
+          score: number
+        }
+        Update: {
+          entity_id?: string
+          entity_type?: string
+          evaluated_at?: string
+          evaluated_by?: string | null
+          id?: string
+          metrics?: Json
+          score?: number
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           business_id: number
@@ -789,6 +902,51 @@ export type Database = {
         }
         Relationships: []
       }
+      validation_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entity_type: string
+          error_message: string | null
+          field_name: string
+          id: string
+          is_active: boolean
+          rule_config: Json
+          rule_type: string
+          severity: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entity_type: string
+          error_message?: string | null
+          field_name: string
+          id?: string
+          is_active?: boolean
+          rule_config?: Json
+          rule_type: string
+          severity?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entity_type?: string
+          error_message?: string | null
+          field_name?: string
+          id?: string
+          is_active?: boolean
+          rule_config?: Json
+          rule_type?: string
+          severity?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       verification_requests: {
         Row: {
           admin_notes: string | null
@@ -832,11 +990,59 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_curation_metrics: {
+        Row: {
+          action: string | null
+          avg_processing_seconds: number | null
+          error_count: number | null
+          request_count: number | null
+          status: string | null
+          time_bucket: string | null
+        }
+        Relationships: []
+      }
+      vw_quality_metrics_summary: {
+        Row: {
+          avg_accuracy: number | null
+          avg_completeness: number | null
+          avg_score: number | null
+          entity_type: string | null
+          max_score: number | null
+          median_score: number | null
+          min_score: number | null
+          total_metrics: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      apply_admin_policy: {
+        Args: { table_name: string }
+        Returns: undefined
+      }
+      apply_authenticated_read_policy: {
+        Args: { table_name: string }
+        Returns: undefined
+      }
+      apply_public_read_policy: {
+        Args: { table_name: string }
+        Returns: undefined
+      }
+      apply_user_owned_policy: {
+        Args: { table_name: string; user_id_column?: string }
+        Returns: undefined
+      }
       approve_business_claim: {
         Args: { claim_id: string }
+        Returns: undefined
+      }
+      complete_curation_request: {
+        Args: {
+          p_request_id: string
+          p_result?: Json
+          p_error?: string
+          p_error_details?: Json
+        }
         Returns: undefined
       }
       generate_business_search_vector: {
@@ -852,6 +1058,20 @@ export type Database = {
       get_saved_business_ids: {
         Args: { user_id: string }
         Returns: number[]
+      }
+      is_room_participant: {
+        Args: { room_id_param: string; user_id_param: string }
+        Returns: boolean
+      }
+      log_curation_request: {
+        Args: {
+          p_session_id: string
+          p_user_id: string
+          p_action: string
+          p_target_type: string
+          p_target_id?: string
+        }
+        Returns: string
       }
       match_businesses: {
         Args: {

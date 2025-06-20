@@ -1,12 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+import { supabase } from '@/integrations/supabase/client';
 
-interface AgentResponse<T = any> {
+export interface AgentResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
@@ -16,115 +11,129 @@ interface AgentResponse<T = any> {
 
 class AgentService {
   private sessionId: string;
-  
+
   constructor() {
-    // Generate a session ID if it doesn't exist in sessionStorage
-    this.sessionId = sessionStorage.getItem('agentSessionId') || uuidv4();
-    sessionStorage.setItem('agentSessionId', this.sessionId);
+    this.sessionId = crypto.randomUUID();
   }
 
-  private async callAgent<T = any>(
-    endpoint: string,
-    payload: Record<string, any>
-  ): Promise<AgentResponse<T>> {
+  getSessionId(): string {
+    return this.sessionId;
+  }
+
+  async queryAgent(query: string, context: Record<string, any> = {}): Promise<AgentResponse> {
     try {
-      // Get the current user ID if authenticated
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          ...payload,
-          sessionId: this.sessionId,
-          userId: user?.id || null,
-        }),
+      const { data, error } = await supabase.functions.invoke('ai-agent-orchestrator', {
+        body: {
+          agent: 'general',
+          action: 'query',
+          query,
+          context
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to call agent');
-      }
-
-      return await response.json();
+      if (error) throw error;
+      return data;
     } catch (error) {
-      console.error(`Error calling ${endpoint}:`, error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        sessionId: this.sessionId,
-        timestamp: new Date().toISOString(),
-      };
+      console.error('Agent service error:', error);
+      throw error;
     }
   }
 
-  // Connector Agent Methods
-  async findBusinesses(query: string, filters: Record<string, any> = {}) {
-    return this.callAgent('ai-agent-orchestrator', {
-      query,
-      context: { 
-        intent: 'business_search', 
-        filters: {
-          ...filters,
-          // Add any default filters here
-        },
-      },
-    });
+  async findBusinesses(query: string, context: Record<string, any> = {}): Promise<AgentResponse> {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-agent-orchestrator', {
+        body: {
+          agent: 'connector',
+          action: 'find_matches',
+          query,
+          context
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Connector agent error:', error);
+      throw error;
+    }
   }
 
-  // Analyst Agent Methods
-  async analyzeMarket(query: string, context: Record<string, any> = {}) {
-    return this.callAgent('ai-agent-orchestrator', {
-      query,
-      context: { 
-        intent: 'market_analysis', 
-        ...context 
-      },
-    });
+  async analyzeMarket(query: string, context: Record<string, any> = {}): Promise<AgentResponse> {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-agent-orchestrator', {
+        body: {
+          agent: 'analyst',
+          action: 'market_analysis',
+          query,
+          context
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Analyst agent error:', error);
+      throw error;
+    }
   }
 
-  // Curator Agent Methods
-  async enrichBusiness(businessId: number, data: Record<string, any> = {}) {
-    return this.callAgent('ai-agent-orchestrator', {
-      query: `Enrich business with ID: ${businessId}`,
-      context: { 
-        intent: 'data_enrichment', 
-        businessId,
-        ...data,
-      },
-    });
+  async enrichBusiness(businessId: number, context: Record<string, any> = {}): Promise<AgentResponse> {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-agent-orchestrator', {
+        body: {
+          agent: 'curator',
+          action: 'enrich_data',
+          businessId,
+          context
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Curator agent error:', error);
+      throw error;
+    }
   }
 
-  // Add a new business with embedding
   async addBusiness(business: {
     id: number;
     name: string;
     description: string;
     metadata?: Record<string, any>;
-  }) {
-    return this.callAgent('ai-agent-orchestrator', {
-      query: `Add new business: ${business.name}`,
-      context: {
-        intent: 'add_business',
-        business,
-      },
-    });
-  }
+  }): Promise<AgentResponse> {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .insert({
+          businessname: business.name,
+          description: business.description,
+          // Add other required fields with defaults
+          category: 'Technology',
+          location: 'Alabama',
+          verified: false,
+          rating: 0.0
+        })
+        .select()
+        .single();
 
-  // General Query
-  async queryAgent(query: string, context: Record<string, any> = {}) {
-    return this.callAgent('ai-agent-orchestrator', {
-      query,
-      context: { ...context },
-    });
-  }
+      if (error) throw error;
 
-  // Get session ID
-  getSessionId(): string {
-    return this.sessionId;
+      return {
+        success: true,
+        data: data,
+        sessionId: this.sessionId,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Add business error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to add business',
+        sessionId: this.sessionId,
+        timestamp: new Date().toISOString()
+      };
+    }
   }
 }
 
