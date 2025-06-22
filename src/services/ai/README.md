@@ -106,12 +106,12 @@ Run the following SQL migration to set up the required database schema:
 
 1. Install dependencies:
    ```bash
-   npm install
+   yarn install
    ```
 
 2. Start the development server:
    ```bash
-   npm run dev
+   yarn dev
    ```
 
 3. The AI agents will be available at the following endpoints:
@@ -161,7 +161,7 @@ const enrichedData = await businessDataAPI.enrichBusinessProfile('business-id-12
 Run the test suite:
 
 ```bash
-npm test
+yarn test
 ```
 
 ## Deployment

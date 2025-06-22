@@ -5,7 +5,7 @@
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
+- yarn
 - Git
 - Modern browser with DevTools
 
@@ -414,13 +414,13 @@ queryClient.prefetchQuery({
 ### Build Process
 ```bash
 # Development
-npm run dev
+yarn dev
 
 # Production build
-npm run build
+yarn build
 
 # Preview production build
-npm run preview
+yarn preview
 ```
 
 ### Environment Configuration

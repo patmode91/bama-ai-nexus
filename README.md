@@ -1,73 +1,183 @@
-# Welcome to your Lovable project
+# BAMA AI Nexus - Complete Documentation
 
-## Project info
+Welcome to the BAMA AI Nexus documentation. This comprehensive guide covers all features, functionality, and setup instructions for Alabama's premier AI business directory and intelligence platform.
 
-**URL**: <https://lovable.dev/projects/2fd69137-9a62-4bb9-9eb5-f8eb5465a677>
+## Table of Contents
 
-## How can I edit this code?
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Architecture](#architecture)
+4. [Setup and Installation](#setup-and-installation)
+5. [Agent Configuration](#agent-configuration)
+6. [User Guide](#user-guide)
+7. [Developer Guide](#developer-guide)
+8. [API Documentation](#api-documentation)
 
-There are several ways of editing your application.
+## Overview
 
-**Use Lovable**
+BAMA AI Nexus is a comprehensive AI-powered business directory and intelligence platform designed specifically for Alabama's artificial intelligence ecosystem. The platform connects businesses, provides market intelligence, and offers advanced AI-powered features for discovery and analysis.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2fd69137-9a62-4bb9-9eb5-f8eb5465a677) and start prompting.
+### Key Capabilities
+- **AI-Powered Business Discovery**: Advanced semantic search and intelligent matching
+- **Market Intelligence**: Real-time insights and analytics
+- **Multi-Agent System**: Specialized AI agents for different tasks
+- **Real-time Collaboration**: Live chat, notifications, and updates
+- **Mobile-First Design**: Progressive Web App (PWA) support
+- **Enterprise Features**: Advanced analytics and integrations
 
-Changes made via Lovable will be committed automatically to this repo.
+## Features
 
-**Use your preferred IDE**
+### Core Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+#### 1. Business Directory
+- Comprehensive business listings with detailed profiles
+- Advanced search and filtering capabilities
+- Category-based browsing
+- Location-based search
+- Business verification system
+- Reviews and ratings
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+#### 2. AI-Powered Search
+- **Semantic Search**: Natural language queries
+- **AI Matchmaking**: Intelligent business recommendations
+- **Enhanced BamaBot**: Conversational AI assistant
+- **Quick Start Quiz**: Personalized onboarding
 
-Follow these steps:
+#### 3. Multi-Agent Intelligence System
+- **The Connector**: Business matching and discovery
+- **The Analyst**: Market intelligence and insights
+- **The Curator**: Data enrichment and quality analysis
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+#### 4. Real-time Features
+- Live business updates
+- Real-time notifications
+- Collaborative workspaces
+- Live chat system
+- Activity feeds
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+#### 5. Analytics and Intelligence
+- Business performance metrics
+- Market trend analysis
+- Competitive intelligence
+- User engagement analytics
+- Predictive insights
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Advanced Features
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+#### 6. Business Management
+- Business claiming and ownership
+- Profile management
+- Performance dashboards
+- Analytics and insights
+
+#### 7. Community Features
+- Forums and discussions
+- Events and networking
+- Social collaboration
+- Community groups
+
+#### 8. Mobile and PWA
+- Progressive Web App support
+- Offline functionality
+- Mobile-optimized interface
+- Push notifications
+- Location-based features
+
+#### 9. Enterprise Integration
+- API access
+- Webhook integrations
+- Custom analytics
+- White-label options
+- Enterprise SSO
+
+## Architecture
+
+### Technology Stack
+
+#### Frontend
+- **React 18**: Modern UI framework
+- **TypeScript**: Type-safe development
+- **Vite**: Fast build tool
+- **Tailwind CSS**: Utility-first styling
+- **Shadcn/UI**: Component library
+- **React Query**: Data fetching and caching
+
+#### Backend
+- **Supabase**: Backend-as-a-Service
+- **PostgreSQL**: Primary database
+- **Row Level Security**: Data access control
+- **Edge Functions**: Serverless compute
+- **Real-time Subscriptions**: Live updates
+
+#### AI and Intelligence
+- **Google AI (Gemini)**: Natural language processing
+- **Custom AI Agents**: Specialized intelligence
+- **Semantic Search**: Advanced query processing
+- **Market Intelligence**: Data analysis
+
+### System Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Supabase      │    │   AI Services   │
+│   (React/Vite)  │────│   Backend       │────│   (Gemini)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PWA/Mobile    │    │   PostgreSQL    │    │   Agent System  │
+│   Interface     │    │   Database      │    │   (MCP)         │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-**Edit a file directly in GitHub**
+## Setup and Installation
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Prerequisites
+- Node.js 18+ and yarn
+- Git
+- Supabase account (for backend)
+- Google AI API key (for AI features)
 
-**Use GitHub Codespaces**
+### Local Development Setup
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd bama-ai-nexus
+   ```
 
-## What technologies are used for this project?
+2. **Install Dependencies**
+   ```bash
+   yarn install
+   ```
 
-This project is built with:
+3. **Configure Environment**
+   - This project uses a `.env` file to manage environment variables for local development.
+   - Create a file named `.env` in the root of your project and add the following content. You will need to fill in the values from your Supabase and Google AI accounts.
+   ```env
+   # Supabase
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+   # AI/ML
+   VITE_GOOGLE_AI_API_KEY=your_google_ai_api_key
 
-## How can I deploy this project?
+   # External APIs (Optional, for specific features)
+   VITE_BLS_API_KEY=your_bls_api_key
+   VITE_CENSUS_API_KEY=your_census_api_key
+   ```
+   - The Vite development server will automatically load these variables.
+   - **Note**: For production and deployed Supabase Edge Functions, these variables should be configured as secrets in the Supabase dashboard. The `.env` file is for local development only and should be added to your `.gitignore` file.
 
-Simply open [Lovable](https://lovable.dev/projects/2fd69137-9a62-4bb9-9eb5-f8eb5465a677) and click on Share -> Publish.
+4. **Start Development Server**
+   ```bash
+   yarn dev
+   ```
 
-## Can I connect a custom domain to my Lovable project?
+5. **Access the Application**
+   - Open http://localhost:8080
+   - The app will load with full functionality
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Production Deployment
+The application can be deployed using Lovable's built-in deployment or any static hosting service.

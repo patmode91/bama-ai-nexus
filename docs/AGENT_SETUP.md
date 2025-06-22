@@ -18,7 +18,7 @@ The BAMA AI Nexus uses a Multi-Agent Collaborative Protocol (MCP) system with th
 Before setting up the agents, ensure you have:
 
 - Node.js 18+ installed
-- The project running locally (`npm run dev`)
+- The project running locally (`yarn dev`)
 - Supabase project configured
 - Google AI API key configured
 
@@ -255,7 +255,7 @@ location.reload();
 ## Development Workflow
 
 ### 1. Local Testing Flow
-1. Start development server: `npm run dev`
+1. Start development server: `yarn dev`
 2. Open browser to `http://localhost:8080`
 3. Open browser DevTools
 4. Test agents through UI or console

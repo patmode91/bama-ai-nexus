@@ -134,7 +134,7 @@ BAMA AI Nexus is a comprehensive AI-powered business directory and intelligence 
 ## Setup and Installation
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 18+ and yarn
 - Git
 - Supabase account (for backend)
 - Google AI API key (for AI features)
@@ -149,7 +149,7 @@ BAMA AI Nexus is a comprehensive AI-powered business directory and intelligence 
 
 2. **Install Dependencies**
    ```bash
-   npm install
+   yarn install
    ```
 
 3. **Configure Environment**
@@ -158,7 +158,7 @@ BAMA AI Nexus is a comprehensive AI-powered business directory and intelligence 
 
 4. **Start Development Server**
    ```bash
-   npm run dev
+   yarn dev
    ```
 
 5. **Access the Application**
@@ -167,4 +167,3 @@ BAMA AI Nexus is a comprehensive AI-powered business directory and intelligence 
 
 ### Production Deployment
 The application can be deployed using Lovable's built-in deployment or any static hosting service.
-
