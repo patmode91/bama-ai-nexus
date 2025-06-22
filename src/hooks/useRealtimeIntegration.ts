@@ -61,10 +61,13 @@ export const useRealtimeIntegration = (
   const updateMetrics = useCallback(() => {
     const startTime = performance.now();
     
-    // Measure connection latency with a ping
+    // Measure connection latency with a system event instead of ping
     broadcast({
-      type: 'ping',
-      data: { timestamp: Date.now() }
+      type: 'system_alert',
+      data: { 
+        message: 'performance_check',
+        timestamp: Date.now() 
+      }
     });
 
     const endTime = performance.now();
