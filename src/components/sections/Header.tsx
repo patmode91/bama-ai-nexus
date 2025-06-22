@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -20,6 +21,7 @@ const Header = () => {
     { label: 'Home', href: '/' },
     { label: 'Directory', href: '/directory' },
     { label: 'AI Search', href: '/ai-search' },
+    { label: 'AI Agents', href: '/ai-agents' },
     { label: 'Events', href: '/events' },
     { label: 'Forum', href: '/forum' },
     { label: 'Analytics', href: '/analytics' },

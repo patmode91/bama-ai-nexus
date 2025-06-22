@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -43,6 +44,7 @@ import Enterprise from "./pages/Enterprise";
 import EnterpriseAnalytics from "./pages/EnterpriseAnalytics";
 import EnterpriseIntegrations from "./pages/EnterpriseIntegrations";
 import IntelligenceHub from "./pages/IntelligenceHub";
+import { AIAgentsPage } from "./pages/AIAgentsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +86,7 @@ const AppContent: React.FC = () => {
               <Route path="/business-profile" element={<BusinessProfile />} />
               <Route path="/advanced-search" element={<AdvancedSearch />} />
               <Route path="/ai-search" element={<AISearch />} />
+              <Route path="/ai-agents" element={<AIAgentsPage />} />
               <Route path="/community" element={<Community />} />
               <Route path="/integrations" element={<Integrations />} />
               <Route path="/compare" element={<ComparisonPage />} />

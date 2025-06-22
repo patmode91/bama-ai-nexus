@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Search, Building2, Users, Menu, Home, Phone, Info, User, Brain } from 'lucide-react';
+import { Search, Building2, Users, Menu, Home, Phone, Info, User, Brain, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,8 +28,8 @@ const MobileNavigation = () => {
   const navItems = [
     { id: 'home', label: 'Home', icon: Home, action: () => navigate('/') },
     { id: 'ai-search', label: 'AI Search', icon: Brain, action: () => navigate('/ai-search') },
-    { id: 'directory', label: 'Directory', icon: Building2, action: () => navigate('/#directory') },
-    { id: 'about', label: 'About', icon: Info, action: () => navigate('/about') },
+    { id: 'ai-agents', label: 'AI Agents', icon: Bot, action: () => navigate('/ai-agents') },
+    { id: 'directory', label: 'Directory', icon: Building2, action: () => navigate('/directory') },
     ...(user ? [
       { id: 'profile', label: 'Profile', icon: User, action: () => navigate('/profile') }
     ] : [
@@ -45,19 +45,19 @@ const MobileNavigation = () => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 md:hidden z-50">
       <div className="flex items-center justify-around py-2">
-        {navItems.slice(0, 4).map((item) => (
+        {navItems.slice(0, 5).map((item) => (
           <Button
             key={item.id}
             variant="ghost"
             size="sm"
             onClick={() => handleNavClick(item)}
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 ${
+            className={`flex flex-col items-center gap-1 h-auto py-2 px-2 ${
               activeTab === item.id
                 ? 'text-[#00C2FF] bg-[#00C2FF]/10'
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            <item.icon className="w-5 h-5" />
+            <item.icon className="w-4 h-4" />
             <span className="text-xs">{item.label}</span>
           </Button>
         ))}
