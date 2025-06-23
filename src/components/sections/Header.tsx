@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,7 +23,7 @@ import {
 import { Menu } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const toggleMobileMenu = () => {
@@ -70,8 +71,8 @@ const Header: React.FC = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-8 p-0">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatarUrl} alt={user.name} />
-                      <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || user.email} />
+                      <AvatarFallback>{user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
@@ -84,7 +85,7 @@ const Header: React.FC = () => {
                     <Link to="/business-profile">Business Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => logout()}>Logout</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => signOut()}>Logout</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -147,7 +148,7 @@ const Header: React.FC = () => {
                     <Link to="/profile" className="text-gray-300 hover:text-white transition-colors block py-2">
                       Profile
                     </Link>
-                    <Button variant="destructive" size="sm" className="w-full" onClick={() => logout()}>
+                    <Button variant="destructive" size="sm" className="w-full" onClick={() => signOut()}>
                       Logout
                     </Button>
                   </>
