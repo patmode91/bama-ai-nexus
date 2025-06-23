@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -45,6 +44,7 @@ import EnterpriseAnalytics from "./pages/EnterpriseAnalytics";
 import EnterpriseIntegrations from "./pages/EnterpriseIntegrations";
 import IntelligenceHub from "./pages/IntelligenceHub";
 import { AIAgentsPage } from "./pages/AIAgentsPage";
+import Partnerships from "./pages/Partnerships";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,6 +98,7 @@ const AppContent: React.FC = () => {
               <Route path="/enterprise-analytics" element={<EnterpriseAnalytics />} />
               <Route path="/enterprise-integrations" element={<EnterpriseIntegrations />} />
               <Route path="/intelligence-hub" element={<IntelligenceHub />} />
+              <Route path="/partnerships" element={<Partnerships />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <MobileNavigation />
