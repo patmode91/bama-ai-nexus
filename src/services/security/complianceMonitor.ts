@@ -291,7 +291,7 @@ class ComplianceMonitor {
       case 'soc2-2':
         // Check system monitoring
         const rateLimitStats = rateLimiter.getStats();
-        updatedRequirement.status = rateLimitStats.length > 0 ? 'compliant' : 'partial';
+        updatedRequirement.status = rateLimitStats.length > 0 ? 'compliant' : 'partially_compliant';
         updatedRequirement.evidence = ['Rate limiting active', 'Security event logging enabled'];
         break;
 
