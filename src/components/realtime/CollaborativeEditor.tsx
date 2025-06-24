@@ -1,351 +1,250 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Users, Save, Eye, Edit3, Lock, Unlock } from 'lucide-react';
+import { useRealtime } from '@/hooks/useRealtime';
+import { 
+  Save, 
+  Users, 
+  Edit3, 
+  Clock,
+  Download,
+  Share2
+} from 'lucide-react';
 
-interface CollaboratorPresence {
-  user_id: string;
-  user_name: string;
-  user_avatar?: string;
-  cursor_position?: number;
-  last_seen: string;
-  is_typing: boolean;
+interface EditorUser {
+  id: string;
+  name: string;
+  avatar?: string;
+  cursor?: { line: number; column: number };
+  selection?: { start: number; end: number };
 }
 
 interface DocumentVersion {
   id: string;
-  title: string;
   content: string;
-  version: number;
-  author_id: string;
-  created_at: string;
-  is_published: boolean;
+  timestamp: number;
+  author: string;
+  changes: string;
 }
 
 const CollaborativeEditor = () => {
-  const [document, setDocument] = useState<DocumentVersion>({
-    id: 'doc1',
-    title: 'Alabama Business Directory - Community Guidelines',
-    content: `# Alabama Business Directory Community Guidelines
+  const [content, setContent] = useState('# Collaborative Document\n\nStart typing to collaborate in real-time...\n\n## Meeting Notes\n- \n- \n- \n\n## Action Items\n- [ ] \n- [ ] \n- [ ] ');
+  const [title, setTitle] = useState('Untitled Document');
+  const [activeUsers, setActiveUsers] = useState<EditorUser[]>([
+    { id: '1', name: 'You', avatar: undefined },
+    { id: '2', name: 'Sarah Johnson', cursor: { line: 3, column: 15 } },
+    { id: '3', name: 'Mike Davis', cursor: { line: 7, column: 8 } }
+  ]);
+  const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [lastSaved, setLastSaved] = useState<Date>(new Date());
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-## Welcome to Our Community
-
-Welcome to the Alabama Business Directory! We're building a vibrant ecosystem of Alabama businesses and professionals.
-
-## Community Standards
-
-### 1. Professional Conduct
-- Maintain professional communication
-- Respect diverse viewpoints and backgrounds
-- Focus on constructive business discussions
-
-### 2. Business Listings
-- Provide accurate and up-to-date information
-- Use appropriate categories and tags
-- Include relevant contact information
-
-### 3. Networking Etiquette
-- Be genuine in your networking efforts
-- Offer value before asking for help
-- Follow up on commitments
-
-## Getting Started
-
-1. Complete your business profile
-2. Join relevant industry groups
-3. Participate in community discussions
-4. Attend networking events
-
----
-
-*This document is collaboratively maintained by our community moderators.*`,
-    version: 1,
-    author_id: 'current_user',
-    created_at: new Date().toISOString(),
-    is_published: false
+  const { broadcast } = useRealtime({
+    channel: 'collaborative-editor',
+    eventTypes: ['content_change', 'cursor_move', 'user_join'],
+    onEvent: (event) => {
+      switch (event.type) {
+        case 'content_change':
+          setContent(event.data.content);
+          break;
+        case 'cursor_move':
+          setActiveUsers(prev => prev.map(user => 
+            user.id === event.data.userId 
+              ? { ...user, cursor: event.data.cursor }
+              : user
+          ));
+          break;
+        case 'user_join':
+          setActiveUsers(prev => [...prev, event.data.user]);
+          break;
+      }
+    }
   });
 
-  const [collaborators, setCollaborators] = useState<CollaboratorPresence[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date>(new Date());
-  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
-  const { toast } = useToast();
-
   useEffect(() => {
-    initializeEditor();
-    return () => {
-      leaveDocument();
-    };
-  }, []);
+    // Auto-save every 30 seconds
+    const interval = setInterval(() => {
+      handleAutoSave();
+    }, 30000);
 
-  const initializeEditor = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    return () => clearInterval(interval);
+  }, [content]);
 
-    // Subscribe to document changes
-    const documentChannel = supabase
-      .channel(`document_${document.id}`)
-      .on('broadcast', { event: 'document_update' }, (payload) => {
-        setDocument(payload.payload as DocumentVersion);
-        toast({
-          title: "Document updated",
-          description: "Someone else updated the document",
-        });
-      })
-      .on('broadcast', { event: 'document_lock' }, (payload) => {
-        setIsLocked(payload.payload.is_locked);
-        if (payload.payload.is_locked) {
-          toast({
-            title: "Document locked",
-            description: `Document locked by ${payload.payload.locked_by}`,
-            variant: "destructive"
-          });
-        }
-      })
-      .subscribe();
-
-    // Subscribe to collaborator presence
-    const presenceChannel = supabase
-      .channel(`presence_${document.id}`)
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        const collaboratorList: CollaboratorPresence[] = [];
-        
-        Object.entries(state).forEach(([key, presence]) => {
-          if (Array.isArray(presence) && presence.length > 0) {
-            const presenceData = presence[0] as any;
-            // Properly map the presence data to our interface
-            collaboratorList.push({
-              user_id: presenceData.user_id || key,
-              user_name: presenceData.user_name || 'Anonymous',
-              user_avatar: presenceData.user_avatar,
-              last_seen: presenceData.last_seen || new Date().toISOString(),
-              is_typing: presenceData.is_typing || false
-            });
-          }
-        });
-        
-        setCollaborators(collaboratorList);
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('User joined:', newPresences);
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log('User left:', leftPresences);
-      })
-      .subscribe();
-
-    // Track user presence
-    await presenceChannel.track({
-      user_id: user.id,
-      user_name: user.user_metadata?.full_name || 'Anonymous',
-      user_avatar: user.user_metadata?.avatar_url,
-      last_seen: new Date().toISOString(),
-      is_typing: false
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    
+    // Broadcast changes to other users
+    broadcast({
+      type: 'content_change',
+      data: { content: newContent, userId: 'current-user' }
     });
   };
 
-  const leaveDocument = async () => {
-    supabase.removeAllChannels();
+  const handleAutoSave = async () => {
+    setIsAutoSaving(true);
+    
+    // Simulate save delay
+    setTimeout(() => {
+      setLastSaved(new Date());
+      setIsAutoSaving(false);
+      
+      // Add to version history
+      const newVersion: DocumentVersion = {
+        id: Date.now().toString(),
+        content,
+        timestamp: Date.now(),
+        author: 'You',
+        changes: 'Auto-saved changes'
+      };
+      
+      setVersions(prev => [newVersion, ...prev.slice(0, 9)]); // Keep last 10 versions
+    }, 1000);
   };
 
-  const handleContentChange = useCallback((newContent: string) => {
-    setDocument(prev => ({ ...prev, content: newContent }));
-    
-    // Update typing indicator
-    updateTypingStatus(true);
-    
-    // Clear previous timeout
-    if (typingTimeout) {
-      clearTimeout(typingTimeout);
-    }
-    
-    // Set new timeout to stop typing indicator
-    const timeout = setTimeout(() => updateTypingStatus(false), 1000);
-    setTypingTimeout(timeout);
-  }, [typingTimeout]);
-
-  const updateTypingStatus = async (isTyping: boolean) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const channel = supabase.channel(`presence_${document.id}`);
-    await channel.track({
-      user_id: user.id,
-      user_name: user.user_metadata?.full_name || 'Anonymous',
-      user_avatar: user.user_metadata?.avatar_url,
-      last_seen: new Date().toISOString(),
-      is_typing: isTyping
-    });
+  const handleManualSave = () => {
+    handleAutoSave();
   };
 
-  const saveDocument = async () => {
-    const channel = supabase.channel(`document_${document.id}`);
-    const updatedDoc = {
-      ...document,
-      version: document.version + 1,
-      created_at: new Date().toISOString()
-    };
-    
-    await channel.send({
-      type: 'broadcast',
-      event: 'document_update',
-      payload: updatedDoc
-    });
-    
-    setDocument(updatedDoc);
-    setLastSaved(new Date());
-    toast({
-      title: "Document saved",
-      description: "Your changes have been saved successfully",
-    });
-  };
-
-  const toggleLock = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const channel = supabase.channel(`document_${document.id}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'document_lock',
-      payload: {
-        is_locked: !isLocked,
-        locked_by: user.user_metadata?.full_name || 'Anonymous'
-      }
-    });
-  };
-
-  const publishDocument = async () => {
-    const publishedDoc = { ...document, is_published: !document.is_published };
-    setDocument(publishedDoc);
-    
-    toast({
-      title: document.is_published ? "Document unpublished" : "Document published",
-      description: document.is_published 
-        ? "Document is now in draft mode" 
-        : "Document is now live for all users",
-    });
+  const exportDocument = () => {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/\s+/g, '_')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Edit3 className="w-5 h-5" />
-                <span>Collaborative Editor</span>
-              </CardTitle>
-              {document.is_published && (
-                <Badge variant="secondary">Published</Badge>
-              )}
-              {isLocked && (
-                <Badge variant="destructive" className="flex items-center space-x-1">
-                  <Lock className="w-3 h-3" />
-                  <span>Locked</span>
-                </Badge>
-              )}
+              <Edit3 className="w-5 h-5" />
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-lg font-semibold bg-transparent border-none p-0 h-auto"
+              />
             </div>
             
             <div className="flex items-center space-x-2">
-              {/* Collaborators */}
-              <div className="flex items-center space-x-2">
-                <div className="flex -space-x-2">
-                  {collaborators.slice(0, 3).map((collaborator) => (
-                    <Avatar key={collaborator.user_id} className="w-8 h-8 border-2 border-gray-900">
-                      <AvatarImage src={collaborator.user_avatar} />
-                      <AvatarFallback className="text-xs">
-                        {collaborator.user_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                  {collaborators.length > 3 && (
-                    <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-900 flex items-center justify-center">
-                      <span className="text-xs text-gray-300">+{collaborators.length - 3}</span>
-                    </div>
-                  )}
-                </div>
+              {isAutoSaving && (
                 <Badge variant="outline" className="text-xs">
-                  <Users className="w-3 h-3 mr-1" />
-                  {collaborators.length}
+                  Saving...
                 </Badge>
-              </div>
-              
-              {/* Actions */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleLock}
-                disabled={isLocked}
-              >
-                {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-              </Button>
-              
-              <Button variant="ghost" size="sm" onClick={saveDocument}>
-                <Save className="w-4 h-4 mr-2" />
-                Save
-              </Button>
-              
-              <Button size="sm" onClick={publishDocument}>
-                {document.is_published ? <Eye className="w-4 h-4 mr-2" /> : <Edit3 className="w-4 h-4 mr-2" />}
-                {document.is_published ? 'Unpublish' : 'Publish'}
-              </Button>
+              )}
+              <Badge variant="outline" className="text-xs flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Saved {lastSaved.toLocaleTimeString()}
+              </Badge>
             </div>
           </div>
           
-          <div className="flex items-center justify-between text-sm text-gray-400">
-            <div className="flex items-center space-x-4">
-              <span>Version {document.version}</span>
-              <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Users className="w-4 h-4" />
+              <div className="flex -space-x-2">
+                {activeUsers.slice(0, 5).map((user) => (
+                  <Avatar key={user.id} className="w-6 h-6 border-2 border-white">
+                    <AvatarImage src={user.avatar} />
+                    <AvatarFallback className="text-xs">
+                      {user.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {activeUsers.length > 5 && (
+                  <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center">
+                    <span className="text-xs text-gray-600">+{activeUsers.length - 5}</span>
+                  </div>
+                )}
+              </div>
             </div>
             
-            {/* Typing indicators */}
-            {collaborators.some(c => c.is_typing) && (
-              <div className="flex items-center space-x-1">
-                <div className="flex space-x-1">
-                  <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" />
-                  <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                </div>
-                <span className="text-xs">
-                  {collaborators.filter(c => c.is_typing).map(c => c.user_name).join(', ')} typing...
-                </span>
-              </div>
-            )}
+            <div className="flex space-x-2">
+              <Button variant="outline" size="sm" onClick={exportDocument}>
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm">
+                <Share2 className="w-4 h-4" />
+              </Button>
+              <Button size="sm" onClick={handleManualSave}>
+                <Save className="w-4 h-4 mr-1" />
+                Save
+              </Button>
+            </div>
           </div>
         </CardHeader>
-      </Card>
-
-      {/* Editor */}
-      <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-700">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <Input
-              value={document.title}
-              onChange={(e) => setDocument(prev => ({ ...prev, title: e.target.value }))}
-              className="text-xl font-semibold bg-gray-800 border-gray-600"
-              placeholder="Document title..."
-              disabled={isLocked}
-            />
+        
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Editor */}
+            <div className="lg:col-span-3">
+              <Textarea
+                value={content}
+                onChange={(e) => handleContentChange(e.target.value)}
+                className="min-h-[500px] font-mono text-sm bg-gray-800 border-gray-600 resize-none"
+                placeholder="Start typing your document..."
+              />
+            </div>
             
-            <Textarea
-              value={document.content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="min-h-[500px] font-mono bg-gray-800 border-gray-600"
-              placeholder="Start writing..."
-              disabled={isLocked}
-            />
+            {/* Sidebar */}
+            <div className="space-y-4">
+              {/* Active Users */}
+              <Card className="bg-gray-800 border-gray-600">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Active Users</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {activeUsers.map((user) => (
+                    <div key={user.id} className="flex items-center space-x-2">
+                      <Avatar className="w-5 h-5">
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback className="text-xs">
+                          {user.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{user.name}</span>
+                      {user.cursor && (
+                        <Badge variant="outline" className="text-xs">
+                          L{user.cursor.line}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+              
+              {/* Version History */}
+              <Card className="bg-gray-800 border-gray-600">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Version History</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {versions.map((version) => (
+                    <div key={version.id} className="p-2 bg-gray-700 rounded text-xs">
+                      <div className="font-medium">{version.author}</div>
+                      <div className="text-gray-400">
+                        {new Date(version.timestamp).toLocaleString()}
+                      </div>
+                      <div className="text-gray-300">{version.changes}</div>
+                    </div>
+                  ))}
+                  
+                  {versions.length === 0 && (
+                    <div className="text-xs text-gray-400 text-center py-4">
+                      No versions yet
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,41 +1,52 @@
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Wifi, WifiOff, Activity } from 'lucide-react';
-import { useRealtime } from '@/hooks/useRealtime';
+import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { realtimeService } from '@/services/realtime/realtimeService';
 
-const RealtimeStatusIndicator = () => {
-  const { connectionStatus, isConnected } = useRealtime({ 
-    channel: 'system-status',
-    enabled: true 
-  });
+const RealtimeStatusIndicator: React.FC = () => {
+  const [status, setStatus] = React.useState(realtimeService.getConnectionStatus());
 
-  const getStatusIcon = () => {
-    if (isConnected) {
-      return <Wifi className="w-3 h-3" />;
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setStatus(realtimeService.getConnectionStatus());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStatusConfig = () => {
+    switch (status) {
+      case 'connected':
+        return {
+          icon: <Wifi className="h-3 w-3" />,
+          label: 'Connected',
+          variant: 'default' as const,
+          className: 'bg-green-600 text-white'
+        };
+      case 'connecting':
+        return {
+          icon: <AlertCircle className="h-3 w-3" />,
+          label: 'Connecting...',
+          variant: 'secondary' as const,
+          className: 'bg-yellow-600 text-white'
+        };
+      default:
+        return {
+          icon: <WifiOff className="h-3 w-3" />,
+          label: 'Disconnected',
+          variant: 'destructive' as const,
+          className: 'bg-red-600 text-white'
+        };
     }
-    if (connectionStatus === 'connecting') {
-      return <Activity className="w-3 h-3 animate-spin" />;
-    }
-    return <WifiOff className="w-3 h-3" />;
   };
 
-  const getStatusVariant = () => {
-    if (isConnected) return 'default';
-    if (connectionStatus === 'connecting') return 'secondary';
-    return 'destructive';
-  };
-
-  const getStatusText = () => {
-    if (isConnected) return 'Live';
-    if (connectionStatus === 'connecting') return 'Connecting';
-    return 'Offline';
-  };
+  const config = getStatusConfig();
 
   return (
-    <Badge variant={getStatusVariant()} className="flex items-center space-x-1">
-      {getStatusIcon()}
-      <span className="text-xs">{getStatusText()}</span>
+    <Badge variant={config.variant} className={`flex items-center gap-1 ${config.className}`}>
+      {config.icon}
+      {config.label}
     </Badge>
   );
 };

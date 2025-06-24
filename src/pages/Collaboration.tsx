@@ -8,6 +8,7 @@ import LiveUserCounter from '@/components/realtime/LiveUserCounter';
 import RealtimeStatusIndicator from '@/components/realtime/RealtimeStatusIndicator';
 import CollaborativeEditor from '@/components/realtime/CollaborativeEditor';
 import LiveChat from '@/components/realtime/LiveChat';
+import NotificationCenter from '@/components/realtime/NotificationCenter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -18,7 +19,8 @@ import {
   Zap,
   Video,
   FileText,
-  Share2
+  Share2,
+  Bell
 } from 'lucide-react';
 
 const Collaboration = () => {
@@ -124,6 +126,10 @@ const Collaboration = () => {
                 <Building2 className="w-4 h-4" />
                 <span>Business Feed</span>
               </TabsTrigger>
+              <TabsTrigger value="notifications" className="flex items-center space-x-2">
+                <Bell className="w-4 h-4" />
+                <span>Notifications</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="workspace" className="space-y-6">
@@ -181,6 +187,10 @@ const Collaboration = () => {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="notifications" className="space-y-6">
+              <NotificationCenter />
             </TabsContent>
           </Tabs>
         </div>
