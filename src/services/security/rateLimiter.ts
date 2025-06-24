@@ -15,6 +15,13 @@ export interface RateLimitAttempt {
   endpoint: string;
 }
 
+export interface RateLimitStats {
+  action: string;
+  rule: RateLimitRule;
+  activeKeys: number;
+  attempts: RateLimitAttempt[];
+}
+
 class RateLimiter {
   private static instance: RateLimiter;
   private attempts: Map<string, RateLimitAttempt[]> = new Map();
@@ -130,12 +137,30 @@ class RateLimiter {
     }
   }
 
-  getStats(): RateLimitAttempt[] {
-    const allAttempts: RateLimitAttempt[] = [];
-    for (const attempts of this.attempts.values()) {
-      allAttempts.push(...attempts);
+  getStats(): RateLimitStats[] {
+    const stats: RateLimitStats[] = [];
+    
+    for (const [action, rule] of this.rules.entries()) {
+      const activeKeys = Array.from(this.attempts.keys()).filter(key => 
+        key.split(':')[1] === action
+      ).length;
+      
+      const attempts: RateLimitAttempt[] = [];
+      for (const [key, keyAttempts] of this.attempts.entries()) {
+        if (key.split(':')[1] === action) {
+          attempts.push(...keyAttempts);
+        }
+      }
+      
+      stats.push({
+        action,
+        rule,
+        activeKeys,
+        attempts
+      });
     }
-    return allAttempts;
+    
+    return stats;
   }
 
   addRule(endpoint: string, rule: RateLimitRule): void {

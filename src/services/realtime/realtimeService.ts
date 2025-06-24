@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { logger } from '../loggerService';
@@ -9,8 +8,11 @@ export type RealtimeEventType =
   | 'review_added'
   | 'user_activity'
   | 'system_alert'
-  | 'chat_message'
-  | 'broadcast'; // Added broadcast as a valid type
+  | 'content_change'
+  | 'cursor_move'
+  | 'user_join'
+  | 'message_sent'
+  | 'notification';
 
 export interface RealtimeEvent {
   id: string;
