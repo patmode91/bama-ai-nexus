@@ -12,7 +12,9 @@ export type RealtimeEventType =
   | 'cursor_move'
   | 'user_join'
   | 'message_sent'
-  | 'notification';
+  | 'notification'
+  | 'broadcast'
+  | 'chat_message';
 
 export interface RealtimeEvent {
   id: string;
