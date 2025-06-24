@@ -1,6 +1,7 @@
 import { intelligenceHubService } from './intelligenceHubService';
 import { businessStateManager } from '../stateManager';
 import { logger } from '../loggerService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PredictiveModel {
   id: string;
@@ -204,25 +205,39 @@ class OracleAgent {
   }
 
   private async predictBusinessGrowth(): Promise<void> {
-    const businessState = businessStateManager.getState();
-    const topBusinesses = businessState.businesses.slice(0, 10);
+    try {
+      // Fetch businesses directly from Supabase
+      const { data: businesses, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .limit(10);
 
-    for (const business of topBusinesses) {
-      const prediction = this.generateGrowthPrediction(business);
-      
-      if (prediction.confidence > 0.8) {
-        this.addInsight({
-          id: `growth_${business.id}_${Date.now()}`,
-          type: 'prediction',
-          priority: prediction.predictedGrowth > 0.3 ? 'high' : 'medium',
-          title: `Growth Prediction: ${business.businessname}`,
-          description: `Predicted ${(prediction.predictedGrowth * 100).toFixed(1)}% growth`,
-          data: prediction,
-          confidence: prediction.confidence,
-          timestamp: Date.now(),
-          source: 'growth_predictor'
-        });
+      if (error) {
+        logger.error('Failed to fetch businesses for growth prediction', { error }, 'Oracle');
+        return;
       }
+
+      const topBusinesses = businesses || [];
+
+      for (const business of topBusinesses) {
+        const prediction = this.generateGrowthPrediction(business);
+        
+        if (prediction.confidence > 0.8) {
+          this.addInsight({
+            id: `growth_${business.id}_${Date.now()}`,
+            type: 'prediction',
+            priority: prediction.predictedGrowth > 0.3 ? 'high' : 'medium',
+            title: `Growth Prediction: ${business.businessname}`,
+            description: `Predicted ${(prediction.predictedGrowth * 100).toFixed(1)}% growth`,
+            data: prediction,
+            confidence: prediction.confidence,
+            timestamp: Date.now(),
+            source: 'growth_predictor'
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error in predictBusinessGrowth', { error }, 'Oracle');
     }
   }
 
@@ -400,12 +415,25 @@ class OracleAgent {
     return this.createMarketForecast(sector);
   }
 
-  predictGrowth(businessId: number): BusinessGrowthPrediction | null {
-    const businessState = businessStateManager.getState();
-    const business = businessState.businesses.find(b => b.id === businessId);
-    
-    if (!business) return null;
-    return this.generateGrowthPrediction(business);
+  async predictGrowth(businessId: number): Promise<BusinessGrowthPrediction | null> {
+    try {
+      // Fetch specific business from Supabase
+      const { data: business, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', businessId)
+        .single();
+
+      if (error || !business) {
+        logger.error('Failed to fetch business for growth prediction', { error, businessId }, 'Oracle');
+        return null;
+      }
+
+      return this.generateGrowthPrediction(business);
+    } catch (error) {
+      logger.error('Error in predictGrowth', { error, businessId }, 'Oracle');
+      return null;
+    }
   }
 
   getModels(): PredictiveModel[] {
