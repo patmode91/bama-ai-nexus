@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,7 @@ import {
   Globe,
   Cpu,
   HardDrive,
-  Memory,
+  MemoryStick,
   Network,
   Zap,
   TrendingUp,
@@ -427,7 +426,7 @@ const EnhancedSystemMonitor: React.FC = () => {
             {[
               { name: 'Web Server', status: 'healthy', uptime: '99.9%', icon: Globe },
               { name: 'Database', status: 'healthy', uptime: '100%', icon: Database },
-              { name: 'Cache', status: 'warning', uptime: '98.5%', icon: Memory },
+              { name: 'Cache', status: 'warning', uptime: '98.5%', icon: MemoryStick },
               { name: 'Background Jobs', status: 'healthy', uptime: '99.7%', icon: Zap },
               { name: 'File Storage', status: 'healthy', uptime: '99.8%', icon: HardDrive },
               { name: 'Load Balancer', status: 'healthy', uptime: '100%', icon: Network }
