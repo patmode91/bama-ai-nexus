@@ -144,7 +144,7 @@ export const useEnhancedPWA = () => {
       return {
         quota: estimate.quota || 0,
         usage: estimate.usage || 0,
-        usageDetails: estimate.usageDetails || {}
+        // Remove usageDetails as it doesn't exist on StorageEstimate type
       };
     } catch (error) {
       console.error('Error getting storage estimate:', error);
@@ -162,7 +162,7 @@ export const useEnhancedPWA = () => {
         registration.showNotification(title, {
           icon: '/placeholder.svg',
           badge: '/placeholder.svg',
-          vibrate: [100, 50, 100],
+          // Remove vibrate as it's not a valid NotificationOptions property
           ...options
         });
       });

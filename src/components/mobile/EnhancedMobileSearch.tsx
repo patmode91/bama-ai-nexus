@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -53,7 +52,7 @@ const EnhancedMobileSearch: React.FC<EnhancedMobileSearchProps> = ({
   ]);
 
   const debouncedQuery = useDebounce(query, 300);
-  const { location } = useGeolocation();
+  const { latitude, longitude } = useGeolocation();
 
   const mockResults: SearchResult[] = [
     {
@@ -249,7 +248,7 @@ const EnhancedMobileSearch: React.FC<EnhancedMobileSearchProps> = ({
                             <Star className="w-3 h-3 fill-current text-yellow-500" />
                             <span>{result.rating}</span>
                           </div>
-                          {location && (
+                          {latitude && longitude && (
                             <div className="flex items-center space-x-1">
                               <MapPin className="w-3 h-3" />
                               <span>{result.distance} mi</span>

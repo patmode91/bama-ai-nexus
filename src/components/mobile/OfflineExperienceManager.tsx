@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,6 @@ import {
   AlertCircle,
   HardDrive,
   Clock,
-  Sync,
   X
 } from 'lucide-react';
 import { usePWA } from '@/hooks/usePWA';
