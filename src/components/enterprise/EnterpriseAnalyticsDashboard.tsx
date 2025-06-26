@@ -1,429 +1,416 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+  LineChart, 
+  Line, 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar
+} from 'recharts';
+import { 
   TrendingUp, 
+  TrendingDown, 
   DollarSign, 
-  Clock, 
   Users, 
-  Award,
-  FileText,
-  BarChart3,
+  Building2, 
+  Activity,
   Target,
   Zap,
-  ChevronUp,
-  ChevronDown,
-  Download,
-  Calendar
+  Brain,
+  Globe,
+  Calendar,
+  Download
 } from 'lucide-react';
-import { useAnalytics } from '@/hooks/useAnalytics';
-import { useEnterpriseAnalytics } from '@/hooks/useEnterpriseAnalytics';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#00C2FF', '#0EA5E9', '#3B82F6', '#6366F1', '#8B5CF6'];
+interface MetricCard {
+  title: string;
+  value: string;
+  change: number;
+  icon: React.ComponentType<any>;
+  color: string;
+}
 
-export const EnterpriseAnalyticsDashboard: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '12m'>('30d');
-  const { overview, generateReport, exportData } = useEnterpriseAnalytics();
-  const { metrics, userEngagement, benchmarks } = useAnalytics();
+const EnterpriseAnalyticsDashboard: React.FC = () => {
+  const [timeRange, setTimeRange] = useState('30d');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock enterprise-specific data - in real app, this would come from analytics service
-  const institutionalMetrics = {
-    researcherHoursSaved: 2847,
-    grantSuccessRate: 87.3,
-    grantIncreaseAmount: 2340000,
-    collaborationsEnabled: 156,
-    publicationsSupported: 89,
-    costPerResearcherHour: 12.50,
-    institutionROI: 340.2,
-    activeResearchers: 342,
-    averageProjectValue: 145000
-  };
-
-  const productivityData = [
-    { month: 'Jan', hoursSaved: 180, grants: 12, collaborations: 8 },
-    { month: 'Feb', hoursSaved: 220, grants: 15, collaborations: 12 },
-    { month: 'Mar', hoursSaved: 340, grants: 18, collaborations: 14 },
-    { month: 'Apr', hoursSaved: 290, grants: 22, collaborations: 16 },
-    { month: 'May', hoursSaved: 420, grants: 28, collaborations: 19 },
-    { month: 'Jun', hoursSaved: 380, grants: 24, collaborations: 21 }
+  const metricsData: MetricCard[] = [
+    {
+      title: 'Total Revenue',
+      value: '$2.4M',
+      change: 12.5,
+      icon: DollarSign,
+      color: 'text-green-500'
+    },
+    {
+      title: 'Active Users',
+      value: '24,657',
+      change: 8.2,
+      icon: Users,
+      color: 'text-blue-500'
+    },
+    {
+      title: 'Business Listings',
+      value: '1,234',
+      change: 15.3,
+      icon: Building2,
+      color: 'text-purple-500'
+    },
+    {
+      title: 'AI Interactions',
+      value: '89.2K',
+      change: 23.7,
+      icon: Brain,
+      color: 'text-orange-500'
+    }
   ];
 
-  const grantSuccessData = [
-    { name: 'Successful', value: 87, color: '#00C2FF' },
-    { name: 'Pending', value: 8, color: '#FCD34D' },
-    { name: 'Declined', value: 5, color: '#EF4444' }
+  const revenueData = [
+    { month: 'Jan', revenue: 65000, users: 1200 },
+    { month: 'Feb', revenue: 72000, users: 1350 },
+    { month: 'Mar', revenue: 68000, users: 1280 },
+    { month: 'Apr', revenue: 78000, users: 1450 },
+    { month: 'May', revenue: 85000, users: 1600 },
+    { month: 'Jun', revenue: 92000, users: 1750 },
+    { month: 'Jul', revenue: 88000, users: 1680 },
+    { month: 'Aug', revenue: 95000, users: 1820 },
+    { month: 'Sep', revenue: 105000, users: 1950 },
+    { month: 'Oct', revenue: 112000, users: 2100 },
+    { month: 'Nov', revenue: 118000, users: 2250 },
+    { month: 'Dec', revenue: 125000, users: 2400 }
   ];
 
-  const departmentROI = [
-    { department: 'Engineering', roi: 420, researchers: 89, hoursSaved: 1240 },
-    { department: 'Medicine', roi: 380, researchers: 67, hoursSaved: 890 },
-    { department: 'Computer Science', roi: 340, researchers: 45, hoursSaved: 760 },
-    { department: 'Physics', roi: 290, researchers: 34, hoursSaved: 520 },
-    { department: 'Chemistry', roi: 260, researchers: 28, hoursSaved: 440 }
+  const categoryData = [
+    { name: 'AI/ML', value: 35, color: '#00C2FF' },
+    { name: 'SaaS', value: 25, color: '#8B5CF6' },
+    { name: 'FinTech', value: 20, color: '#10B981' },
+    { name: 'HealthTech', value: 12, color: '#F59E0B' },
+    { name: 'EdTech', value: 8, color: '#EF4444' }
   ];
 
-  const handleExportReport = async () => {
-    const report = generateReport('performance', {
-      start: Date.now() - (30 * 24 * 60 * 60 * 1000),
-      end: Date.now()
-    });
-    
-    // Mock export functionality
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `enterprise-analytics-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const performanceData = [
+    { metric: 'API Response Time', value: 125, target: 200, unit: 'ms' },
+    { metric: 'System Uptime', value: 99.9, target: 99.5, unit: '%' },
+    { metric: 'User Satisfaction', value: 94, target: 90, unit: '%' },
+    { metric: 'Data Accuracy', value: 97.8, target: 95, unit: '%' }
+  ];
+
+  const exportData = () => {
+    setIsLoading(true);
+    // Simulate export
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Enterprise Analytics Dashboard</h1>
-            <p className="text-gray-400">B2B/B2I ROI metrics and institutional performance insights</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <select 
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as any)}
-              className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded-lg"
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="12m">Last 12 months</option>
-            </select>
-            <Button onClick={handleExportReport} className="bg-[#00C2FF] hover:bg-[#00A8D8]">
-              <Download className="w-4 h-4 mr-2" />
-              Export Report
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Enterprise Analytics</h1>
+          <p className="text-gray-400 mt-1">Comprehensive business intelligence and performance metrics</p>
         </div>
-
-        {/* Key ROI Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Researcher Hours Saved</p>
-                  <p className="text-2xl font-bold text-white">{institutionalMetrics.researcherHoursSaved.toLocaleString()}</p>
-                  <p className="text-green-400 text-sm flex items-center">
-                    <ChevronUp className="w-3 h-3 mr-1" />
-                    +23% vs last period
-                  </p>
-                </div>
-                <div className="bg-[#00C2FF]/20 p-3 rounded-lg">
-                  <Clock className="w-6 h-6 text-[#00C2FF]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Grant Success Rate</p>
-                  <p className="text-2xl font-bold text-white">{institutionalMetrics.grantSuccessRate}%</p>
-                  <p className="text-green-400 text-sm flex items-center">
-                    <ChevronUp className="w-3 h-3 mr-1" />
-                    +15% improvement
-                  </p>
-                </div>
-                <div className="bg-green-500/20 p-3 rounded-lg">
-                  <Award className="w-6 h-6 text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Grant Funding Increase</p>
-                  <p className="text-2xl font-bold text-white">${(institutionalMetrics.grantIncreaseAmount / 1000000).toFixed(1)}M</p>
-                  <p className="text-green-400 text-sm flex items-center">
-                    <ChevronUp className="w-3 h-3 mr-1" />
-                    +$450K this quarter
-                  </p>
-                </div>
-                <div className="bg-green-500/20 p-3 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Institution ROI</p>
-                  <p className="text-2xl font-bold text-white">{institutionalMetrics.institutionROI}%</p>
-                  <p className="text-green-400 text-sm flex items-center">
-                    <ChevronUp className="w-3 h-3 mr-1" />
-                    Exceeds target by 140%
-                  </p>
-                </div>
-                <div className="bg-purple-500/20 p-3 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-purple-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center space-x-3">
+          <select 
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="bg-gray-800 border border-gray-600 text-white rounded-lg px-3 py-2"
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+            <option value="1y">Last year</option>
+          </select>
+          <Button onClick={exportData} disabled={isLoading}>
+            <Download className="w-4 h-4 mr-2" />
+            {isLoading ? 'Exporting...' : 'Export'}
+          </Button>
         </div>
+      </div>
 
-        <Tabs defaultValue="productivity" className="space-y-6">
-          <TabsList className="bg-gray-800 w-full">
-            <TabsTrigger value="productivity" className="flex-1">Productivity Impact</TabsTrigger>
-            <TabsTrigger value="grants" className="flex-1">Grant Performance</TabsTrigger>
-            <TabsTrigger value="departments" className="flex-1">Department Analysis</TabsTrigger>
-            <TabsTrigger value="benchmarks" className="flex-1">Industry Benchmarks</TabsTrigger>
-          </TabsList>
+      {/* Key Metrics */}
+      <div className="grid md:grid-cols-4 gap-4">
+        {metricsData.map((metric, index) => (
+          <Card key={index} className="bg-gray-800 border-gray-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">{metric.title}</p>
+                  <p className="text-2xl font-bold text-white mt-1">{metric.value}</p>
+                  <div className="flex items-center mt-2">
+                    {metric.change > 0 ? (
+                      <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-red-500 mr-1" />
+                    )}
+                    <span className={`text-sm ${metric.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {metric.change > 0 ? '+' : ''}{metric.change}%
+                    </span>
+                  </div>
+                </div>
+                <div className={`p-3 rounded-lg bg-gray-700`}>
+                  <metric.icon className={`w-6 h-6 ${metric.color}`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          <TabsContent value="productivity" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Tabs defaultValue="revenue" className="space-y-4">
+        <TabsList className="bg-gray-800 border-gray-700">
+          <TabsTrigger value="revenue">Revenue Analytics</TabsTrigger>
+          <TabsTrigger value="users">User Analytics</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="insights">AI Insights</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="revenue" className="space-y-6">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
-                  <CardTitle className="text-white">Research Productivity Trends</CardTitle>
+                  <CardTitle className="text-white">Revenue Trend</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={{}} className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={productivityData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis dataKey="month" stroke="#9CA3AF" />
-                        <YAxis stroke="#9CA3AF" />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="hoursSaved" stroke="#00C2FF" strokeWidth={3} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Cost-Benefit Analysis</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-gray-700/50 p-4 rounded-lg">
-                    <h4 className="text-white font-medium mb-2">Monthly Subscription Cost</h4>
-                    <p className="text-2xl font-bold text-white">$12,500</p>
-                    <p className="text-sm text-gray-400">Enterprise Plan for 342 researchers</p>
-                  </div>
-                  
-                  <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20">
-                    <h4 className="text-green-400 font-medium mb-2">Value Generated</h4>
-                    <p className="text-2xl font-bold text-green-400">$42,600</p>
-                    <p className="text-sm text-gray-400">Based on {institutionalMetrics.researcherHoursSaved} hours saved @ ${institutionalMetrics.costPerResearcherHour}/hour</p>
-                  </div>
-
-                  <div className="bg-[#00C2FF]/10 p-4 rounded-lg border border-[#00C2FF]/20">
-                    <h4 className="text-[#00C2FF] font-medium mb-2">Net ROI</h4>
-                    <p className="text-2xl font-bold text-[#00C2FF]">{institutionalMetrics.institutionROI}%</p>
-                    <p className="text-sm text-gray-400">Monthly return on investment</p>
-                  </div>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={revenueData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="month" stroke="#9CA3AF" />
+                      <YAxis stroke="#9CA3AF" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1F2937', 
+                          border: '1px solid #374151',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#00C2FF" 
+                        fill="#00C2FF"
+                        fillOpacity={0.3}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Research Impact Metrics */}
+            
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white">Research Impact Metrics</CardTitle>
+                <CardTitle className="text-white">Revenue by Category</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-[#00C2FF] mb-2">{institutionalMetrics.collaborationsEnabled}</div>
-                    <div className="text-sm text-gray-400">Cross-institutional collaborations enabled</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-400 mb-2">{institutionalMetrics.publicationsSupported}</div>
-                    <div className="text-sm text-gray-400">Publications supported</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-400 mb-2">${(institutionalMetrics.averageProjectValue / 1000).toFixed(0)}K</div>
-                    <div className="text-sm text-gray-400">Average project value</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="grants" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Grant Success Distribution</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={{}} className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={grantSuccessData}
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          dataKey="value"
-                        >
-                          {grantSuccessData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Grant Funding Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={{}} className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={productivityData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis dataKey="month" stroke="#9CA3AF" />
-                        <YAxis stroke="#9CA3AF" />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="grants" fill="#00C2FF" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="departments" className="space-y-6">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Department Performance Analysis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {departmentROI.map((dept, index) => (
-                    <div key={dept.department} className="bg-gray-700/50 p-4 rounded-lg">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-white font-medium">{dept.department}</h4>
-                        <Badge className="bg-[#00C2FF] text-white">{dept.roi}% ROI</Badge>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2">
+                  {categoryData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-sm text-gray-300">{item.name}</span>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-400">Researchers: </span>
-                          <span className="text-white">{dept.researchers}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Hours Saved: </span>
-                          <span className="text-white">{dept.hoursSaved}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Value: </span>
-                          <span className="text-green-400">${(dept.hoursSaved * institutionalMetrics.costPerResearcherHour).toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <Progress value={(dept.roi / 500) * 100} className="mt-3" />
+                      <span className="text-sm text-white">{item.value}%</span>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="benchmarks" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Industry Benchmarks</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-gray-700/50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-400">Average Industry ROI</span>
-                      <span className="text-white">180%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Your Institution ROI</span>
-                      <span className="text-[#00C2FF] font-bold">{institutionalMetrics.institutionROI}%</span>
-                    </div>
-                    <Progress value={89} className="mt-2" />
-                    <p className="text-xs text-green-400 mt-1">89th percentile performance</p>
+        <TabsContent value="users" className="space-y-6">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">User Growth</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="month" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="users" 
+                    stroke="#8B5CF6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="performance" className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {performanceData.map((item, index) => (
+              <Card key={index} className="bg-gray-800 border-gray-700">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-white">{item.metric}</h3>
+                    <Badge variant={item.value >= item.target ? 'default' : 'destructive'}>
+                      {item.value >= item.target ? 'On Target' : 'Below Target'}
+                    </Badge>
                   </div>
-
-                  <div className="bg-gray-700/50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-400">Avg. Grant Success Rate</span>
-                      <span className="text-white">65%</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Current</span>
+                      <span className="text-white">{item.value}{item.unit}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Your Success Rate</span>
-                      <span className="text-green-400 font-bold">{institutionalMetrics.grantSuccessRate}%</span>
+                    <Progress 
+                      value={item.unit === '%' ? item.value : (item.value / item.target) * 100} 
+                      className="h-2"
+                    />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Target</span>
+                      <span className="text-gray-300">{item.target}{item.unit}</span>
                     </div>
-                    <Progress value={95} className="mt-2" />
-                    <p className="text-xs text-green-400 mt-1">Top 5% performance</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Performance Recommendations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="bg-[#00C2FF]/10 border border-[#00C2FF]/30 p-3 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Zap className="w-4 h-4 text-[#00C2FF]" />
-                      <span className="text-[#00C2FF] font-medium text-sm">High Impact</span>
-                    </div>
-                    <p className="text-xs text-gray-300">
-                      Expand AI agent usage to Chemistry dept for potential 40% ROI increase
-                    </p>
-                  </div>
-
-                  <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Target className="w-4 h-4 text-green-400" />
-                      <span className="text-green-400 font-medium text-sm">Optimization</span>
-                    </div>
-                    <p className="text-xs text-gray-300">
-                      Implement advanced collaboration features for 25% productivity boost
-                    </p>
-                  </div>
-
-                  <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <BarChart3 className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400 font-medium text-sm">Analytics</span>
-                    </div>
-                    <p className="text-xs text-gray-300">
-                      Enable detailed tracking for Physics dept to improve success metrics
-                    </p>
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="insights" className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-blue-500" />
+                  AI-Generated Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-blue-600/10 border border-blue-600/30 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <TrendingUp className="w-5 h-5 text-blue-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-white">Growth Opportunity</h4>
+                      <p className="text-sm text-gray-300 mt-1">
+                        AI/ML sector shows 35% growth potential. Consider increasing investment in this category.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-yellow-600/10 border border-yellow-600/30 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <Target className="w-5 h-5 text-yellow-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-white">Performance Alert</h4>
+                      <p className="text-sm text-gray-300 mt-1">
+                        API response time approaching threshold. Optimization recommended.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-green-600/10 border border-green-600/30 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <Zap className="w-5 h-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-white">Success Pattern</h4>
+                      <p className="text-sm text-gray-300 mt-1">
+                        User engagement peaks at 2-4 PM. Schedule content accordingly.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-purple-500" />
+                  Predictive Analytics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-400">Revenue Forecast (Next Month)</span>
+                      <span className="text-sm text-white">$135K (+8%)</span>
+                    </div>
+                    <Progress value={78} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-400">User Growth Forecast</span>
+                      <span className="text-sm text-white">2,650 (+10.4%)</span>
+                    </div>
+                    <Progress value={82} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-400">Market Expansion</span>
+                      <span className="text-sm text-white">High Confidence</span>
+                    </div>
+                    <Progress value={91} className="h-2" />
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-gray-900 rounded-lg">
+                  <h4 className="font-medium text-white mb-2">Key Recommendations</h4>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• Focus on AI/ML business acquisitions</li>
+                    <li>• Optimize server infrastructure</li>
+                    <li>• Expand marketing in Q1 2024</li>
+                    <li>• Implement advanced analytics features</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

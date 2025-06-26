@@ -48,6 +48,7 @@ import Partnerships from "./pages/Partnerships";
 import Oracle from "./pages/Oracle";
 import AgentSDK from "./pages/AgentSDK";
 import Security from "./pages/Security";
+import AdvancedFeatures from "./pages/AdvancedFeatures";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +106,7 @@ const AppContent: React.FC = () => {
               <Route path="/agent-sdk" element={<AgentSDK />} />
               <Route path="/partnerships" element={<Partnerships />} />
               <Route path="/security" element={<Security />} />
+              <Route path="/advanced-features" element={<AdvancedFeatures />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <MobileNavigation />

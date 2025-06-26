@@ -172,6 +172,27 @@ const Index = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Advanced Features CTA */}
+          <div className="text-center">
+            <Card className="bg-gradient-to-r from-[#00C2FF]/10 to-purple-600/10 border-[#00C2FF]/30 max-w-2xl mx-auto">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+                  <Sparkles className="w-6 h-6 text-[#00C2FF]" />
+                  Unlock Advanced Features
+                </h3>
+                <p className="text-gray-300 mb-4">
+                  Explore enterprise-grade AI agent management, real-time collaboration, and advanced analytics
+                </p>
+                <Button 
+                  onClick={() => navigate('/advanced-features')} 
+                  className="bg-gradient-to-r from-[#00C2FF] to-purple-600 hover:from-[#00A8D8] hover:to-purple-500"
+                >
+                  Explore Advanced Features
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 
